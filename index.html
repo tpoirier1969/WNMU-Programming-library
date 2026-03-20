@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU-TV Programming</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="setupNotice" class="setup-notice hidden">
+    <div class="setup-card">
+      <h1>WNMU-TV Programming</h1>
+      <p>Create <code>web/config.js</code> from <code>web/config.example.js</code>, then add your Supabase URL and anon key.</p>
+      <p>The app will wake up after that.</p>
+    </div>
+  </div>
+
+  <div id="authShell" class="auth-shell hidden">
+    <div class="auth-card">
+      <div class="brand-auth">
+        <img src="WNMU-TV-logo-head2019.png" alt="WNMU-TV PBS logo" class="brand-logo auth-logo" />
+        <div>
+          <h1 id="authTitle">WNMU-TV PBS</h1>
+          <div class="brand-subtitle">PROGRAMMING</div>
+        </div>
+      </div>
+      <p class="muted">Sign in with a Supabase email/password account.</p>
+      <form id="loginForm" class="auth-form">
+        <label>Email <input id="loginEmail" type="email" autocomplete="username" required /></label>
+        <label>Password <input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+        <button type="submit" class="primary">Sign in</button>
+      </form>
+      <div id="authMessage" class="auth-message"></div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <img src="WNMU-TV-logo-head2019.png" alt="WNMU-TV PBS logo" class="brand-logo" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1 id="appTitle">PROGRAMMING</h1>
+            <span id="appVersion" class="version-pill hidden"></span>
+          </div>
+          <div id="statusLine" class="status-line">Loading…</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="newProgramBtn" class="primary">New program</button>
+        <button id="exportBtn">Export current view</button>
+        <button id="refreshBtn">Refresh</button>
+        <button id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <section class="dashboard compact-dashboard">
+      <div class="stat-card"><div class="stat-label">Programs</div><div id="statPrograms" class="stat-value">0</div></div>
+      <div class="stat-card"><div class="stat-label">APT check</div><div id="statApt" class="stat-value">0</div></div>
+      <div class="stat-card"><div class="stat-label">Ending in 90 days</div><div id="statEnding" class="stat-value">0</div></div>
+      <div class="stat-card"><div class="stat-label">Expired</div><div id="statExpired" class="stat-value">0</div></div>
+      <div class="stat-card"><div class="stat-label">Archived</div><div id="statArchived" class="stat-value">0</div></div>
+    </section>
+
+    <section class="controls compact-controls">
+      <div class="search-block">
+        <label class="filter-label" for="searchInput">Search</label>
+        <input id="searchInput" type="search" placeholder="Search title, notes, code, NOLA/EIDR…" />
+      </div>
+      <div class="filters filters-grid">
+        <div class="filter-box wide">
+          <label class="filter-label" for="topicFilter">Topics</label>
+          <select id="topicFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box">
+          <label class="filter-label" for="lengthFilter">Lengths</label>
+          <select id="lengthFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box">
+          <label class="filter-label" for="distributorFilter">Distributor</label>
+          <select id="distributorFilter"><option value="">All distributors</option></select>
+        </div>
+        <div class="filter-box">
+          <label class="filter-label" for="programTypeFilter">Type</label>
+          <select id="programTypeFilter"><option value="">All types</option></select>
+        </div>
+        <div class="filter-box">
+          <label class="filter-label" for="statusFilter">Status</label>
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="needs_apt_check">Needs APT check</option>
+            <option value="ending_soon">Ending within 90 days</option>
+            <option value="expired">Expired</option>
+            <option value="new_to_13_1">New to 13.1</option>
+            <option value="new_to_13_3">New to 13.3</option>
+            <option value="archive_candidate">Archive candidate</option>
+            <option value="no_end_date">No end date</option>
+          </select>
+        </div>
+        <label class="checkbox filter-box checkbox-box"><input id="showArchived" type="checkbox" /> Show archived</label>
+      </div>
+      <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics or lengths.</div>
+    </section>
+
+    <section class="saved-views">
+      <button data-view="active" class="view-chip active">Active</button>
+      <button data-view="needs_apt_check" class="view-chip">Needs APT review</button>
+      <button data-view="ending_soon" class="view-chip">Ending in 90 days</button>
+      <button data-view="expired" class="view-chip">Expired</button>
+      <button data-view="new_to_13_1" class="view-chip">New to 13.1</button>
+      <button data-view="new_to_13_3" class="view-chip">New to 13.3</button>
+      <button data-view="archived" class="view-chip">Archived</button>
+    </section>
+
+    <section class="content-grid single-pane">
+      <div class="table-wrap">
+        <table class="programs-table compact-table">
+          <thead>
+            <tr>
+              <th class="col-title">Title</th>
+              <th class="col-notes">Description</th>
+              <th>Topic</th>
+              <th>Length</th>
+              <th>Type</th>
+              <th>13.1</th>
+              <th>13.3</th>
+              <th>Vote</th>
+              <th>Rights end</th>
+              <th>Distributor</th>
+              <th>Flags</th>
+            </tr>
+          </thead>
+          <tbody id="programTableBody"></tbody>
+        </table>
+      </div>
+
+      <aside id="editorDrawer" class="drawer hidden">
+        <div class="drawer-header">
+          <h2 id="drawerTitle">Program</h2>
+          <button id="closeDrawerBtn" class="ghost">Close</button>
+        </div>
+
+        <form id="programForm" class="program-form">
+          <div class="form-grid">
+            <label>Code
+              <input name="legacy_code" type="text" />
+            </label>
+            <label>Title
+              <input name="title" type="text" required />
+            </label>
+
+            <label class="span-2">Notes
+              <textarea name="notes" rows="4"></textarea>
+            </label>
+
+            <label>Episode / Season
+              <input name="episode_season" type="text" />
+            </label>
+            <label>NOLA / EIDR
+              <input name="nola_eidr" type="text" />
+            </label>
+
+            <label>Program or Series
+              <select name="program_type"></select>
+            </label>
+            <label>Length
+              <input name="length_minutes" type="text" />
+            </label>
+
+            <label>Topic
+              <select name="topic"></select>
+            </label>
+            <label>Secondary topic
+              <select name="secondary_topic"></select>
+            </label>
+
+            <label>13.1
+              <input name="aired_13_1" type="text" placeholder="No, Yes, or date(s)" />
+            </label>
+            <label>13.3
+              <input name="aired_13_3" type="text" placeholder="No, Yes, or date(s)" />
+            </label>
+
+            <label>Vote
+              <select name="vote">
+                <option value=""></option>
+                <option value="Y">Y</option>
+                <option value="N">N</option>
+                <option value="M">M</option>
+              </select>
+            </label>
+            <label>Distributor
+              <select name="distributor"></select>
+            </label>
+
+            <label>Rights begin
+              <input name="rights_begin" type="date" />
+            </label>
+            <label>Rights end
+              <input name="rights_end" type="date" />
+            </label>
+
+            <label class="span-2">Rights notes
+              <textarea name="rights_notes" rows="2"></textarea>
+            </label>
+
+            <label>Package type
+              <select name="package_type"></select>
+            </label>
+            <label>Server / tape
+              <select name="server_tape"></select>
+            </label>
+
+            <label>Six
+              <input name="six" type="text" />
+            </label>
+
+            <label class="checkbox span-2">
+              <input name="exclude_from_auto_archive" type="checkbox" />
+              Keep this out of auto-archive even if the rights end date is near.
+            </label>
+
+            <label class="checkbox span-2">
+              <input name="is_archived" type="checkbox" />
+              Archived
+            </label>
+          </div>
+
+          <div id="formFlags" class="form-flags"></div>
+
+          <div class="drawer-actions">
+            <button type="submit" class="primary">Save</button>
+            <button type="button" id="duplicateBtn">Duplicate</button>
+            <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
+          </div>
+        </form>
+      </aside>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
