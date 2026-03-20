@@ -358,7 +358,8 @@ function activePrograms() {
   const status = els.statusFilter.value;
   const showArchived = els.showArchived.checked;
 
-  if (!showArchived && state.currentView !== 'archived') {
+  const allowArchivedInView = new Set(['archived', 'ending_soon']);
+  if (!showArchived && !allowArchivedInView.has(state.currentView)) {
     items = items.filter((item) => !item.is_archived);
   }
 
@@ -559,7 +560,7 @@ function renderTable() {
 function renderStats() {
   const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
   els.statApt.textContent = flags.filter((x) => !x.program.is_archived && x.flags.needsAptCheck).length.toLocaleString();
-  els.statEnding.textContent = flags.filter((x) => !x.program.is_archived && x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
+  els.statEnding.textContent = flags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
   els.statExpired.textContent = flags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
   els.statMissingRights.textContent = flags.filter((x) => !x.program.is_archived && x.flags.missingRights).length.toLocaleString();
   els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
