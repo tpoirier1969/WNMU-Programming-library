@@ -34,6 +34,7 @@ const els = {
   exportBtn: $('#exportBtn'),
   refreshBtn: $('#refreshBtn'),
   searchInput: $('#searchInput'),
+  searchFieldSelect: $('#searchFieldSelect'),
   topicFilter: $('#topicFilter'),
   secondaryTopicFilter: $('#secondaryTopicFilter'),
   distributorFilter: $('#distributorFilter'),
@@ -49,6 +50,7 @@ const els = {
   showArchived: $('#showArchived'),
   listSummary: $('#listSummary'),
   tableBody: $('#programTableBody'),
+  quickStrip: $('#quickStrip'),
   drawer: $('#editorDrawer'),
   drawerBackdrop: $('#drawerBackdrop'),
   drawerTitle: $('#drawerTitle'),
@@ -61,7 +63,8 @@ const els = {
   statEnding: $('#statEnding'),
   statExpired: $('#statExpired'),
   statMissingRights: $('#statMissingRights'),
-  statArchived: $('#statArchived')
+  statArchived: $('#statArchived'),
+  voteFieldWrap: $('#voteFieldWrap')
 };
 
 function hasValidConfig() {
@@ -127,7 +130,10 @@ async function init() {
   els.authTitle.textContent = appTitle;
   els.appTitle.textContent = appTitle;
 
-  state.supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+  const noStoreFetch = (input, init = {}) => fetch(input, { ...init, cache: 'no-store' });
+  state.supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+    global: { fetch: noStoreFetch }
+  });
   bindEvents();
 
   if (requireAuth()) {
@@ -324,6 +330,7 @@ function clearMultiSelect(selectEl) {
 
 function resetFilters() {
   els.searchInput.value = '';
+  els.searchFieldSelect.value = '';
   clearMultiSelect(els.codeFilter);
   clearMultiSelect(els.topicFilter);
   clearMultiSelect(els.secondaryTopicFilter);
@@ -332,7 +339,7 @@ function resetFilters() {
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
   state.currentView = 'active';
-  [...document.querySelectorAll('.view-chip')].forEach((chip) => chip.classList.toggle('active', chip.dataset.view === 'active'));
+  syncQuickViewState();
   els.showArchived.checked = false;
   renderTable();
   setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
@@ -341,6 +348,7 @@ function resetFilters() {
 function activePrograms() {
   let items = [...state.programs];
   const search = normalizeLower(els.searchInput.value);
+  const searchField = els.searchFieldSelect.value;
   const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
   const topics = selectedValues(els.topicFilter);
   const secondaryTopics = selectedValues(els.secondaryTopicFilter);
@@ -359,9 +367,13 @@ function activePrograms() {
   }
 
   if (search) {
-    items = items.filter((item) =>
-      [item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic].some((value) => normalizeLower(value).includes(search))
-    );
+    items = items.filter((item) => {
+      if (searchField) return normalizeLower(item[searchField]).includes(search);
+      return [
+        item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic,
+        item.aired_13_1, item.aired_13_3, item.distributor, item.rights_notes
+      ].some((value) => normalizeLower(value).includes(search));
+    });
   }
   if (codes.length) items = items.filter((item) => codes.includes(normalizeText(item.legacy_code).toUpperCase()));
   if (topics.length) items = items.filter((item) => topics.includes(item.topic));
@@ -398,6 +410,8 @@ function matchesView(program, view) {
       return flags.rightsStatus === 'No end date';
     case 'missing_rights':
       return flags.missingRights;
+    case 'missing_info':
+      return !normalizeText(program.notes) || !normalizeText(program.topic) || !normalizeText(program.length_minutes) || !normalizeText(program.program_type) || !normalizeText(program.aired_13_1) || !normalizeText(program.aired_13_3) || !normalizeText(program.distributor);
     case 'michigan':
       return michiganText.includes('michigan');
     default:
@@ -417,7 +431,6 @@ function badgesFor(program) {
   if (flags.needsAptCheck) badges.push({ label: 'APT check', cls: 'danger' });
   if (flags.rightsStatus === 'Ending soon') badges.push({ label: `Ends in ${flags.daysLeft}d`, cls: 'warn' });
   if (flags.rightsStatus === 'Expired') badges.push({ label: 'Expired', cls: 'danger' });
-  if (flags.rightsStatus === 'No end date') badges.push({ label: 'No end date', cls: 'info' });
   if (flags.missingRights) badges.push({ label: 'Missing rights', cls: 'warn' });
   if (flags.newTo131) badges.push({ label: 'New to 13.1', cls: 'info' });
   if (flags.newTo133) badges.push({ label: 'New to 13.3', cls: 'info' });
@@ -425,13 +438,46 @@ function badgesFor(program) {
   return badges;
 }
 
+function formatAiringTime(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  const match = text.match(/^(\d{1,2})(?:[:\s](\d{2}))?(?::\d{2})?\s*([ap]m)?$/i);
+  if (!match) return text;
+  let hours = Number(match[1]);
+  const minutes = match[2] || '00';
+  const meridiem = match[3] ? match[3].toLowerCase() : '';
+  if (meridiem === 'pm' && hours < 12) hours += 12;
+  if (meridiem === 'am' && hours === 12) hours = 0;
+  if (hours > 23) return text;
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+function formatAiringEntry(entry) {
+  const text = normalizeText(entry);
+  if (!text) return '';
+  const dateMatch = text.match(/^(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\s*(.*)$/);
+  if (!dateMatch) return text;
+  const datePart = dateMatch[1].replace(/-/g, '/');
+  const rest = normalizeText(dateMatch[2]);
+  if (!rest) return datePart;
+  const timeMatch = rest.match(/^(\d{1,2}(?:[:\s]\d{2})?(?::\d{2})?\s*(?:[ap]m)?)\s*(.*)$/i);
+  if (!timeMatch) return `${datePart} ${rest}`;
+  const timePart = formatAiringTime(timeMatch[1]);
+  const trailing = normalizeText(timeMatch[2]);
+  return [datePart, timePart, trailing].filter(Boolean).join(' ');
+}
+
 function formatAiringSegments(value) {
   const text = normalizeText(value);
   if (!text) return '';
-  const normalized = text.replace(/\r/g, '').replace(/\n+/g, '; ');
-  const parts = normalized.split(/\s*;\s*|\s*,\s*(?=\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}:\d{2}|\d{1,2}\s*[ap]m)/i).filter(Boolean);
-  if (parts.length <= 1) return `<div class="airing-item">${escapeHtml(text)}</div>`;
-  return parts.map((part) => `<div class="airing-item">${escapeHtml(part)}</div>`).join('');
+  const normalized = text
+    .replace(/\r/g, '')
+    .replace(/\n+/g, ';')
+    .replace(/\s*;\s*/g, ';')
+    .replace(/,\s*(?=\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/g, ';');
+  const rawParts = normalized.split(';').map((part) => normalizeText(part)).filter(Boolean);
+  const parts = rawParts.length ? rawParts : [text];
+  return parts.map((part) => `<div class="airing-item">${escapeHtml(formatAiringEntry(part))}</div>`).join('');
 }
 
 function formatRightsWindow(program) {
@@ -470,7 +516,7 @@ function renderTable() {
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
         <td>
           <div class="program-title">${escapeHtml(item.title || '')}</div>
-          <div class="program-sub">${escapeHtml(item.legacy_code || '')}${item.nola_eidr ? ' • ' + escapeHtml(item.nola_eidr) : ''}</div>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}</div>
         </td>
         <td>
           <div class="notes-cell">
@@ -517,6 +563,11 @@ function renderStats() {
   els.statExpired.textContent = flags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
   els.statMissingRights.textContent = flags.filter((x) => !x.program.is_archived && x.flags.missingRights).length.toLocaleString();
   els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
+  syncQuickViewState();
+}
+
+function syncQuickViewState() {
+  document.querySelectorAll('#quickStrip [data-view]').forEach((card) => card.classList.toggle('active', card.dataset.view === state.currentView));
 }
 
 function openEditor(id = null, duplicate = false) {
@@ -534,13 +585,14 @@ function openEditor(id = null, duplicate = false) {
   els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : item.title) : 'New program';
   form.dataset.programId = item?.id || '';
 
-  const fields = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','six'];
+  const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
   for (const field of fields) {
     form.elements[field].value = item?.[field] ?? '';
   }
   form.elements.exclude_from_auto_archive.checked = Boolean(item?.exclude_from_auto_archive);
   form.elements.is_archived.checked = Boolean(item?.is_archived);
 
+  updateVoteVisibility();
   renderFormFlags(item);
   renderTable();
 
@@ -553,6 +605,13 @@ function renderFormFlags(item) {
     return;
   }
   els.formFlags.innerHTML = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+}
+
+function updateVoteVisibility() {
+  const isApt = normalizeLower(els.programForm.elements.distributor.value) === 'apt';
+  els.voteFieldWrap.classList.toggle('hidden-field', !isApt);
+  els.programForm.elements.vote.disabled = !isApt;
+  if (!isApt) els.programForm.elements.vote.value = '';
 }
 
 function closeEditor() {
@@ -579,14 +638,13 @@ async function saveProgram(event) {
     secondary_topic: form.elements.secondary_topic.value || null,
     aired_13_1: form.elements.aired_13_1.value || null,
     aired_13_3: form.elements.aired_13_3.value || null,
-    vote: form.elements.vote.value || null,
+    vote: normalizeLower(form.elements.distributor.value) === 'apt' ? (form.elements.vote.value || null) : null,
     rights_begin: form.elements.rights_begin.value || null,
     rights_end: form.elements.rights_end.value || null,
     rights_notes: form.elements.rights_notes.value || null,
     package_type: form.elements.package_type.value || null,
     server_tape: form.elements.server_tape.value || null,
     distributor: form.elements.distributor.value || null,
-    six: form.elements.six.value || null,
     exclude_from_auto_archive: form.elements.exclude_from_auto_archive.checked,
     is_archived: form.elements.is_archived.checked
   };
@@ -644,7 +702,7 @@ async function deleteProgram() {
 
 function exportCurrentView() {
   const items = activePrograms();
-  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','six','is_archived','exclude_from_auto_archive'];
+  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive'];
   const lines = [columns.join(',')];
   for (const item of items) {
     lines.push(columns.map((col) => csvEscape(item[col])).join(','));
@@ -712,10 +770,12 @@ function bindEvents() {
     openEditor(id, true);
   });
 
-  [els.searchInput, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+  [els.searchInput, els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
     .forEach((el) => el.addEventListener('input', updateQueryStatus));
   [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
+
+  els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);
 
   els.clearCodeFilter?.addEventListener('click', () => {
     clearMultiSelect(els.codeFilter);
@@ -735,11 +795,11 @@ function bindEvents() {
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
 
-  $('.saved-views').addEventListener('click', (event) => {
+  els.quickStrip.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;
     state.currentView = btn.dataset.view;
-    [...document.querySelectorAll('.view-chip')].forEach((chip) => chip.classList.toggle('active', chip === btn));
+    syncQuickViewState();
     els.showArchived.checked = state.currentView === 'archived';
     updateQueryStatus();
   });

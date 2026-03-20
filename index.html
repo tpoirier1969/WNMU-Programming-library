@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=1.3.8" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -44,7 +44,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.3.6</span>
+            <span id="appVersion" class="version-pill">v1.3.8</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -57,18 +57,71 @@
       </div>
     </header>
 
-    <section class="dashboard compact-dashboard">
-      <div class="stat-card"><div class="stat-label">APT check</div><div id="statApt" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Ending in 90 days</div><div id="statEnding" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Expired</div><div id="statExpired" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Missing rights</div><div id="statMissingRights" class="stat-value">0</div></div>
-      <div class="stat-card"><div class="stat-label">Archived</div><div id="statArchived" class="stat-value">0</div></div>
+    <section class="quick-strip" id="quickStrip">
+      <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
+        <div class="stat-label">APT check</div>
+        <div id="statApt" class="stat-value">0</div>
+      </button>
+      <button type="button" class="stat-card quick-card" data-view="ending_soon">
+        <div class="stat-label">Ending in 90 days</div>
+        <div id="statEnding" class="stat-value">0</div>
+      </button>
+      <button type="button" class="stat-card quick-card" data-view="expired">
+        <div class="stat-label">Expired</div>
+        <div id="statExpired" class="stat-value">0</div>
+      </button>
+      <button type="button" class="stat-card quick-card" data-view="missing_rights">
+        <div class="stat-label">Missing rights</div>
+        <div id="statMissingRights" class="stat-value">0</div>
+      </button>
+      <button type="button" class="stat-card quick-card" data-view="archived">
+        <div class="stat-label">Archived</div>
+        <div id="statArchived" class="stat-value">0</div>
+      </button>
+      <button type="button" class="stat-card quick-card quick-view" data-view="active">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">Active</div>
+      </button>
+      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">New to 13.1</div>
+      </button>
+      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">New to 13.3</div>
+      </button>
+      <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">Michigan programming</div>
+      </button>
+      <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">Missing info</div>
+      </button>
     </section>
 
     <section class="controls compact-controls">
-      <div class="search-block">
-        <label class="filter-label" for="searchInput">Search</label>
-        <input id="searchInput" type="search" placeholder="Search title, description, code, NOLA/EIDR…" />
+      <div class="search-grid">
+        <div class="search-mode-wrap">
+          <label class="filter-label" for="searchFieldSelect">Search in</label>
+          <select id="searchFieldSelect">
+            <option value="">All fields</option>
+            <option value="title">Title</option>
+            <option value="notes">Description</option>
+            <option value="legacy_code">Code / bucket</option>
+            <option value="nola_eidr">NOLA / EIDR</option>
+            <option value="topic">Topic</option>
+            <option value="secondary_topic">Secondary topic</option>
+            <option value="aired_13_1">Aired on 13.1</option>
+            <option value="aired_13_3">Aired on 13.3</option>
+            <option value="distributor">Distributor</option>
+            <option value="rights_notes">Rights notes</option>
+          </select>
+        </div>
+        <div class="search-block">
+          <label class="filter-label" for="searchInput">Search text</label>
+          <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
+        </div>
       </div>
       <div class="filters filters-grid">
         <div class="filter-box wide">
@@ -106,26 +159,15 @@
             <option value="new_to_13_3">New to 13.3</option>
             <option value="archive_candidate">Archive candidate</option>
             <option value="missing_rights">Missing rights begin or end</option>
+            <option value="missing_info">Missing info</option>
           </select>
         </div>
         <label class="checkbox filter-box checkbox-box"><input id="showArchived" type="checkbox" /> Show archived</label>
       </div>
       <div class="filter-foot">
-        <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, or lengths.</div>
+        <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, lengths, or code values.</div>
         <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
       </div>
-    </section>
-
-    <section class="saved-views">
-      <button data-view="active" class="view-chip active">Active</button>
-      <button data-view="needs_apt_check" class="view-chip">Needs APT review</button>
-      <button data-view="ending_soon" class="view-chip">Ending in 90 days</button>
-      <button data-view="expired" class="view-chip">Expired</button>
-      <button data-view="new_to_13_1" class="view-chip">New to 13.1</button>
-      <button data-view="new_to_13_3" class="view-chip">New to 13.3</button>
-      <button data-view="missing_rights" class="view-chip">Missing rights</button>
-      <button data-view="michigan" class="view-chip">Michigan programming</button>
-      <button data-view="archived" class="view-chip">Archived</button>
     </section>
 
     <section class="list-panel">
@@ -165,11 +207,11 @@
 
     <form id="programForm" class="program-form">
       <div class="form-grid">
-        <label>Code
-          <input name="legacy_code" type="text" placeholder="AM250 or Y / N / M" />
-        </label>
-        <label>Title
+        <label class="span-title">Title
           <input name="title" type="text" required />
+        </label>
+        <label class="code-field">Code
+          <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
         </label>
 
         <label class="span-2">Description
@@ -198,22 +240,22 @@
         </label>
 
         <label>Aired on 13.1
-          <input name="aired_13_1" type="text" placeholder="3/20/26 8 PM; 3/22/26 1 PM" />
+          <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
         <label>Aired on 13.3
-          <input name="aired_13_3" type="text" placeholder="3/20/26 8 PM; 3/22/26 1 PM" />
+          <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
 
-        <label>Vote
+        <label>Distributor
+          <select name="distributor"></select>
+        </label>
+        <label id="voteFieldWrap">Vote
           <select name="vote">
             <option value=""></option>
             <option value="Y">Y</option>
             <option value="N">N</option>
             <option value="M">M</option>
           </select>
-        </label>
-        <label>Distributor
-          <select name="distributor"></select>
         </label>
 
         <label>Rights begin
@@ -230,12 +272,8 @@
         <label>Package type
           <select name="package_type"></select>
         </label>
-        <label>Server / tape
+        <label>sIX/Server/Tape/FTP
           <select name="server_tape"></select>
-        </label>
-
-        <label>Six
-          <input name="six" type="text" />
         </label>
 
         <label class="checkbox span-2">
@@ -259,6 +297,6 @@
     </form>
   </aside>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=1.3.8"></script>
 </body>
 </html>
