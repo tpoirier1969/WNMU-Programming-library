@@ -72,11 +72,11 @@
       </div>
       <div class="filters filters-grid">
         <div class="filter-box wide">
-          <label class="filter-label" for="topicFilter">Topics</label>
+          <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></div>
           <select id="topicFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
-          <label class="filter-label" for="lengthFilter">Lengths</label>
+          <div class="filter-label-row"><label class="filter-label" for="lengthFilter">Lengths</label><button type="button" id="clearLengthFilter" class="mini-clear">Clear</button></div>
           <select id="lengthFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
@@ -102,7 +102,10 @@
         </div>
         <label class="checkbox filter-box checkbox-box"><input id="showArchived" type="checkbox" /> Show archived</label>
       </div>
-      <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics or lengths.</div>
+      <div class="filter-foot">
+        <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics or lengths.</div>
+        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
+      </div>
     </section>
 
     <section class="saved-views">
@@ -122,8 +125,8 @@
             <tr>
               <th class="col-title">Title</th>
               <th class="col-notes">Description</th>
-              <th>Topic</th>
-              <th>Length</th>
+              <th class="col-topic">Topic</th>
+              <th class="col-length">Length</th>
               <th>Type</th>
               <th>13.1</th>
               <th>13.3</th>

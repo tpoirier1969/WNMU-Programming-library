@@ -39,6 +39,9 @@ const els = {
   programTypeFilter: $('#programTypeFilter'),
   lengthFilter: $('#lengthFilter'),
   statusFilter: $('#statusFilter'),
+  clearTopicFilter: $('#clearTopicFilter'),
+  clearLengthFilter: $('#clearLengthFilter'),
+  resetFiltersBtn: $('#resetFiltersBtn'),
   showArchived: $('#showArchived'),
   tableBody: $('#programTableBody'),
   drawer: $('#editorDrawer'),
@@ -201,8 +204,24 @@ async function loadLookups() {
   state.lookups.program_types = programTypes.length ? programTypes : uniqueLookupFromPrograms('program_type').map((name, index) => ({ name, sort_order: index + 1 }));
 }
 
+function parseLeadingNumber(value) {
+  const match = normalizeText(value).match(/\d+/);
+  return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+}
+
+function sortLengthValues(values) {
+  return [...values].sort((a, b) => {
+    const aNum = parseLeadingNumber(a);
+    const bNum = parseLeadingNumber(b);
+    if (aNum !== bNum) return aNum - bNum;
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 function uniqueLookupFromPrograms(field) {
-  return Array.from(new Set(state.programs.map(p => normalizeText(p[field])).filter(Boolean))).sort((a,b) => a.localeCompare(b));
+  const values = Array.from(new Set(state.programs.map(p => normalizeText(p[field])).filter(Boolean)));
+  if (field === 'length_minutes') return sortLengthValues(values);
+  return values.sort((a,b) => a.localeCompare(b));
 }
 
 function fillSelect(selectEl, items, includeBlank = true) {
@@ -225,7 +244,7 @@ function renderFilters() {
   fillSelect(els.topicFilter, state.lookups.topics, false);
   fillSelect(els.distributorFilter, state.lookups.distributors);
   fillSelect(els.programTypeFilter, state.lookups.program_types);
-  fillSelect(els.lengthFilter, uniqueLookupFromPrograms('length_minutes'), false);
+  fillSelect(els.lengthFilter, sortLengthValues(uniqueLookupFromPrograms('length_minutes')), false);
 
   const form = els.programForm;
   fillSelect(form.elements.program_type, state.lookups.program_types);
@@ -238,6 +257,22 @@ function renderFilters() {
 
 function selectedValues(selectEl) {
   return Array.from(selectEl.selectedOptions || []).map(opt => opt.value).filter(Boolean);
+}
+
+function clearMultiSelect(selectEl) {
+  Array.from(selectEl.options).forEach(opt => { opt.selected = false; });
+}
+
+function resetFilters() {
+  els.searchInput.value = '';
+  clearMultiSelect(els.topicFilter);
+  clearMultiSelect(els.lengthFilter);
+  els.distributorFilter.value = '';
+  els.programTypeFilter.value = '';
+  els.statusFilter.value = '';
+  els.showArchived.checked = state.currentView === 'archived';
+  renderTable();
+  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
 }
 
 function activePrograms() {
@@ -337,8 +372,8 @@ function renderTable() {
             <button type="button" class="copy-note-btn" data-copy-note="${item.id}">Copy</button>
           </div>
         </td>
-        <td>${item.topic ? `<span class="topic-chip" style="background:${topicColor(item.topic)}">${escapeHtml(item.topic)}</span>` : ''}</td>
-        <td>${escapeHtml(item.length_minutes || '')}</td>
+        <td class="topic-cell">${item.topic ? `<span class="topic-chip" style="background:${topicColor(item.topic)}">${escapeHtml(item.topic)}</span>` : ''}</td>
+        <td class="length-cell">${escapeHtml(item.length_minutes || '')}</td>
         <td>${escapeHtml(item.program_type || '')}</td>
         <td>${escapeHtml(item.aired_13_1 || '')}</td>
         <td>${escapeHtml(item.aired_13_3 || '')}</td>
@@ -578,6 +613,18 @@ function bindEvents() {
       setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
     }));
 
+  els.clearTopicFilter?.addEventListener('click', () => {
+    clearMultiSelect(els.topicFilter);
+    renderTable();
+    setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+  });
+  els.clearLengthFilter?.addEventListener('click', () => {
+    clearMultiSelect(els.lengthFilter);
+    renderTable();
+    setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+  });
+  els.resetFiltersBtn?.addEventListener('click', resetFilters);
+
   $('.saved-views').addEventListener('click', (event) => {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;
@@ -617,4 +664,4 @@ function bindEvents() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', init);document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', init);
