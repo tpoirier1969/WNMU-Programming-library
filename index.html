@@ -44,7 +44,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.3.4</span>
+            <span id="appVersion" class="version-pill">v1.3.6</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -84,8 +84,8 @@
           <select id="lengthFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
-          <label class="filter-label" for="codeFilter">Code / bucket</label>
-          <input id="codeFilter" type="text" placeholder="AM250 / Y / N / M" />
+          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Code / bucket</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
+          <select id="codeFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
           <label class="filter-label" for="distributorFilter">Distributor</label>
@@ -105,7 +105,6 @@
             <option value="new_to_13_1">New to 13.1</option>
             <option value="new_to_13_3">New to 13.3</option>
             <option value="archive_candidate">Archive candidate</option>
-            <option value="no_end_date">No rights end date</option>
             <option value="missing_rights">Missing rights begin or end</option>
           </select>
         </div>

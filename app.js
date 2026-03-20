@@ -40,6 +40,7 @@ const els = {
   programTypeFilter: $('#programTypeFilter'),
   lengthFilter: $('#lengthFilter'),
   codeFilter: $('#codeFilter'),
+  clearCodeFilter: $('#clearCodeFilter'),
   statusFilter: $('#statusFilter'),
   clearTopicFilter: $('#clearTopicFilter'),
   clearSecondaryTopicFilter: $('#clearSecondaryTopicFilter'),
@@ -170,19 +171,39 @@ async function attemptAutoArchive() {
   }
 }
 
-async function loadPrograms() {
-  const { data, error } = await state.supabase
-    .from('programs_enriched')
-    .select('*')
-    .order('title', { ascending: true });
 
-  if (error) {
+async function fetchAllRows(tableName, orderColumn = 'title') {
+  const pageSize = 1000;
+  let from = 0;
+  let allRows = [];
+
+  while (true) {
+    const { data, error } = await state.supabase
+      .from(tableName)
+      .select('*')
+      .order(orderColumn, { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    const rows = data || [];
+    allRows = allRows.concat(rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
+async function loadPrograms() {
+  try {
+    state.programs = await fetchAllRows('programs_enriched', 'title');
+  } catch (error) {
     console.error(error);
     setStatus(error.message);
     return;
   }
-
-  state.programs = data || [];
 }
 
 async function loadLookupTable(tableName) {
@@ -226,6 +247,33 @@ function sortLengthValues(values) {
   });
 }
 
+function sortCodeValues(values) {
+  const priority = ['AM250', 'Y', 'N', 'M', 'YES', 'NO', '?', '13.3'];
+  return [...values].sort((a, b) => {
+    const aText = normalizeText(a).toUpperCase();
+    const bText = normalizeText(b).toUpperCase();
+    const aIdx = priority.indexOf(aText);
+    const bIdx = priority.indexOf(bText);
+    if (aIdx !== -1 || bIdx !== -1) {
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    }
+    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function uniqueCodeValues() {
+  const normalized = Array.from(new Set(
+    state.programs
+      .map((p) => normalizeText(p.legacy_code))
+      .filter(Boolean)
+      .map((value) => value.toUpperCase())
+  ));
+  return sortCodeValues(normalized);
+}
+
+
 function uniqueLookupFromPrograms(field) {
   const values = Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
   if (field === 'length_minutes') return sortLengthValues(values);
@@ -255,6 +303,7 @@ function renderFilters() {
   fillSelect(els.distributorFilter, state.lookups.distributors);
   fillSelect(els.programTypeFilter, state.lookups.program_types);
   fillSelect(els.lengthFilter, sortLengthValues(uniqueLookupFromPrograms('length_minutes')), false);
+  fillSelect(els.codeFilter, uniqueCodeValues(), false);
 
   const form = els.programForm;
   fillSelect(form.elements.program_type, state.lookups.program_types);
@@ -275,7 +324,7 @@ function clearMultiSelect(selectEl) {
 
 function resetFilters() {
   els.searchInput.value = '';
-  els.codeFilter.value = '';
+  clearMultiSelect(els.codeFilter);
   clearMultiSelect(els.topicFilter);
   clearMultiSelect(els.secondaryTopicFilter);
   clearMultiSelect(els.lengthFilter);
@@ -292,7 +341,7 @@ function resetFilters() {
 function activePrograms() {
   let items = [...state.programs];
   const search = normalizeLower(els.searchInput.value);
-  const codeSearch = normalizeLower(els.codeFilter.value);
+  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
   const topics = selectedValues(els.topicFilter);
   const secondaryTopics = selectedValues(els.secondaryTopicFilter);
   const lengths = selectedValues(els.lengthFilter);
@@ -314,7 +363,7 @@ function activePrograms() {
       [item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic].some((value) => normalizeLower(value).includes(search))
     );
   }
-  if (codeSearch) items = items.filter((item) => normalizeLower(item.legacy_code).includes(codeSearch));
+  if (codes.length) items = items.filter((item) => codes.includes(normalizeText(item.legacy_code).toUpperCase()));
   if (topics.length) items = items.filter((item) => topics.includes(item.topic));
   if (secondaryTopics.length) items = items.filter((item) => secondaryTopics.includes(item.secondary_topic));
   if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
@@ -663,11 +712,15 @@ function bindEvents() {
     openEditor(id, true);
   });
 
-  [els.searchInput, els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+  [els.searchInput, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
     .forEach((el) => el.addEventListener('input', updateQueryStatus));
-  [els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
+  els.clearCodeFilter?.addEventListener('click', () => {
+    clearMultiSelect(els.codeFilter);
+    updateQueryStatus();
+  });
   els.clearTopicFilter?.addEventListener('click', () => {
     clearMultiSelect(els.topicFilter);
     updateQueryStatus();
