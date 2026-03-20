@@ -1,7 +1,7 @@
 window.APP_CONFIG = {
   SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
-  REQUIRE_AUTH: false,
+  REQUIRE_AUTH: true,
   AUTO_ARCHIVE_DAYS: 90,
   APP_TITLE: "WNMU-TV Programming",
   APP_VERSION: "v1.3.1"
