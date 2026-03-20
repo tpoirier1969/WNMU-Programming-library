@@ -1,7 +1,7 @@
 window.APP_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
-  REQUIRE_AUTH: true,
+  SUPABASE_URL: "https://tdepltlnughyfrjqufdg.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkZXBsdGxudWdoeWZyanF1ZmRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDM2ODQsImV4cCI6MjA4OTUxOTY4NH0.e_XA1shL0S_MgugwAn3atV7J5S6tRsNDQkOaKioLtnM",
+  REQUIRE_AUTH: false,
   AUTO_ARCHIVE_DAYS: 90,
   APP_TITLE: "WNMU-TV Programming",
   APP_VERSION: "v1.3.1"
