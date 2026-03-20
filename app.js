@@ -35,31 +35,36 @@ const els = {
   refreshBtn: $('#refreshBtn'),
   searchInput: $('#searchInput'),
   topicFilter: $('#topicFilter'),
+  secondaryTopicFilter: $('#secondaryTopicFilter'),
   distributorFilter: $('#distributorFilter'),
   programTypeFilter: $('#programTypeFilter'),
   lengthFilter: $('#lengthFilter'),
+  codeFilter: $('#codeFilter'),
   statusFilter: $('#statusFilter'),
   clearTopicFilter: $('#clearTopicFilter'),
+  clearSecondaryTopicFilter: $('#clearSecondaryTopicFilter'),
   clearLengthFilter: $('#clearLengthFilter'),
   resetFiltersBtn: $('#resetFiltersBtn'),
   showArchived: $('#showArchived'),
+  listSummary: $('#listSummary'),
   tableBody: $('#programTableBody'),
   drawer: $('#editorDrawer'),
+  drawerBackdrop: $('#drawerBackdrop'),
   drawerTitle: $('#drawerTitle'),
   closeDrawerBtn: $('#closeDrawerBtn'),
   programForm: $('#programForm'),
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
   formFlags: $('#formFlags'),
-  statPrograms: $('#statPrograms'),
   statApt: $('#statApt'),
   statEnding: $('#statEnding'),
   statExpired: $('#statExpired'),
+  statMissingRights: $('#statMissingRights'),
   statArchived: $('#statArchived')
 };
 
 function hasValidConfig() {
-  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && config.SUPABASE_URL.startsWith('http'));
+  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
 }
 
 function requireAuth() {
@@ -69,7 +74,7 @@ function requireAuth() {
 function formatDate(value) {
   if (!value) return '';
   try {
-    return new Date(value + 'T00:00:00').toLocaleDateString();
+    return new Date(`${value}T00:00:00`).toLocaleDateString();
   } catch {
     return value;
   }
@@ -84,23 +89,29 @@ function normalizeLower(value) {
 }
 
 function computeFlags(program) {
-  const rightsEnd = program.rights_end ? new Date(program.rights_end + 'T00:00:00') : null;
+  const rightsEnd = program.rights_end ? new Date(`${program.rights_end}T00:00:00`) : null;
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
   const msPerDay = 86400000;
-
   const daysLeft = rightsEnd ? Math.floor((rightsEnd - today) / msPerDay) : null;
-  const rightsStatus = !rightsEnd ? 'No end date' : (daysLeft < 0 ? 'Expired' : (daysLeft < (config.AUTO_ARCHIVE_DAYS || 90) ? 'Ending soon' : 'Active'));
+  const threshold = Number(config.AUTO_ARCHIVE_DAYS || 90);
+  const rightsStatus = !rightsEnd ? 'No end date' : (daysLeft < 0 ? 'Expired' : (daysLeft < threshold ? 'Ending soon' : 'Active'));
   const needsAptCheck = normalizeLower(program.distributor) === 'apt' && normalizeText(program.vote).toUpperCase() !== 'Y';
   const newTo131 = ['', 'no'].includes(normalizeLower(program.aired_13_1));
   const newTo133 = ['', 'no'].includes(normalizeLower(program.aired_13_3));
-  const archiveCandidate = rightsEnd ? daysLeft < (config.AUTO_ARCHIVE_DAYS || 90) : false;
+  const archiveCandidate = rightsEnd ? daysLeft < threshold : false;
+  const missingRights = !normalizeText(program.rights_begin) || !normalizeText(program.rights_end);
 
-  return { daysLeft, rightsStatus, needsAptCheck, newTo131, newTo133, archiveCandidate };
+  return { daysLeft, rightsStatus, needsAptCheck, newTo131, newTo133, archiveCandidate, missingRights };
 }
 
 function setStatus(message) {
   els.statusLine.textContent = message;
+}
+
+function updateListSummary(count, totalPool) {
+  const noun = count === 1 ? 'program' : 'programs';
+  els.listSummary.textContent = `Showing ${count.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}.`;
 }
 
 async function init() {
@@ -109,17 +120,13 @@ async function init() {
     return;
   }
 
-  const appTitle = config.APP_TITLE || 'Program Library';
-  const appVersion = config.APP_VERSION || '';
-  document.title = appVersion ? `${appTitle} ${appVersion}` : appTitle;
+  const appTitle = normalizeText(els.appTitle?.textContent) || document.title || 'Program Library';
+  const staticVersion = normalizeText(els.appVersion?.textContent);
+  document.title = staticVersion ? `${appTitle} ${staticVersion}` : appTitle;
   els.authTitle.textContent = appTitle;
   els.appTitle.textContent = appTitle;
-  if (els.appVersion) {
-    els.appVersion.textContent = appVersion;
-    els.appVersion.classList.toggle('hidden', !appVersion);
-  }
-  state.supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
+  state.supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
   bindEvents();
 
   if (requireAuth()) {
@@ -150,14 +157,14 @@ async function loadEverything() {
   renderFilters();
   renderTable();
   renderStats();
-  const activeCount = state.programs.filter(item => !item.is_archived).length;
-  const archivedCount = state.programs.filter(item => item.is_archived).length;
+  const activeCount = state.programs.filter((item) => !item.is_archived).length;
+  const archivedCount = state.programs.filter((item) => item.is_archived).length;
   setStatus(`Loaded ${state.programs.length.toLocaleString()} total programs (${activeCount.toLocaleString()} active, ${archivedCount.toLocaleString()} archived).`);
 }
 
 async function attemptAutoArchive() {
   try {
-    await state.supabase.rpc('auto_archive_due_programs', { days_ahead: config.AUTO_ARCHIVE_DAYS || 90 });
+    await state.supabase.rpc('auto_archive_due_programs', { days_ahead: Number(config.AUTO_ARCHIVE_DAYS || 90) });
   } catch (error) {
     console.warn('Auto-archive RPC skipped:', error);
   }
@@ -174,6 +181,7 @@ async function loadPrograms() {
     setStatus(error.message);
     return;
   }
+
   state.programs = data || [];
 }
 
@@ -219,13 +227,13 @@ function sortLengthValues(values) {
 }
 
 function uniqueLookupFromPrograms(field) {
-  const values = Array.from(new Set(state.programs.map(p => normalizeText(p[field])).filter(Boolean)));
+  const values = Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
   if (field === 'length_minutes') return sortLengthValues(values);
-  return values.sort((a,b) => a.localeCompare(b));
+  return values.sort((a, b) => a.localeCompare(b));
 }
 
 function fillSelect(selectEl, items, includeBlank = true) {
-  const currentValue = selectEl.value;
+  const currentValues = selectEl.multiple ? selectedValues(selectEl) : [selectEl.value];
   selectEl.innerHTML = '';
   if (includeBlank) {
     selectEl.append(new Option('', ''));
@@ -233,15 +241,17 @@ function fillSelect(selectEl, items, includeBlank = true) {
   for (const item of items) {
     const label = typeof item === 'string' ? item : item.name;
     const option = new Option(label, label);
+    if (currentValues.includes(label)) option.selected = true;
     selectEl.add(option);
   }
-  if ([...selectEl.options].some(opt => opt.value === currentValue)) {
-    selectEl.value = currentValue;
+  if (!selectEl.multiple && [...selectEl.options].some((opt) => opt.value === currentValues[0])) {
+    selectEl.value = currentValues[0];
   }
 }
 
 function renderFilters() {
   fillSelect(els.topicFilter, state.lookups.topics, false);
+  fillSelect(els.secondaryTopicFilter, state.lookups.secondary_topics, false);
   fillSelect(els.distributorFilter, state.lookups.distributors);
   fillSelect(els.programTypeFilter, state.lookups.program_types);
   fillSelect(els.lengthFilter, sortLengthValues(uniqueLookupFromPrograms('length_minutes')), false);
@@ -256,21 +266,25 @@ function renderFilters() {
 }
 
 function selectedValues(selectEl) {
-  return Array.from(selectEl.selectedOptions || []).map(opt => opt.value).filter(Boolean);
+  return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
 }
 
 function clearMultiSelect(selectEl) {
-  Array.from(selectEl.options).forEach(opt => { opt.selected = false; });
+  Array.from(selectEl.options).forEach((opt) => { opt.selected = false; });
 }
 
 function resetFilters() {
   els.searchInput.value = '';
+  els.codeFilter.value = '';
   clearMultiSelect(els.topicFilter);
+  clearMultiSelect(els.secondaryTopicFilter);
   clearMultiSelect(els.lengthFilter);
   els.distributorFilter.value = '';
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
-  els.showArchived.checked = state.currentView === 'archived';
+  state.currentView = 'active';
+  [...document.querySelectorAll('.view-chip')].forEach((chip) => chip.classList.toggle('active', chip.dataset.view === 'active'));
+  els.showArchived.checked = false;
   renderTable();
   setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
 }
@@ -278,7 +292,9 @@ function resetFilters() {
 function activePrograms() {
   let items = [...state.programs];
   const search = normalizeLower(els.searchInput.value);
+  const codeSearch = normalizeLower(els.codeFilter.value);
   const topics = selectedValues(els.topicFilter);
+  const secondaryTopics = selectedValues(els.secondaryTopicFilter);
   const lengths = selectedValues(els.lengthFilter);
   const distributor = els.distributorFilter.value;
   const programType = els.programTypeFilter.value;
@@ -286,29 +302,32 @@ function activePrograms() {
   const showArchived = els.showArchived.checked;
 
   if (!showArchived && state.currentView !== 'archived') {
-    items = items.filter(item => !item.is_archived);
+    items = items.filter((item) => !item.is_archived);
   }
 
   if (state.currentView && state.currentView !== 'all') {
-    items = items.filter(item => matchesView(item, state.currentView));
+    items = items.filter((item) => matchesView(item, state.currentView));
   }
 
   if (search) {
-    items = items.filter(item =>
-      [item.title, item.notes, item.legacy_code, item.nola_eidr].some(value => normalizeLower(value).includes(search))
+    items = items.filter((item) =>
+      [item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic].some((value) => normalizeLower(value).includes(search))
     );
   }
-  if (topics.length) items = items.filter(item => topics.includes(item.topic));
-  if (lengths.length) items = items.filter(item => lengths.includes(String(item.length_minutes ?? '')));
-  if (distributor) items = items.filter(item => item.distributor === distributor);
-  if (programType) items = items.filter(item => item.program_type === programType);
-  if (status) items = items.filter(item => matchesView(item, status));
+  if (codeSearch) items = items.filter((item) => normalizeLower(item.legacy_code).includes(codeSearch));
+  if (topics.length) items = items.filter((item) => topics.includes(item.topic));
+  if (secondaryTopics.length) items = items.filter((item) => secondaryTopics.includes(item.secondary_topic));
+  if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
+  if (distributor) items = items.filter((item) => item.distributor === distributor);
+  if (programType) items = items.filter((item) => item.program_type === programType);
+  if (status) items = items.filter((item) => matchesView(item, status));
 
   return items;
 }
 
 function matchesView(program, view) {
   const flags = computeFlags(program);
+  const michiganText = [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | ');
   switch (view) {
     case 'active':
       return !program.is_archived;
@@ -328,13 +347,17 @@ function matchesView(program, view) {
       return flags.archiveCandidate;
     case 'no_end_date':
       return flags.rightsStatus === 'No end date';
+    case 'missing_rights':
+      return flags.missingRights;
+    case 'michigan':
+      return michiganText.includes('michigan');
     default:
       return true;
   }
 }
 
 function topicColor(topicName) {
-  const topic = state.lookups.topics.find(item => item.name === topicName);
+  const topic = state.lookups.topics.find((item) => item.name === topicName);
   return topic?.color_hex || '#dbeafe';
 }
 
@@ -346,18 +369,52 @@ function badgesFor(program) {
   if (flags.rightsStatus === 'Ending soon') badges.push({ label: `Ends in ${flags.daysLeft}d`, cls: 'warn' });
   if (flags.rightsStatus === 'Expired') badges.push({ label: 'Expired', cls: 'danger' });
   if (flags.rightsStatus === 'No end date') badges.push({ label: 'No end date', cls: 'info' });
+  if (flags.missingRights) badges.push({ label: 'Missing rights', cls: 'warn' });
   if (flags.newTo131) badges.push({ label: 'New to 13.1', cls: 'info' });
   if (flags.newTo133) badges.push({ label: 'New to 13.3', cls: 'info' });
   if (program.is_archived) badges.push({ label: 'Archived', cls: 'good' });
   return badges;
 }
 
+function formatAiringSegments(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  const normalized = text.replace(/\r/g, '').replace(/\n+/g, '; ');
+  const parts = normalized.split(/\s*;\s*|\s*,\s*(?=\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}:\d{2}|\d{1,2}\s*[ap]m)/i).filter(Boolean);
+  if (parts.length <= 1) return `<div class="airing-item">${escapeHtml(text)}</div>`;
+  return parts.map((part) => `<div class="airing-item">${escapeHtml(part)}</div>`).join('');
+}
+
+function formatRightsWindow(program) {
+  const begin = formatDate(program.rights_begin);
+  const end = formatDate(program.rights_end);
+  return `
+    <div class="rights-stack">
+      <div><span class="rights-label">Begin</span> <span>${begin || '—'}</span></div>
+      <div><span class="rights-label">End</span> <span>${end || '—'}</span></div>
+    </div>
+  `;
+}
+
+function formatDetailsCell(program) {
+  const topicMarkup = program.topic ? `<span class="topic-chip" style="background:${topicColor(program.topic)}">${escapeHtml(program.topic)}</span>` : '<span class="meta-muted">No topic</span>';
+  const secondaryMarkup = program.secondary_topic ? `<div class="secondary-topic">${escapeHtml(program.secondary_topic)}</div>` : '';
+  const metaBits = [program.length_minutes, program.program_type].filter(Boolean).map(escapeHtml);
+  const metaMarkup = metaBits.length ? `<div class="details-meta">${metaBits.join(' · ')}</div>` : '<div class="details-meta meta-muted">—</div>';
+  return `<div class="details-stack">${topicMarkup}${secondaryMarkup}${metaMarkup}</div>`;
+}
+
 function renderTable() {
   const items = activePrograms();
   const selectedId = state.selectedId;
+  const poolCount = state.currentView === 'archived'
+    ? state.programs.filter((item) => item.is_archived).length
+    : state.programs.filter((item) => !item.is_archived).length;
 
-  els.tableBody.innerHTML = items.map(item => {
-    const badges = badgesFor(item).map(b => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+  updateListSummary(items.length, poolCount);
+
+  els.tableBody.innerHTML = items.map((item) => {
+    const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
     const selectedClass = item.id === selectedId ? 'selected' : '';
     const archivedClass = item.is_archived ? 'archived-row' : '';
     return `
@@ -372,32 +429,31 @@ function renderTable() {
             <button type="button" class="copy-note-btn" data-copy-note="${item.id}">Copy</button>
           </div>
         </td>
-        <td class="topic-cell">${item.topic ? `<span class="topic-chip" style="background:${topicColor(item.topic)}">${escapeHtml(item.topic)}</span>` : ''}</td>
-        <td class="length-cell">${escapeHtml(item.length_minutes || '')}</td>
-        <td>${escapeHtml(item.program_type || '')}</td>
-        <td>${escapeHtml(item.aired_13_1 || '')}</td>
-        <td>${escapeHtml(item.aired_13_3 || '')}</td>
-        <td>${escapeHtml(item.vote || '')}</td>
-        <td>${formatDate(item.rights_end)}</td>
+        <td>${formatDetailsCell(item)}</td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
+        <td class="vote-cell">${escapeHtml(item.vote || '')}</td>
+        <td>${formatRightsWindow(item)}</td>
         <td>${escapeHtml(item.distributor || '')}</td>
         <td><div class="badges">${badges}</div></td>
       </tr>
     `;
   }).join('');
 
-  [...els.tableBody.querySelectorAll('tr')].forEach(row => {
+  [...els.tableBody.querySelectorAll('tr')].forEach((row) => {
     row.addEventListener('click', () => openEditor(row.dataset.id));
   });
-  [...els.tableBody.querySelectorAll('[data-copy-note]')].forEach(btn => {
+
+  [...els.tableBody.querySelectorAll('[data-copy-note]')].forEach((btn) => {
     btn.addEventListener('click', async (event) => {
       event.stopPropagation();
-      const item = state.programs.find(program => String(program.id) === String(btn.dataset.copyNote));
+      const item = state.programs.find((program) => String(program.id) === String(btn.dataset.copyNote));
       const noteText = item?.notes || '';
       try {
         await navigator.clipboard.writeText(noteText);
         const original = btn.textContent;
         btn.textContent = 'Copied';
-        setTimeout(() => btn.textContent = original, 1200);
+        setTimeout(() => { btn.textContent = original; }, 1200);
       } catch {
         alert('Clipboard copy failed.');
       }
@@ -406,17 +462,17 @@ function renderTable() {
 }
 
 function renderStats() {
-  const flags = state.programs.map(program => ({ program, flags: computeFlags(program) }));
-  els.statPrograms.textContent = state.programs.filter(item => !item.is_archived).length.toLocaleString();
-  els.statApt.textContent = flags.filter(x => !x.program.is_archived && x.flags.needsAptCheck).length.toLocaleString();
-  els.statEnding.textContent = flags.filter(x => !x.program.is_archived && x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
-  els.statExpired.textContent = flags.filter(x => x.flags.rightsStatus === 'Expired').length.toLocaleString();
-  els.statArchived.textContent = state.programs.filter(item => item.is_archived).length.toLocaleString();
+  const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
+  els.statApt.textContent = flags.filter((x) => !x.program.is_archived && x.flags.needsAptCheck).length.toLocaleString();
+  els.statEnding.textContent = flags.filter((x) => !x.program.is_archived && x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
+  els.statExpired.textContent = flags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
+  els.statMissingRights.textContent = flags.filter((x) => !x.program.is_archived && x.flags.missingRights).length.toLocaleString();
+  els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
 }
 
 function openEditor(id = null, duplicate = false) {
   const form = els.programForm;
-  let item = state.programs.find(program => program.id === id) || null;
+  let item = state.programs.find((program) => String(program.id) === String(id)) || null;
 
   if (duplicate && item) {
     item = { ...item, id: null, title: `${item.title} (copy)` };
@@ -424,6 +480,8 @@ function openEditor(id = null, duplicate = false) {
 
   state.selectedId = item?.id || null;
   els.drawer.classList.remove('hidden');
+  els.drawerBackdrop.classList.remove('hidden');
+  document.body.classList.add('modal-open');
   els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : item.title) : 'New program';
   form.dataset.programId = item?.id || '';
 
@@ -445,11 +503,13 @@ function renderFormFlags(item) {
     els.formFlags.innerHTML = '<span class="badge info">New record</span>';
     return;
   }
-  els.formFlags.innerHTML = badgesFor(item).map(b => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+  els.formFlags.innerHTML = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
 }
 
 function closeEditor() {
   els.drawer.classList.add('hidden');
+  els.drawerBackdrop.classList.add('hidden');
+  document.body.classList.remove('modal-open');
   state.selectedId = null;
   renderTable();
 }
@@ -538,7 +598,7 @@ function exportCurrentView() {
   const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','six','is_archived','exclude_from_auto_archive'];
   const lines = [columns.join(',')];
   for (const item of items) {
-    lines.push(columns.map(col => csvEscape(item[col])).join(','));
+    lines.push(columns.map((col) => csvEscape(item[col])).join(','));
   }
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -563,6 +623,12 @@ function escapeHtml(text) {
     .replaceAll('"', '&quot;');
 }
 
+function updateQueryStatus() {
+  const count = activePrograms().length;
+  renderTable();
+  setStatus(`${count.toLocaleString()} matching programs.`);
+}
+
 function bindEvents() {
   els.loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -581,12 +647,6 @@ function bindEvents() {
     showApp();
   });
 
-  if (state.supabase) {
-    state.supabase.auth?.onAuthStateChange((_event, session) => {
-      state.session = session;
-    });
-  }
-
   els.logoutBtn.addEventListener('click', async () => {
     await state.supabase.auth.signOut();
     location.reload();
@@ -594,6 +654,7 @@ function bindEvents() {
 
   els.newProgramBtn.addEventListener('click', () => openEditor());
   els.closeDrawerBtn.addEventListener('click', closeEditor);
+  els.drawerBackdrop.addEventListener('click', closeEditor);
   els.programForm.addEventListener('submit', saveProgram);
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.duplicateBtn.addEventListener('click', () => {
@@ -602,26 +663,22 @@ function bindEvents() {
     openEditor(id, true);
   });
 
-  [els.searchInput, els.topicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
-    .forEach(el => el.addEventListener('input', () => {
-      renderTable();
-      setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
-    }));
-  [els.topicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
-    .forEach(el => el.addEventListener('change', () => {
-      renderTable();
-      setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
-    }));
+  [els.searchInput, els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+    .forEach((el) => el.addEventListener('input', updateQueryStatus));
+  [els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+    .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
   els.clearTopicFilter?.addEventListener('click', () => {
     clearMultiSelect(els.topicFilter);
-    renderTable();
-    setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+    updateQueryStatus();
+  });
+  els.clearSecondaryTopicFilter?.addEventListener('click', () => {
+    clearMultiSelect(els.secondaryTopicFilter);
+    updateQueryStatus();
   });
   els.clearLengthFilter?.addEventListener('click', () => {
     clearMultiSelect(els.lengthFilter);
-    renderTable();
-    setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+    updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
 
@@ -629,10 +686,9 @@ function bindEvents() {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;
     state.currentView = btn.dataset.view;
-    [...document.querySelectorAll('.view-chip')].forEach(chip => chip.classList.toggle('active', chip === btn));
+    [...document.querySelectorAll('.view-chip')].forEach((chip) => chip.classList.toggle('active', chip === btn));
     els.showArchived.checked = state.currentView === 'archived';
-    renderTable();
-    setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+    updateQueryStatus();
   });
 
   els.exportBtn.addEventListener('click', exportCurrentView);
@@ -658,7 +714,7 @@ function bindEvents() {
   els.programForm.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' || event.target.tagName === 'TEXTAREA' || event.target.type === 'submit' || event.target.type === 'button') return;
     event.preventDefault();
-    const fields = Array.from(els.programForm.querySelectorAll('input, select, textarea, button')).filter(el => !el.disabled && el.type !== 'hidden');
+    const fields = Array.from(els.programForm.querySelectorAll('input, select, textarea, button')).filter((el) => !el.disabled && el.type !== 'hidden');
     const index = fields.indexOf(event.target);
     if (index >= 0 && index < fields.length - 1) fields[index + 1].focus();
   });
