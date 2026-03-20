@@ -64,7 +64,12 @@ const els = {
   statExpired: $('#statExpired'),
   statMissingRights: $('#statMissingRights'),
   statArchived: $('#statArchived'),
-  voteFieldWrap: $('#voteFieldWrap')
+  voteFieldWrap: $('#voteFieldWrap'),
+  templateTools: $('#templateTools'),
+  templateSourceInput: $('#templateSourceInput'),
+  templateSourceList: $('#templateSourceList'),
+  loadTemplateBtn: $('#loadTemplateBtn'),
+  duplicateCheck: $('#duplicateCheck')
 };
 
 function hasValidConfig() {
@@ -90,6 +95,95 @@ function normalizeText(value) {
 
 function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
+}
+
+function isInteractiveElement(element) {
+  return Boolean(element && (element.closest('input, textarea, select, button, label, [contenteditable="true"], .drawer') || element.isContentEditable));
+}
+
+function duplicateMatches(titleValue, nolaValue, currentId = null) {
+  const title = normalizeLower(titleValue);
+  const nola = normalizeLower(nolaValue);
+  const current = currentId == null ? null : String(currentId);
+  return state.programs.filter((program) => {
+    if (current && String(program.id) === current) return false;
+    const titleMatch = title && normalizeLower(program.title) === title;
+    const nolaMatch = nola && normalizeLower(program.nola_eidr) === nola;
+    return titleMatch || nolaMatch;
+  });
+}
+
+function renderDuplicateCheck() {
+  const form = els.programForm;
+  if (!form) return;
+  const currentId = form.dataset.programId || null;
+  const matches = duplicateMatches(form.elements.title.value, form.elements.nola_eidr.value, currentId);
+  if (!matches.length) {
+    els.duplicateCheck.innerHTML = '';
+    els.duplicateCheck.classList.add('hidden');
+    return;
+  }
+  const titleValue = normalizeLower(form.elements.title.value);
+  const nolaValue = normalizeLower(form.elements.nola_eidr.value);
+  const items = matches.slice(0, 6).map((item) => {
+    const reasons = [];
+    if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
+    if (nolaValue && normalizeLower(item.nola_eidr) === nolaValue) reasons.push('same NOLA/EIDR');
+    return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${item.nola_eidr ? ` <span class="dup-meta">· ${escapeHtml(item.nola_eidr)}</span>` : ''}${reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : ''}</li>`;
+  }).join('');
+  const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
+  els.duplicateCheck.innerHTML = `
+    <div class="duplicate-card warn">
+      <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
+      <ul class="duplicate-list">${items}</ul>
+      ${more}
+    </div>
+  `;
+  els.duplicateCheck.classList.remove('hidden');
+  els.duplicateCheck.querySelectorAll('[data-open-program]').forEach((btn) => {
+    btn.addEventListener('click', () => openEditor(btn.dataset.openProgram));
+  });
+}
+
+function renderTemplateSourceList() {
+  if (!els.templateSourceList) return;
+  els.templateSourceList.innerHTML = state.programs
+    .slice()
+    .sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }))
+    .map((program) => `<option value="${escapeHtml(`${program.title || '(untitled)'}${program.nola_eidr ? ' — ' + program.nola_eidr : ''} [${program.id}]`)}"></option>`)
+    .join('');
+}
+
+function parseTemplateProgramId(value) {
+  const match = normalizeText(value).match(/\[(\d+)\]\s*$/);
+  return match ? match[1] : null;
+}
+
+function loadTemplateIntoForm() {
+  const id = parseTemplateProgramId(els.templateSourceInput.value);
+  if (!id) {
+    alert('Choose a program from the list first.');
+    return;
+  }
+  const item = state.programs.find((program) => String(program.id) === String(id));
+  if (!item) {
+    alert('That source program could not be found.');
+    return;
+  }
+  const form = els.programForm;
+  const copyFields = ['title','notes','program_type','length_minutes','topic','secondary_topic','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
+  copyFields.forEach((field) => {
+    form.elements[field].value = item[field] ?? '';
+  });
+  ['legacy_code','episode_season','nola_eidr','aired_13_1','aired_13_3'].forEach((field) => {
+    form.elements[field].value = '';
+  });
+  form.elements.exclude_from_auto_archive.checked = Boolean(item.exclude_from_auto_archive);
+  form.elements.is_archived.checked = false;
+  updateVoteVisibility();
+  renderDuplicateCheck();
+  setStatus(`Copied template details from ${item.title}.`);
+  requestAnimationFrame(() => form.elements.title.focus());
 }
 
 function computeFlags(program) {
@@ -318,6 +412,7 @@ function renderFilters() {
   fillSelect(form.elements.distributor, state.lookups.distributors);
   fillSelect(form.elements.package_type, state.lookups.package_types);
   fillSelect(form.elements.server_tape, state.lookups.server_locations);
+  renderTemplateSourceList();
 }
 
 function selectedValues(selectEl) {
@@ -593,8 +688,12 @@ function openEditor(id = null, duplicate = false) {
   form.elements.exclude_from_auto_archive.checked = Boolean(item?.exclude_from_auto_archive);
   form.elements.is_archived.checked = Boolean(item?.is_archived);
 
+  if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
+  if (els.templateSourceInput) els.templateSourceInput.value = '';
+
   updateVoteVisibility();
   renderFormFlags(item);
+  renderDuplicateCheck();
   renderTable();
 
   requestAnimationFrame(() => form.elements.title.focus());
@@ -620,6 +719,8 @@ function closeEditor() {
   els.drawerBackdrop.classList.add('hidden');
   document.body.classList.remove('modal-open');
   state.selectedId = null;
+  els.duplicateCheck.innerHTML = '';
+  els.duplicateCheck.classList.add('hidden');
   renderTable();
 }
 
@@ -653,6 +754,12 @@ async function saveProgram(event) {
   if (!payload.title) {
     alert('Title is required.');
     return;
+  }
+
+  const dupes = duplicateMatches(payload.title, payload.nola_eidr, programId);
+  if (dupes.length) {
+    const proceed = confirm(`Possible duplicate found (${dupes.length}). Save anyway?`);
+    if (!proceed) return;
   }
 
   setStatus(programId ? 'Saving changes…' : 'Creating program…');
@@ -765,6 +872,11 @@ function bindEvents() {
   els.drawerBackdrop.addEventListener('click', closeEditor);
   els.programForm.addEventListener('submit', saveProgram);
   els.deleteBtn.addEventListener('click', deleteProgram);
+  els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
+  ['title', 'nola_eidr'].forEach((field) => {
+    els.programForm.elements[field].addEventListener('input', renderDuplicateCheck);
+    els.programForm.elements[field].addEventListener('change', renderDuplicateCheck);
+  });
   els.duplicateBtn.addEventListener('click', () => {
     const id = els.programForm.dataset.programId;
     if (!id) return;
@@ -819,7 +931,7 @@ function bindEvents() {
     if (event.key === 'Escape' && formIsOpen) {
       closeEditor();
     }
-    if (event.key.toLowerCase() === 'n' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    if (event.key.toLowerCase() === 'n' && !isInteractiveElement(document.activeElement)) {
       event.preventDefault();
       openEditor();
     }

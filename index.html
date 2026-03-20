@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.3.8" />
+  <link rel="stylesheet" href="styles.css?v=1.4.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -44,7 +44,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.3.9</span>
+            <span id="appVersion" class="version-pill">v1.4.0</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -206,6 +206,16 @@
     </div>
 
     <form id="programForm" class="program-form">
+      <div class="template-tools span-2" id="templateTools">
+        <label class="template-field">Copy details from existing
+          <input id="templateSourceInput" type="text" list="templateSourceList" placeholder="Start typing a title, then choose one and click Load" />
+          <datalist id="templateSourceList"></datalist>
+        </label>
+        <button type="button" id="loadTemplateBtn">Load</button>
+      </div>
+
+      <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
+
       <div class="form-grid">
         <label class="span-title">Title
           <input name="title" type="text" required />
@@ -297,6 +307,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.3.8"></script>
+  <script src="app.js?v=1.4.0"></script>
 </body>
 </html>

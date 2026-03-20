@@ -221,3 +221,43 @@ input:focus, select:focus, textarea:focus, button:focus {
   .span-2 { grid-column: span 1; }
   .code-field { max-width: none; }
 }
+
+
+.template-tools {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.template-field {
+  display: grid;
+  gap: 5px;
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--pbs-blue-dark);
+}
+.duplicate-check { margin: 0 0 10px; }
+.duplicate-card {
+  border: 1px solid #ecd9a1;
+  background: #fff7df;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #704f00;
+}
+.duplicate-title { font-weight: 800; margin-bottom: 6px; }
+.duplicate-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--pbs-blue-dark);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.dup-meta { color: #4b6474; }
+.dup-reason, .dup-more { color: #6b7280; font-size: .8rem; }
+@media (max-width: 760px) {
+  .template-tools { grid-template-columns: 1fr; }
+}
