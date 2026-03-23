@@ -17,7 +17,8 @@ const state = {
   currentView: 'all',
   viewHistory: [],
   lastAppliedViewState: null,
-  isLoading: false
+  isLoading: false,
+  searchDebounceTimer: null
 };
 
 const els = {
@@ -51,7 +52,6 @@ const els = {
   clearSecondaryTopicFilter: $('#clearSecondaryTopicFilter'),
   clearLengthFilter: $('#clearLengthFilter'),
   resetFiltersBtn: $('#resetFiltersBtn'),
-  showArchived: $('#showArchived'),
   listSummary: $('#listSummary'),
   tableBody: $('#programTableBody'),
   quickStrip: $('#quickStrip'),
@@ -76,8 +76,12 @@ const els = {
   templateSourceInput: $('#templateSourceInput'),
   templateSourceList: $('#templateSourceList'),
   loadTemplateBtn: $('#loadTemplateBtn'),
-  duplicateCheck: $('#duplicateCheck')
+  duplicateCheck: $('#duplicateCheck'),
+  secondaryTopicList: $('#secondaryTopicList'),
+  distributorList: $('#distributorList')
 };
+
+const SEARCH_INPUT_DEBOUNCE_MS = 140;
 
 function hasValidConfig() {
   return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
@@ -104,18 +108,39 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+const NOLA_PLACEHOLDERS = new Set(['nonola', 'no nola', 'no-nola', 'n/a', 'na', 'none', 'unknown']);
+
+function isPlaceholderNola(value) {
+  return NOLA_PLACEHOLDERS.has(normalizeLower(value));
+}
+
+function splitMultiValues(value) {
+  return Array.from(new Set(
+    normalizeText(value)
+      .split(/[;,|]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  ));
+}
+
+function normalizeMultiValueInput(value) {
+  return splitMultiValues(value).join(', ');
+}
+
 function isInteractiveElement(element) {
   return Boolean(element && (element.closest('input, textarea, select, button, label, [contenteditable="true"], .drawer') || element.isContentEditable));
 }
 
 function duplicateMatches(titleValue, nolaValue, currentId = null) {
   const title = normalizeLower(titleValue);
-  const nola = normalizeLower(nolaValue);
+  const normalizedNola = normalizeLower(nolaValue);
+  const nola = normalizedNola && !isPlaceholderNola(normalizedNola) ? normalizedNola : '';
   const current = currentId == null ? null : String(currentId);
   return state.programs.filter((program) => {
     if (current && String(program.id) === current) return false;
     const titleMatch = title && normalizeLower(program.title) === title;
-    const nolaMatch = nola && normalizeLower(program.nola_eidr) === nola;
+    const programNola = normalizeLower(program.nola_eidr);
+    const nolaMatch = nola && programNola === nola && !isPlaceholderNola(programNola);
     return titleMatch || nolaMatch;
   });
 }
@@ -132,10 +157,11 @@ function renderDuplicateCheck() {
   }
   const titleValue = normalizeLower(form.elements.title.value);
   const nolaValue = normalizeLower(form.elements.nola_eidr.value);
+  const meaningfulNola = nolaValue && !isPlaceholderNola(nolaValue) ? nolaValue : '';
   const items = matches.slice(0, 6).map((item) => {
     const reasons = [];
     if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
-    if (nolaValue && normalizeLower(item.nola_eidr) === nolaValue) reasons.push('same NOLA/EIDR');
+    if (meaningfulNola && normalizeLower(item.nola_eidr) === meaningfulNola) reasons.push('same NOLA');
     return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${item.nola_eidr ? ` <span class="dup-meta">· ${escapeHtml(item.nola_eidr)}</span>` : ''}${reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : ''}</li>`;
   }).join('');
   const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
@@ -178,15 +204,16 @@ function loadTemplateIntoForm() {
     return;
   }
   const form = els.programForm;
-  const copyFields = ['title','notes','program_type','length_minutes','topic','secondary_topic','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
+  const copyFields = ['title','notes','program_type','length_minutes','topic','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
   copyFields.forEach((field) => {
     form.elements[field].value = item[field] ?? '';
   });
+  if (form.elements.secondary_topic) {
+    form.elements.secondary_topic.value = normalizeMultiValueInput(item.secondary_topic);
+  }
   ['legacy_code','episode_season','nola_eidr','aired_13_1','aired_13_3'].forEach((field) => {
     form.elements[field].value = '';
   });
-  form.elements.exclude_from_auto_archive.checked = Boolean(item.exclude_from_auto_archive);
-  form.elements.is_archived.checked = false;
   updateVoteVisibility();
   renderDuplicateCheck();
   setStatus(`Copied template details from ${item.title}.`);
@@ -248,9 +275,7 @@ function applyEditorMode() {
   fields.forEach((field) => {
     const type = field.type || '';
     if (['submit','button','hidden'].includes(type)) return;
-    if (field.name === 'title' || field.name === 'legacy_code' || field.name === 'episode_season' || field.name === 'nola_eidr' || field.name === 'length_minutes' || field.name === 'aired_13_1' || field.name === 'aired_13_3' || field.name === 'rights_begin' || field.name === 'rights_end') {
-      field.readOnly = !editing && field.tagName === 'INPUT';
-    }
+    if (field.tagName === 'INPUT' && type !== 'checkbox') field.readOnly = !editing;
     if (field.tagName === 'TEXTAREA') field.readOnly = !editing;
     if (field.tagName === 'SELECT' || type === 'checkbox') field.disabled = !editing;
   });
@@ -280,6 +305,35 @@ function parseAuthErrorFromHash() {
   const description = params.get('error_description') || params.get('error') || '';
   if (!errorCode && !description) return '';
   return decodeURIComponent(description.replace(/\+/g, ' ')) || errorCode;
+}
+
+function captureDrawerDraft() {
+  if (!els.programForm || !els.drawer || els.drawer.classList.contains('hidden')) return null;
+  const fields = Array.from(els.programForm.querySelectorAll('input, select, textarea')).filter((field) => field.name);
+  const values = {};
+  fields.forEach((field) => {
+    values[field.name] = field.type === 'checkbox' ? field.checked : field.value;
+  });
+  return {
+    programId: els.programForm.dataset.programId || '',
+    title: els.drawerTitle?.textContent || '',
+    values
+  };
+}
+
+function restoreDrawerDraft(draft) {
+  if (!draft || !els.programForm) return;
+  els.programForm.dataset.programId = draft.programId || '';
+  if (els.drawerTitle && draft.title) els.drawerTitle.textContent = draft.title;
+  Object.entries(draft.values || {}).forEach(([name, value]) => {
+    const field = els.programForm.elements[name];
+    if (!field) return;
+    if (field.type === 'checkbox') field.checked = Boolean(value);
+    else field.value = value ?? '';
+  });
+  updateVoteVisibility();
+  renderDuplicateCheck();
+  applyEditorMode();
 }
 
 async function init() {
@@ -314,10 +368,11 @@ async function init() {
 
   state.supabase.auth.onAuthStateChange((_event, session) => {
     const wasEditing = canEdit();
+    const drawerDraft = captureDrawerDraft();
     state.session = session;
     const isEditing = canEdit();
     updateModeUI();
-    if (els.drawer && !els.drawer.classList.contains('hidden')) openEditor(els.programForm.dataset.programId || null);
+    if (drawerDraft) restoreDrawerDraft(drawerDraft);
     if (wasEditing !== isEditing) {
       els.authShell.classList.add('hidden');
       els.authMessage.textContent = '';
@@ -417,7 +472,7 @@ async function fetchInsertedProgram(payload) {
     .order('id', { ascending: false })
     .limit(1);
 
-  if (payload.nola_eidr) query = query.eq('nola_eidr', payload.nola_eidr);
+  if (payload.nola_eidr && !isPlaceholderNola(payload.nola_eidr)) query = query.eq('nola_eidr', payload.nola_eidr);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -427,20 +482,18 @@ async function fetchInsertedProgram(payload) {
 
 function mergeProgramIntoState(program) {
   const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
-  if (index >= 0) {
-    state.programs[index] = program;
-  } else {
-    state.programs.push(program);
-  }
+  if (index >= 0) state.programs[index] = program;
+  else state.programs.push(program);
   sortProgramsInPlace();
 }
 
 function ensureLookupValue(collectionName, value) {
-  const name = normalizeText(value);
-  if (!name) return;
   const collection = state.lookups[collectionName] || [];
-  if (collection.some((item) => normalizeLower(item.name) === normalizeLower(name))) return;
-  collection.push({ name, sort_order: collection.length + 1 });
+  const values = collectionName === 'secondary_topics' ? splitMultiValues(value) : [normalizeText(value)];
+  values.filter(Boolean).forEach((name) => {
+    if (collection.some((item) => normalizeLower(item.name) === normalizeLower(name))) return;
+    collection.push({ name, sort_order: collection.length + 1 });
+  });
   collection.sort((a, b) => normalizeText(a.name).localeCompare(normalizeText(b.name), undefined, { sensitivity: 'base' }));
 }
 
@@ -531,9 +584,22 @@ function uniqueCodeValues() {
 
 
 function uniqueLookupFromPrograms(field) {
-  const values = Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
+  const values = field === 'secondary_topic'
+    ? Array.from(new Set(state.programs.flatMap((p) => splitMultiValues(p[field]))))
+    : Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
   if (field === 'length_minutes') return sortLengthValues(values);
   return values.sort((a, b) => a.localeCompare(b));
+}
+
+function fillDatalist(listEl, items) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  for (const item of items) {
+    const label = typeof item === 'string' ? item : item.name;
+    const option = document.createElement('option');
+    option.value = label;
+    listEl.append(option);
+  }
 }
 
 function fillSelect(selectEl, items, includeBlank = true) {
@@ -564,8 +630,8 @@ function renderFilters() {
   const form = els.programForm;
   fillSelect(form.elements.program_type, state.lookups.program_types);
   fillSelect(form.elements.topic, state.lookups.topics);
-  fillSelect(form.elements.secondary_topic, state.lookups.secondary_topics);
-  fillSelect(form.elements.distributor, state.lookups.distributors);
+  fillDatalist(els.secondaryTopicList, state.lookups.secondary_topics);
+  fillDatalist(els.distributorList, state.lookups.distributors);
   fillSelect(form.elements.package_type, state.lookups.package_types);
   fillSelect(form.elements.server_tape, state.lookups.server_locations);
   renderTemplateSourceList();
@@ -582,7 +648,6 @@ function snapshotViewState() {
     distributorFilter: els.distributorFilter.value,
     programTypeFilter: els.programTypeFilter.value,
     statusFilter: els.statusFilter.value,
-    showArchived: els.showArchived.checked,
     currentView: state.currentView
   };
 }
@@ -611,7 +676,6 @@ function applySnapshot(snapshot) {
   els.distributorFilter.value = snapshot.distributorFilter || '';
   els.programTypeFilter.value = snapshot.programTypeFilter || '';
   els.statusFilter.value = snapshot.statusFilter || '';
-  els.showArchived.checked = Boolean(snapshot.showArchived);
   state.currentView = snapshot.currentView || 'all';
   syncQuickViewState();
   renderTable();
@@ -642,7 +706,7 @@ function viewIncludesArchived(view) {
 
 function programsInCurrentViewPool() {
   let items = [...state.programs];
-  if (!els.showArchived.checked && !viewIncludesArchived(state.currentView)) {
+  if (state.currentView !== 'archived') {
     items = items.filter((item) => !item.is_archived);
   }
   if (state.currentView && state.currentView !== 'all') {
@@ -672,7 +736,6 @@ function resetFilters() {
   els.statusFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
-  els.showArchived.checked = true;
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -702,7 +765,10 @@ function activePrograms() {
   }
   if (codes.length) items = items.filter((item) => codes.includes(normalizeText(item.legacy_code).toUpperCase()));
   if (topics.length) items = items.filter((item) => topics.includes(item.topic));
-  if (secondaryTopics.length) items = items.filter((item) => secondaryTopics.includes(item.secondary_topic));
+  if (secondaryTopics.length) items = items.filter((item) => {
+    const itemTopics = splitMultiValues(item.secondary_topic);
+    return secondaryTopics.some((topic) => itemTopics.includes(topic));
+  });
   if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
   if (distributor) items = items.filter((item) => item.distributor === distributor);
   if (programType) items = items.filter((item) => item.program_type === programType);
@@ -828,6 +894,37 @@ function formatDetailsCell(program) {
   return `<div class="details-stack">${topicMarkup}${secondaryMarkup}${metaMarkup}</div>`;
 }
 
+async function handleCopyNote(programId, triggerButton) {
+  const item = state.programs.find((program) => String(program.id) === String(programId));
+  const noteText = item?.notes || '';
+  try {
+    await navigator.clipboard.writeText(noteText);
+    if (triggerButton) {
+      const original = triggerButton.textContent;
+      triggerButton.textContent = 'Copied';
+      setTimeout(() => { triggerButton.textContent = original; }, 1200);
+    }
+  } catch {
+    alert('Clipboard copy failed.');
+  }
+}
+
+function flushSearchUpdate() {
+  if (state.searchDebounceTimer) {
+    clearTimeout(state.searchDebounceTimer);
+    state.searchDebounceTimer = null;
+  }
+  updateQueryStatus();
+}
+
+function scheduleSearchUpdate() {
+  if (state.searchDebounceTimer) clearTimeout(state.searchDebounceTimer);
+  state.searchDebounceTimer = setTimeout(() => {
+    state.searchDebounceTimer = null;
+    updateQueryStatus();
+  }, SEARCH_INPUT_DEBOUNCE_MS);
+}
+
 function renderTable() {
   const items = activePrograms();
   const selectedId = state.selectedId;
@@ -861,34 +958,15 @@ function renderTable() {
       </tr>
     `;
   }).join('');
-
-  [...els.tableBody.querySelectorAll('tr')].forEach((row) => {
-    row.addEventListener('click', () => openEditor(row.dataset.id));
-  });
-
-  [...els.tableBody.querySelectorAll('[data-copy-note]')].forEach((btn) => {
-    btn.addEventListener('click', async (event) => {
-      event.stopPropagation();
-      const item = state.programs.find((program) => String(program.id) === String(btn.dataset.copyNote));
-      const noteText = item?.notes || '';
-      try {
-        await navigator.clipboard.writeText(noteText);
-        const original = btn.textContent;
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = original; }, 1200);
-      } catch {
-        alert('Clipboard copy failed.');
-      }
-    });
-  });
 }
 
 function renderStats() {
   const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
-  els.statApt.textContent = flags.filter((x) => !x.program.is_archived && x.flags.needsAptCheck).length.toLocaleString();
-  els.statEnding.textContent = flags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
-  els.statExpired.textContent = flags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
-  els.statMissingRights.textContent = flags.filter((x) => !x.program.is_archived && x.flags.missingRights).length.toLocaleString();
+  const activeFlags = flags.filter((x) => !x.program.is_archived);
+  els.statApt.textContent = activeFlags.filter((x) => x.flags.needsAptCheck).length.toLocaleString();
+  els.statEnding.textContent = activeFlags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
+  els.statExpired.textContent = activeFlags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
+  els.statMissingRights.textContent = activeFlags.filter((x) => x.flags.missingRights).length.toLocaleString();
   els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
   syncQuickViewState();
 }
@@ -914,10 +992,9 @@ function openEditor(id = null, duplicate = false) {
 
   const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
   for (const field of fields) {
-    form.elements[field].value = item?.[field] ?? '';
+    const value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
+    form.elements[field].value = value;
   }
-  form.elements.exclude_from_auto_archive.checked = Boolean(item?.exclude_from_auto_archive);
-  form.elements.is_archived.checked = Boolean(item?.is_archived);
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
@@ -964,6 +1041,7 @@ async function saveProgram(event) {
   }
   const form = els.programForm;
   const programId = form.dataset.programId || null;
+  const existingItem = programId ? state.programs.find((program) => String(program.id) === String(programId)) : null;
   const payload = {
     legacy_code: form.elements.legacy_code.value || null,
     title: form.elements.title.value.trim(),
@@ -973,7 +1051,7 @@ async function saveProgram(event) {
     program_type: form.elements.program_type.value || null,
     length_minutes: form.elements.length_minutes.value || null,
     topic: form.elements.topic.value || null,
-    secondary_topic: form.elements.secondary_topic.value || null,
+    secondary_topic: normalizeMultiValueInput(form.elements.secondary_topic.value) || null,
     aired_13_1: form.elements.aired_13_1.value || null,
     aired_13_3: form.elements.aired_13_3.value || null,
     vote: normalizeLower(form.elements.distributor.value) === 'apt' ? (form.elements.vote.value || null) : null,
@@ -983,8 +1061,8 @@ async function saveProgram(event) {
     package_type: form.elements.package_type.value || null,
     server_tape: form.elements.server_tape.value || null,
     distributor: form.elements.distributor.value || null,
-    exclude_from_auto_archive: form.elements.exclude_from_auto_archive.checked,
-    is_archived: form.elements.is_archived.checked
+    exclude_from_auto_archive: Boolean(existingItem?.exclude_from_auto_archive),
+    is_archived: Boolean(existingItem?.is_archived)
   };
 
   if (!payload.title) {
@@ -1007,7 +1085,6 @@ async function saveProgram(event) {
     } else {
       response = await state.supabase.from('programs').insert(payload);
     }
-
     if (response.error) throw response.error;
 
     const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
@@ -1016,11 +1093,8 @@ async function saveProgram(event) {
     refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
     setLoading('');
 
-    if (programId) {
-      openEditor(refreshedProgram.id);
-    } else {
-      closeEditor();
-    }
+    if (programId) openEditor(refreshedProgram.id);
+    else closeEditor();
   } catch (error) {
     console.error(error);
     setLoading('');
@@ -1105,12 +1179,12 @@ function bindEvents() {
 
   els.loginGitHubBtn?.addEventListener('click', async () => {
     els.authMessage.textContent = 'Sending you to GitHub…';
-const { error } = await state.supabase.auth.signInWithOAuth({
-  provider: 'github',
-  options: {
-    redirectTo: 'https://tpoirier1969.github.io/WNMU-Programming-library/'
-  }
-});
+    const { error } = await state.supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: 'https://tpoirier1969.github.io/WNMU-Programming-library/'
+      }
+    });
     if (error) {
       els.authMessage.textContent = error.message;
       setStatus(error.message);
@@ -1146,12 +1220,34 @@ const { error } = await state.supabase.auth.signInWithOAuth({
     openEditor(id, true);
   });
 
-  [els.searchInput, els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+  els.tableBody?.addEventListener('click', async (event) => {
+    const copyBtn = event.target.closest('[data-copy-note]');
+    if (copyBtn) {
+      event.stopPropagation();
+      await handleCopyNote(copyBtn.dataset.copyNote, copyBtn);
+      return;
+    }
+    const row = event.target.closest('tr[data-id]');
+    if (!row) return;
+    openEditor(row.dataset.id);
+  });
+
+  els.searchInput?.addEventListener('input', scheduleSearchUpdate);
+  els.searchInput?.addEventListener('blur', flushSearchUpdate);
+  els.searchInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      flushSearchUpdate();
+    }
+  });
+
+  [els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter]
     .forEach((el) => el.addEventListener('input', updateQueryStatus));
-  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.showArchived]
+  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect]
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
   els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);
+  els.programForm.elements.distributor.addEventListener('input', updateVoteVisibility);
 
   els.clearCodeFilter?.addEventListener('click', () => {
     clearMultiSelect(els.codeFilter);
@@ -1177,7 +1273,6 @@ const { error } = await state.supabase.auth.signInWithOAuth({
     state.currentView = btn.dataset.view;
     syncQuickViewState();
     els.statusFilter.value = '';
-    els.showArchived.checked = ['all', 'archived'].includes(state.currentView);
     updateQueryStatus();
   });
 
