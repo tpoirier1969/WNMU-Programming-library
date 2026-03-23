@@ -395,6 +395,73 @@ async function loadPrograms() {
   }
 }
 
+function sortProgramsInPlace() {
+  state.programs.sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }));
+}
+
+async function fetchProgramById(id) {
+  const { data, error } = await state.supabase
+    .from('programs_enriched')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function fetchInsertedProgram(payload) {
+  let query = state.supabase
+    .from('programs_enriched')
+    .select('*')
+    .eq('title', payload.title)
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (payload.nola_eidr) query = query.eq('nola_eidr', payload.nola_eidr);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  if (!data || !data.length) throw new Error('Program saved, but the refreshed row could not be found.');
+  return data[0];
+}
+
+function mergeProgramIntoState(program) {
+  const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
+  if (index >= 0) {
+    state.programs[index] = program;
+  } else {
+    state.programs.push(program);
+  }
+  sortProgramsInPlace();
+}
+
+function ensureLookupValue(collectionName, value) {
+  const name = normalizeText(value);
+  if (!name) return;
+  const collection = state.lookups[collectionName] || [];
+  if (collection.some((item) => normalizeLower(item.name) === normalizeLower(name))) return;
+  collection.push({ name, sort_order: collection.length + 1 });
+  collection.sort((a, b) => normalizeText(a.name).localeCompare(normalizeText(b.name), undefined, { sensitivity: 'base' }));
+}
+
+function syncLookupsFromProgram(program) {
+  ensureLookupValue('topics', program.topic);
+  ensureLookupValue('secondary_topics', program.secondary_topic);
+  ensureLookupValue('distributors', program.distributor);
+  ensureLookupValue('package_types', program.package_type);
+  ensureLookupValue('server_locations', program.server_tape);
+  ensureLookupValue('program_types', program.program_type);
+}
+
+function refreshUiAfterProgramMutation(statusMessage) {
+  renderFilters();
+  renderTable();
+  renderStats();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
+  setStatus(statusMessage);
+}
+
 async function loadLookupTable(tableName) {
   const { data } = await state.supabase
     .from(tableName)
@@ -931,31 +998,35 @@ async function saveProgram(event) {
     if (!proceed) return;
   }
 
-  setStatus(programId ? 'Saving changes…' : 'Creating program…');
+  setLoading(programId ? 'Saving changes…' : 'Creating program…');
 
-  let response;
-  if (programId) {
-    response = await state.supabase.from('programs').update(payload).eq('id', programId);
-  } else {
-    response = await state.supabase.from('programs').insert(payload);
-  }
+  try {
+    let response;
+    if (programId) {
+      response = await state.supabase.from('programs').update(payload).eq('id', programId);
+    } else {
+      response = await state.supabase.from('programs').insert(payload);
+    }
 
-  if (response.error) {
-    console.error(response.error);
-    alert(response.error.message);
-    setStatus(response.error.message);
-    return;
-  }
+    if (response.error) throw response.error;
 
-  await loadPrograms();
-  renderTable();
-  renderStats();
-  if (programId) {
-    openEditor(programId);
-  } else {
-    closeEditor();
+    const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
+    mergeProgramIntoState(refreshedProgram);
+    syncLookupsFromProgram(refreshedProgram);
+    refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
+    setLoading('');
+
+    if (programId) {
+      openEditor(refreshedProgram.id);
+    } else {
+      closeEditor();
+    }
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    alert(error.message);
+    setStatus(error.message);
   }
-  setStatus(programId ? 'Saved changes.' : 'Created program.');
 }
 
 async function deleteProgram() {
@@ -967,18 +1038,19 @@ async function deleteProgram() {
   }
   if (!confirm('Delete this program permanently? This is the real woodchipper option.')) return;
 
+  setLoading('Deleting program…');
   const { error } = await state.supabase.from('programs').delete().eq('id', id);
   if (error) {
     console.error(error);
+    setLoading('');
     alert(error.message);
     return;
   }
 
-  await loadPrograms();
-  renderTable();
-  renderStats();
+  state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  refreshUiAfterProgramMutation('Program deleted.');
+  setLoading('');
   closeEditor();
-  setStatus('Program deleted.');
 }
 
 function exportCurrentView() {
