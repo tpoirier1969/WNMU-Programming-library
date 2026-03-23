@@ -1034,7 +1034,10 @@ function bindEvents() {
   els.loginGitHubBtn?.addEventListener('click', async () => {
     els.authMessage.textContent = 'Sending you to GitHub…';
 const { error } = await state.supabase.auth.signInWithOAuth({
-  provider: 'github'
+  provider: 'github',
+  options: {
+    redirectTo: 'https://tpoirier1969.github.io/WNMU-Programming-library/'
+  }
 });
     if (error) {
       els.authMessage.textContent = error.message;
