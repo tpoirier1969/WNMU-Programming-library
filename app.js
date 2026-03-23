@@ -1033,12 +1033,9 @@ function bindEvents() {
 
   els.loginGitHubBtn?.addEventListener('click', async () => {
     els.authMessage.textContent = 'Sending you to GitHub…';
-    const { error } = await state.supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: getAdminRedirectUrl()
-      }
-    });
+const { error } = await state.supabase.auth.signInWithOAuth({
+  provider: 'github'
+});
     if (error) {
       els.authMessage.textContent = error.message;
       setStatus(error.message);
