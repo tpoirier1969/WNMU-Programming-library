@@ -14,7 +14,10 @@ const state = {
     program_types: []
   },
   selectedId: null,
-  currentView: 'active'
+  currentView: 'all',
+  viewHistory: [],
+  lastAppliedViewState: null,
+  isLoading: false
 };
 
 const els = {
@@ -29,7 +32,10 @@ const els = {
   appTitle: $('#appTitle'),
   appVersion: $('#appVersion'),
   statusLine: $('#statusLine'),
+  adminBtn: $('#adminBtn'),
+  undoViewBtn: $('#undoViewBtn'),
   logoutBtn: $('#logoutBtn'),
+  cancelLoginBtn: $('#cancelLoginBtn'),
   newProgramBtn: $('#newProgramBtn'),
   exportBtn: $('#exportBtn'),
   refreshBtn: $('#refreshBtn'),
@@ -56,8 +62,11 @@ const els = {
   drawerTitle: $('#drawerTitle'),
   closeDrawerBtn: $('#closeDrawerBtn'),
   programForm: $('#programForm'),
+  saveBtn: $('#saveBtn'),
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
+  readOnlyNote: $('#readOnlyNote'),
+  drawerModeBadge: $('#drawerModeBadge'),
   formFlags: $('#formFlags'),
   statApt: $('#statApt'),
   statEnding: $('#statEnding'),
@@ -77,7 +86,11 @@ function hasValidConfig() {
 }
 
 function requireAuth() {
-  return config.REQUIRE_AUTH !== false;
+  return config.REQUIRE_AUTH === true;
+}
+
+function canEdit() {
+  return Boolean(state.session);
 }
 
 function formatDate(value) {
@@ -95,44 +108,6 @@ function normalizeText(value) {
 
 function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
-}
-
-function describeSupabaseError(error) {
-  const message = normalizeText(error?.message) || 'Unknown Supabase error.';
-  const lower = message.toLowerCase();
-  const hints = [];
-
-  if (lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('not allowed')) {
-    hints.push('Check Supabase RLS policies for SELECT on programs_enriched, INSERT/UPDATE/DELETE on programs, and EXECUTE on auto_archive_due_programs.');
-  }
-  if (lower.includes('invalid login') || lower.includes('email not confirmed') || lower.includes('jwt') || lower.includes('auth')) {
-    hints.push('Sign in with a Supabase Auth email/password user from Authentication → Users.');
-  }
-  if (lower.includes('column') && lower.includes('does not exist')) {
-    hints.push('The table schema does not match this build.');
-  }
-
-  return hints.length ? `${message} ${hints.join(' ')}` : message;
-}
-
-function inferSavedProgramId(payload) {
-  const scored = state.programs
-    .map((program) => {
-      let score = 0;
-      if (normalizeLower(program.title) === normalizeLower(payload.title)) score += 5;
-      if (normalizeLower(program.nola_eidr) && normalizeLower(program.nola_eidr) === normalizeLower(payload.nola_eidr)) score += 4;
-      if (normalizeLower(program.legacy_code) && normalizeLower(program.legacy_code) === normalizeLower(payload.legacy_code)) score += 3;
-      if (normalizeLower(program.episode_season) && normalizeLower(program.episode_season) === normalizeLower(payload.episode_season)) score += 2;
-      if (normalizeLower(program.distributor) && normalizeLower(program.distributor) === normalizeLower(payload.distributor)) score += 1;
-      return { program, score };
-    })
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return Number(b.program.id || 0) - Number(a.program.id || 0);
-    });
-
-  return scored[0]?.program?.id || null;
 }
 
 function isInteractiveElement(element) {
@@ -245,6 +220,51 @@ function setStatus(message) {
   els.statusLine.textContent = message;
 }
 
+function setLoading(message = '') {
+  state.isLoading = Boolean(message);
+  document.body.classList.toggle('loading-active', state.isLoading);
+  const overlay = document.getElementById('loadingOverlay');
+  const detail = document.getElementById('loadingDetail');
+  if (overlay) overlay.classList.toggle('hidden', !state.isLoading);
+  if (detail) detail.textContent = message || '';
+  if (message) setStatus(message);
+}
+
+function updateModeUI() {
+  const editing = canEdit();
+  els.appShell.classList.remove('hidden');
+  els.authShell.classList.add('hidden');
+  els.adminBtn.textContent = editing ? 'Admin mode' : 'Admin sign in';
+  els.adminBtn.classList.toggle('secondary', editing);
+  els.adminBtn.classList.toggle('primary', !editing);
+  els.newProgramBtn.classList.toggle('hidden', !editing);
+  els.logoutBtn.classList.toggle('hidden', !editing);
+  if (els.readOnlyNote) els.readOnlyNote.classList.toggle('hidden', editing);
+  if (els.drawerModeBadge) {
+    els.drawerModeBadge.textContent = editing ? 'Admin mode' : 'Read only';
+    els.drawerModeBadge.classList.toggle('admin', editing);
+  }
+  applyEditorMode();
+}
+
+function applyEditorMode() {
+  if (!els.programForm) return;
+  const editing = canEdit();
+  const fields = Array.from(els.programForm.querySelectorAll('input, select, textarea'));
+  fields.forEach((field) => {
+    const type = field.type || '';
+    if (['submit','button','hidden'].includes(type)) return;
+    if (field.name === 'title' || field.name === 'legacy_code' || field.name === 'episode_season' || field.name === 'nola_eidr' || field.name === 'length_minutes' || field.name === 'aired_13_1' || field.name === 'aired_13_3' || field.name === 'rights_begin' || field.name === 'rights_end') {
+      field.readOnly = !editing && field.tagName === 'INPUT';
+    }
+    if (field.tagName === 'TEXTAREA') field.readOnly = !editing;
+    if (field.tagName === 'SELECT' || type === 'checkbox') field.disabled = !editing;
+  });
+  if (els.saveBtn) els.saveBtn.classList.toggle('hidden', !editing);
+  if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
+  if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
+}
+
 function updateListSummary(count, totalPool) {
   const noun = count === 1 ? 'program' : 'programs';
   els.listSummary.textContent = `Showing ${count.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}.`;
@@ -268,36 +288,37 @@ async function init() {
   });
   bindEvents();
 
-  if (requireAuth()) {
-    const { data } = await state.supabase.auth.getSession();
-    state.session = data.session;
-    if (!state.session) {
-      els.authShell.classList.remove('hidden');
-      return;
-    }
-    showApp();
-  } else {
-    showApp();
-  }
+  const { data } = await state.supabase.auth.getSession();
+  state.session = data.session;
+  showApp();
+
+  state.supabase.auth.onAuthStateChange((_event, session) => {
+    state.session = session;
+    updateModeUI();
+  });
 }
 
 function showApp() {
-  els.authShell.classList.add('hidden');
-  els.appShell.classList.remove('hidden');
-  els.logoutBtn.classList.toggle('hidden', !requireAuth());
+  updateModeUI();
   loadEverything();
 }
 
 async function loadEverything() {
-  setStatus('Running auto-archive check…');
-  await attemptAutoArchive();
-  setStatus('Loading data…');
-  await Promise.all([loadPrograms(), loadLookups()]);
+  setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
+  if (canEdit()) await attemptAutoArchive();
+  await loadPrograms();
+  renderTable();
+  renderStats();
+  state.lastAppliedViewState = snapshotViewState();
+  setLoading('Building filters and lookup lists…');
+  await loadLookups();
   renderFilters();
   renderTable();
   renderStats();
+  state.lastAppliedViewState = snapshotViewState();
   const activeCount = state.programs.filter((item) => !item.is_archived).length;
   const archivedCount = state.programs.filter((item) => item.is_archived).length;
+  setLoading('');
   setStatus(`Loaded ${state.programs.length.toLocaleString()} total programs (${activeCount.toLocaleString()} active, ${archivedCount.toLocaleString()} archived).`);
 }
 
@@ -316,6 +337,7 @@ async function fetchAllRows(tableName, orderColumn = 'title') {
   let allRows = [];
 
   while (true) {
+    setLoading(`Loading ${tableName.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
     const { data, error } = await state.supabase
       .from(tableName)
       .select('*')
@@ -339,7 +361,8 @@ async function loadPrograms() {
     state.programs = await fetchAllRows('programs_enriched', 'title');
   } catch (error) {
     console.error(error);
-    setStatus(describeSupabaseError(error));
+    setLoading('');
+    setStatus(error.message);
     return;
   }
 }
@@ -453,6 +476,86 @@ function renderFilters() {
   renderTemplateSourceList();
 }
 
+function snapshotViewState() {
+  return {
+    searchInput: els.searchInput.value,
+    searchFieldSelect: els.searchFieldSelect.value,
+    codeFilter: selectedValues(els.codeFilter),
+    topicFilter: selectedValues(els.topicFilter),
+    secondaryTopicFilter: selectedValues(els.secondaryTopicFilter),
+    lengthFilter: selectedValues(els.lengthFilter),
+    distributorFilter: els.distributorFilter.value,
+    programTypeFilter: els.programTypeFilter.value,
+    statusFilter: els.statusFilter.value,
+    showArchived: els.showArchived.checked,
+    currentView: state.currentView
+  };
+}
+
+function sameViewState(a, b) {
+  return JSON.stringify(a || {}) === JSON.stringify(b || {});
+}
+
+function rememberViewState() {
+  const current = snapshotViewState();
+  if (sameViewState(current, state.lastAppliedViewState)) return;
+  if (state.lastAppliedViewState) state.viewHistory.push(JSON.parse(JSON.stringify(state.lastAppliedViewState)));
+  if (state.viewHistory.length > 20) state.viewHistory.shift();
+  state.lastAppliedViewState = current;
+  syncUndoButton();
+}
+
+function applySnapshot(snapshot) {
+  if (!snapshot) return;
+  els.searchInput.value = snapshot.searchInput || '';
+  els.searchFieldSelect.value = snapshot.searchFieldSelect || '';
+  setMultiSelectValues(els.codeFilter, snapshot.codeFilter || []);
+  setMultiSelectValues(els.topicFilter, snapshot.topicFilter || []);
+  setMultiSelectValues(els.secondaryTopicFilter, snapshot.secondaryTopicFilter || []);
+  setMultiSelectValues(els.lengthFilter, snapshot.lengthFilter || []);
+  els.distributorFilter.value = snapshot.distributorFilter || '';
+  els.programTypeFilter.value = snapshot.programTypeFilter || '';
+  els.statusFilter.value = snapshot.statusFilter || '';
+  els.showArchived.checked = Boolean(snapshot.showArchived);
+  state.currentView = snapshot.currentView || 'all';
+  syncQuickViewState();
+  renderTable();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
+  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+}
+
+function undoViewState() {
+  const snapshot = state.viewHistory.pop();
+  if (!snapshot) return;
+  applySnapshot(snapshot);
+}
+
+function syncUndoButton() {
+  if (!els.undoViewBtn) return;
+  els.undoViewBtn.classList.toggle('hidden', !state.viewHistory.length);
+}
+
+function setMultiSelectValues(selectEl, values) {
+  const set = new Set(values || []);
+  Array.from(selectEl.options).forEach((opt) => { opt.selected = set.has(opt.value); });
+}
+
+function viewIncludesArchived(view) {
+  return new Set(['archived', 'ending_soon', 'expired']).has(view);
+}
+
+function programsInCurrentViewPool() {
+  let items = [...state.programs];
+  if (!els.showArchived.checked && !viewIncludesArchived(state.currentView)) {
+    items = items.filter((item) => !item.is_archived);
+  }
+  if (state.currentView && state.currentView !== 'all') {
+    items = items.filter((item) => matchesView(item, state.currentView));
+  }
+  return items;
+}
+
 function selectedValues(selectEl) {
   return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
 }
@@ -462,6 +565,7 @@ function clearMultiSelect(selectEl) {
 }
 
 function resetFilters() {
+  rememberViewState();
   els.searchInput.value = '';
   els.searchFieldSelect.value = '';
   clearMultiSelect(els.codeFilter);
@@ -471,15 +575,17 @@ function resetFilters() {
   els.distributorFilter.value = '';
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
-  state.currentView = 'active';
+  state.currentView = 'all';
   syncQuickViewState();
-  els.showArchived.checked = false;
+  els.showArchived.checked = true;
   renderTable();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
   setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
 }
 
 function activePrograms() {
-  let items = [...state.programs];
+  let items = programsInCurrentViewPool();
   const search = normalizeLower(els.searchInput.value);
   const searchField = els.searchFieldSelect.value;
   const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
@@ -489,23 +595,13 @@ function activePrograms() {
   const distributor = els.distributorFilter.value;
   const programType = els.programTypeFilter.value;
   const status = els.statusFilter.value;
-  const showArchived = els.showArchived.checked;
-
-  const allowArchivedInView = new Set(['archived', 'ending_soon']);
-  if (!showArchived && !allowArchivedInView.has(state.currentView)) {
-    items = items.filter((item) => !item.is_archived);
-  }
-
-  if (state.currentView && state.currentView !== 'all') {
-    items = items.filter((item) => matchesView(item, state.currentView));
-  }
 
   if (search) {
     items = items.filter((item) => {
       if (searchField) return normalizeLower(item[searchField]).includes(search);
       return [
         item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic,
-        item.aired_13_1, item.aired_13_3, item.distributor, item.rights_notes
+        item.aired_13_1, item.aired_13_3, item.distributor, item.rights_notes, item.package_type, item.program_type
       ].some((value) => normalizeLower(value).includes(search));
     });
   }
@@ -524,6 +620,8 @@ function matchesView(program, view) {
   const flags = computeFlags(program);
   const michiganText = [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | ');
   switch (view) {
+    case 'all':
+      return true;
     case 'active':
       return !program.is_archived;
     case 'archived':
@@ -546,10 +644,10 @@ function matchesView(program, view) {
       return flags.missingRights;
     case 'missing_info':
       return !normalizeText(program.notes) || !normalizeText(program.topic) || !normalizeText(program.length_minutes) || !normalizeText(program.program_type) || !normalizeText(program.aired_13_1) || !normalizeText(program.aired_13_3) || !normalizeText(program.distributor);
-    case 'hdever':
-      return normalizeLower(program.package_type) === 'hdever';
     case 'michigan':
       return michiganText.includes('michigan');
+    case 'evergreens':
+      return normalizeLower(program.package_type) === 'hdever';
     default:
       return true;
   }
@@ -638,9 +736,7 @@ function formatDetailsCell(program) {
 function renderTable() {
   const items = activePrograms();
   const selectedId = state.selectedId;
-  const poolCount = state.currentView === 'archived'
-    ? state.programs.filter((item) => item.is_archived).length
-    : state.programs.filter((item) => !item.is_archived).length;
+  const poolCount = programsInCurrentViewPool().length;
 
   updateListSummary(items.length, poolCount);
 
@@ -663,7 +759,7 @@ function renderTable() {
         <td>${formatDetailsCell(item)}</td>
         <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
         <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
-        <td class="vote-cell">${escapeHtml(item.vote || '')}</td>
+        <td class="type-cell">${escapeHtml(item.program_type || '')}</td>
         <td>${formatRightsWindow(item)}</td>
         <td>${escapeHtml(item.distributor || '')}</td>
         <td><div class="badges">${badges}</div></td>
@@ -718,7 +814,7 @@ function openEditor(id = null, duplicate = false) {
   els.drawer.classList.remove('hidden');
   els.drawerBackdrop.classList.remove('hidden');
   document.body.classList.add('modal-open');
-  els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : item.title) : 'New program';
+  els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : (canEdit() ? item.title : `View: ${item.title}`)) : 'New program';
   form.dataset.programId = item?.id || '';
 
   const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
@@ -735,6 +831,7 @@ function openEditor(id = null, duplicate = false) {
   renderFormFlags(item);
   renderDuplicateCheck();
   renderTable();
+  applyEditorMode();
 
   requestAnimationFrame(() => form.elements.title.focus());
 }
@@ -766,6 +863,10 @@ function closeEditor() {
 
 async function saveProgram(event) {
   event.preventDefault();
+  if (!canEdit()) {
+    alert('Read-only mode. Use Admin sign in to make changes.');
+    return;
+  }
   const form = els.programForm;
   const programId = form.dataset.programId || null;
   const payload = {
@@ -804,34 +905,33 @@ async function saveProgram(event) {
 
   setStatus(programId ? 'Saving changes…' : 'Creating program…');
 
-  try {
-    const response = programId
-      ? await state.supabase.from('programs').update(payload).eq('id', programId)
-      : await state.supabase.from('programs').insert(payload);
-
-    if (response.error) throw response.error;
-
-    await loadPrograms();
-    renderTable();
-    renderStats();
-
-    const savedId = programId || inferSavedProgramId(payload);
-    if (savedId) {
-      openEditor(savedId);
-    } else {
-      closeEditor();
-    }
-
-    setStatus(programId ? 'Saved changes.' : 'Program created.');
-  } catch (error) {
-    console.error(error);
-    const message = describeSupabaseError(error);
-    alert(message);
-    setStatus(message);
+  let response;
+  if (programId) {
+    response = await state.supabase.from('programs').update(payload).eq('id', programId);
+  } else {
+    response = await state.supabase.from('programs').insert(payload);
   }
+
+  if (response.error) {
+    console.error(response.error);
+    alert(response.error.message);
+    setStatus(response.error.message);
+    return;
+  }
+
+  await loadPrograms();
+  renderTable();
+  renderStats();
+  if (programId) {
+    openEditor(programId);
+  } else {
+    closeEditor();
+  }
+  setStatus(programId ? 'Saved changes.' : 'Created program.');
 }
 
 async function deleteProgram() {
+  if (!canEdit()) return;
   const id = els.programForm.dataset.programId;
   if (!id) {
     closeEditor();
@@ -884,8 +984,11 @@ function escapeHtml(text) {
 }
 
 function updateQueryStatus() {
+  rememberViewState();
   const count = activePrograms().length;
   renderTable();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
   setStatus(`${count.toLocaleString()} matching programs.`);
 }
 
@@ -904,15 +1007,34 @@ function bindEvents() {
     const { data } = await state.supabase.auth.getSession();
     state.session = data.session;
     els.authMessage.textContent = '';
-    showApp();
+    updateModeUI();
+    if (els.drawer && !els.drawer.classList.contains('hidden')) openEditor(els.programForm.dataset.programId || null);
+  });
+
+  els.adminBtn.addEventListener('click', () => {
+    if (canEdit()) {
+      setStatus('Admin mode is already active.');
+      return;
+    }
+    els.authMessage.textContent = '';
+    els.authShell.classList.remove('hidden');
+    requestAnimationFrame(() => els.loginEmail.focus());
+  });
+
+  els.cancelLoginBtn?.addEventListener('click', () => {
+    els.authShell.classList.add('hidden');
+    els.authMessage.textContent = '';
   });
 
   els.logoutBtn.addEventListener('click', async () => {
     await state.supabase.auth.signOut();
-    location.reload();
+    state.session = null;
+    updateModeUI();
+    setStatus('Signed out. Read-only mode is active.');
   });
 
   els.newProgramBtn.addEventListener('click', () => openEditor());
+  els.undoViewBtn?.addEventListener('click', undoViewState);
   els.closeDrawerBtn.addEventListener('click', closeEditor);
   els.drawerBackdrop.addEventListener('click', closeEditor);
   els.programForm.addEventListener('submit', saveProgram);
@@ -958,7 +1080,8 @@ function bindEvents() {
     if (!btn) return;
     state.currentView = btn.dataset.view;
     syncQuickViewState();
-    els.showArchived.checked = state.currentView === 'archived';
+    els.statusFilter.value = '';
+    els.showArchived.checked = ['all', 'archived'].includes(state.currentView);
     updateQueryStatus();
   });
 
@@ -976,7 +1099,7 @@ function bindEvents() {
     if (event.key === 'Escape' && formIsOpen) {
       closeEditor();
     }
-    if (event.key.toLowerCase() === 'n' && !isInteractiveElement(document.activeElement)) {
+    if (event.key.toLowerCase() === 'n' && !isInteractiveElement(document.activeElement) && canEdit()) {
       event.preventDefault();
       openEditor();
     }
