@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.0" />
+  <link rel="stylesheet" href="styles.css?v=1.5.1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -26,12 +26,10 @@
           <div class="brand-subtitle">PROGRAMMING</div>
         </div>
       </div>
-      <p class="muted">Sign in with a Supabase email/password account.</p>
-      <form id="loginForm" class="auth-form">
-        <label>Email <input id="loginEmail" type="email" autocomplete="username" required /></label>
-        <label>Password <input id="loginPassword" type="password" autocomplete="current-password" required /></label>
-        <button type="submit" class="primary">Sign in</button>
-      </form>
+      <p class="muted">Sign in with GitHub for admin access. Everyone else can keep using the library in read-only mode.</p>
+      <div class="auth-form">
+        <button type="button" id="loginGitHubBtn" class="primary auth-provider-btn">Sign in with GitHub</button>
+      </div>
       <div id="authMessage" class="auth-message"></div>
       <div class="auth-actions">
         <button type="button" id="cancelLoginBtn" class="ghost">Cancel</button>
@@ -47,7 +45,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.0</span>
+            <span id="appVersion" class="version-pill">v1.5.1</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -199,7 +197,7 @@
               <th class="col-details">Details</th>
               <th class="col-airing">Aired on 13.1</th>
               <th class="col-airing">Aired on 13.3</th>
-              <th class="col-type">Program type</th>
+              <th class="col-type">Package type</th>
               <th class="col-rights">Rights window</th>
               <th class="col-distributor">Distributor</th>
               <th class="col-flags">Flags</th>
@@ -320,7 +318,7 @@
 
       <div id="formFlags" class="form-flags"></div>
 
-      <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in to add, edit, duplicate, or delete programs.</div>
+      <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
       <div class="drawer-actions">
         <button type="submit" id="saveBtn" class="primary">Save</button>
         <button type="button" id="duplicateBtn">Duplicate</button>
@@ -329,6 +327,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.5.0"></script>
+  <script src="app.js?v=1.5.1"></script>
 </body>
 </html>

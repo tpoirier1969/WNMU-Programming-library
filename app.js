@@ -26,9 +26,7 @@ const els = {
   appShell: $('#appShell'),
   authTitle: $('#authTitle'),
   authMessage: $('#authMessage'),
-  loginForm: $('#loginForm'),
-  loginEmail: $('#loginEmail'),
-  loginPassword: $('#loginPassword'),
+  loginGitHubBtn: $('#loginGitHubBtn'),
   appTitle: $('#appTitle'),
   appVersion: $('#appVersion'),
   statusLine: $('#statusLine'),
@@ -83,10 +81,6 @@ const els = {
 
 function hasValidConfig() {
   return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
-}
-
-function requireAuth() {
-  return config.REQUIRE_AUTH === true;
 }
 
 function canEdit() {
@@ -270,6 +264,24 @@ function updateListSummary(count, totalPool) {
   els.listSummary.textContent = `Showing ${count.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}.`;
 }
 
+function getAdminRedirectUrl() {
+  const configured = normalizeText(config.ADMIN_REDIRECT_URL);
+  if (configured) return configured;
+  const url = new URL(window.location.href);
+  url.hash = '';
+  return url.toString();
+}
+
+function parseAuthErrorFromHash() {
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+  if (!hash) return '';
+  const params = new URLSearchParams(hash);
+  const errorCode = params.get('error_code') || '';
+  const description = params.get('error_description') || params.get('error') || '';
+  if (!errorCode && !description) return '';
+  return decodeURIComponent(description.replace(/\+/g, ' ')) || errorCode;
+}
+
 async function init() {
   if (!hasValidConfig()) {
     els.setupNotice.classList.remove('hidden');
@@ -288,13 +300,29 @@ async function init() {
   });
   bindEvents();
 
+  const authHashError = parseAuthErrorFromHash();
+  if (authHashError) {
+    els.authMessage.textContent = authHashError;
+    els.authShell.classList.remove('hidden');
+    setStatus(authHashError);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+
   const { data } = await state.supabase.auth.getSession();
   state.session = data.session;
   showApp();
 
   state.supabase.auth.onAuthStateChange((_event, session) => {
+    const wasEditing = canEdit();
     state.session = session;
+    const isEditing = canEdit();
     updateModeUI();
+    if (els.drawer && !els.drawer.classList.contains('hidden')) openEditor(els.programForm.dataset.programId || null);
+    if (wasEditing !== isEditing) {
+      els.authShell.classList.add('hidden');
+      els.authMessage.textContent = '';
+      loadEverything();
+    }
   });
 }
 
@@ -759,7 +787,7 @@ function renderTable() {
         <td>${formatDetailsCell(item)}</td>
         <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
         <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
-        <td class="type-cell">${escapeHtml(item.program_type || '')}</td>
+        <td class="type-cell">${escapeHtml(item.package_type || '')}</td>
         <td>${formatRightsWindow(item)}</td>
         <td>${escapeHtml(item.distributor || '')}</td>
         <td><div class="badges">${badges}</div></td>
@@ -864,7 +892,7 @@ function closeEditor() {
 async function saveProgram(event) {
   event.preventDefault();
   if (!canEdit()) {
-    alert('Read-only mode. Use Admin sign in to make changes.');
+    alert('Read-only mode. Use Admin sign in with GitHub to make changes.');
     return;
   }
   const form = els.programForm;
@@ -993,24 +1021,6 @@ function updateQueryStatus() {
 }
 
 function bindEvents() {
-  els.loginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    els.authMessage.textContent = 'Signing in…';
-    const { error } = await state.supabase.auth.signInWithPassword({
-      email: els.loginEmail.value,
-      password: els.loginPassword.value
-    });
-    if (error) {
-      els.authMessage.textContent = error.message;
-      return;
-    }
-    const { data } = await state.supabase.auth.getSession();
-    state.session = data.session;
-    els.authMessage.textContent = '';
-    updateModeUI();
-    if (els.drawer && !els.drawer.classList.contains('hidden')) openEditor(els.programForm.dataset.programId || null);
-  });
-
   els.adminBtn.addEventListener('click', () => {
     if (canEdit()) {
       setStatus('Admin mode is already active.');
@@ -1018,7 +1028,21 @@ function bindEvents() {
     }
     els.authMessage.textContent = '';
     els.authShell.classList.remove('hidden');
-    requestAnimationFrame(() => els.loginEmail.focus());
+    requestAnimationFrame(() => els.loginGitHubBtn?.focus());
+  });
+
+  els.loginGitHubBtn?.addEventListener('click', async () => {
+    els.authMessage.textContent = 'Sending you to GitHub…';
+    const { error } = await state.supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: getAdminRedirectUrl()
+      }
+    });
+    if (error) {
+      els.authMessage.textContent = error.message;
+      setStatus(error.message);
+    }
   });
 
   els.cancelLoginBtn?.addEventListener('click', () => {
