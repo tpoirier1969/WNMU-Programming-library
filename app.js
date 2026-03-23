@@ -18,7 +18,10 @@ const state = {
   viewHistory: [],
   lastAppliedViewState: null,
   isLoading: false,
-  searchDebounceTimer: null
+  searchDebounceTimer: null,
+  programRevision: 0,
+  filteredCache: { key: '', value: null },
+  statsCache: { key: '', value: null }
 };
 
 const els = {
@@ -108,6 +111,52 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function decorateProgram(program) {
+  if (!program || typeof program !== 'object') return program;
+  const flags = computeFlags(program);
+  const searchFields = [
+    program.title, program.notes, program.legacy_code, program.nola_eidr, program.secondary_topic, program.topic,
+    program.aired_13_1, program.aired_13_3, program.distributor, program.rights_notes, program.package_type, program.program_type
+  ];
+  program.__meta = {
+    flags,
+    titleLower: normalizeLower(program.title),
+    nolaLower: normalizeLower(program.nola_eidr),
+    legacyCodeUpper: normalizeText(program.legacy_code).toUpperCase(),
+    secondaryTopics: splitMultiValues(program.secondary_topic),
+    searchBlob: searchFields.map(normalizeLower).join('\n'),
+    michiganText: [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | '),
+    distributorLower: normalizeLower(program.distributor),
+    packageTypeLower: normalizeLower(program.package_type)
+  };
+  return program;
+}
+
+function decoratePrograms(programs) {
+  return (programs || []).map(decorateProgram);
+}
+
+function invalidateProgramCaches(bumpRevision = false) {
+  if (bumpRevision) state.programRevision += 1;
+  state.filteredCache = { key: '', value: null };
+  state.statsCache = { key: '', value: null };
+}
+
+function syncSelectedRow() {
+  if (!els.tableBody) return;
+  els.tableBody.querySelectorAll('tr[data-id]').forEach((row) => {
+    row.classList.toggle('selected', String(row.dataset.id) === String(state.selectedId ?? ''));
+  });
+}
+
+function filteredCacheKey() {
+  return `${state.programRevision}::${JSON.stringify(snapshotViewState())}`;
+}
+
+function statsCacheKey() {
+  return String(state.programRevision);
+}
+
 const NOLA_PLACEHOLDERS = new Set(['nonola', 'no nola', 'no-nola', 'n/a', 'na', 'none', 'unknown']);
 
 function isPlaceholderNola(value) {
@@ -138,8 +187,9 @@ function duplicateMatches(titleValue, nolaValue, currentId = null) {
   const current = currentId == null ? null : String(currentId);
   return state.programs.filter((program) => {
     if (current && String(program.id) === current) return false;
-    const titleMatch = title && normalizeLower(program.title) === title;
-    const programNola = normalizeLower(program.nola_eidr);
+    const meta = program.__meta || decorateProgram(program).__meta;
+    const titleMatch = title && meta.titleLower === title;
+    const programNola = meta.nolaLower;
     const nolaMatch = nola && programNola === nola && !isPlaceholderNola(programNola);
     return titleMatch || nolaMatch;
   });
@@ -173,16 +223,11 @@ function renderDuplicateCheck() {
     </div>
   `;
   els.duplicateCheck.classList.remove('hidden');
-  els.duplicateCheck.querySelectorAll('[data-open-program]').forEach((btn) => {
-    btn.addEventListener('click', () => openEditor(btn.dataset.openProgram));
-  });
 }
 
 function renderTemplateSourceList() {
   if (!els.templateSourceList) return;
   els.templateSourceList.innerHTML = state.programs
-    .slice()
-    .sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }))
     .map((program) => `<option value="${escapeHtml(`${program.title || '(untitled)'}${program.nola_eidr ? ' — ' + program.nola_eidr : ''} [${program.id}]`)}"></option>`)
     .join('');
 }
@@ -390,9 +435,6 @@ async function loadEverything() {
   setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
   if (canEdit()) await attemptAutoArchive();
   await loadPrograms();
-  renderTable();
-  renderStats();
-  state.lastAppliedViewState = snapshotViewState();
   setLoading('Building filters and lookup lists…');
   await loadLookups();
   renderFilters();
@@ -441,7 +483,8 @@ async function fetchAllRows(tableName, orderColumn = 'title') {
 
 async function loadPrograms() {
   try {
-    state.programs = await fetchAllRows('programs_enriched', 'title');
+    state.programs = decoratePrograms(await fetchAllRows('programs_enriched', 'title'));
+    invalidateProgramCaches(true);
   } catch (error) {
     console.error(error);
     setLoading('');
@@ -482,9 +525,11 @@ async function fetchInsertedProgram(payload) {
 
 function mergeProgramIntoState(program) {
   const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
-  if (index >= 0) state.programs[index] = program;
-  else state.programs.push(program);
+  const prepared = decorateProgram(program);
+  if (index >= 0) state.programs[index] = prepared;
+  else state.programs.push(prepared);
   sortProgramsInPlace();
+  invalidateProgramCaches(true);
 }
 
 function ensureLookupValue(collectionName, value) {
@@ -678,10 +723,10 @@ function applySnapshot(snapshot) {
   els.statusFilter.value = snapshot.statusFilter || '';
   state.currentView = snapshot.currentView || 'all';
   syncQuickViewState();
-  renderTable();
+  const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
-  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+  setStatus(`${count.toLocaleString()} matching programs.`);
 }
 
 function undoViewState() {
@@ -705,14 +750,53 @@ function viewIncludesArchived(view) {
 }
 
 function programsInCurrentViewPool() {
-  let items = [...state.programs];
+  return getFilteredProgramsResult().pool;
+}
+
+function getFilteredProgramsResult() {
+  const key = filteredCacheKey();
+  if (state.filteredCache.key === key && state.filteredCache.value) return state.filteredCache.value;
+
+  let pool = state.programs;
   if (state.currentView !== 'archived') {
-    items = items.filter((item) => !item.is_archived);
+    pool = pool.filter((item) => !item.is_archived);
   }
   if (state.currentView && state.currentView !== 'all') {
-    items = items.filter((item) => matchesView(item, state.currentView));
+    pool = pool.filter((item) => matchesView(item, state.currentView));
   }
-  return items;
+
+  let items = pool;
+  const search = normalizeLower(els.searchInput.value);
+  const searchField = els.searchFieldSelect.value;
+  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
+  const topics = selectedValues(els.topicFilter);
+  const secondaryTopics = selectedValues(els.secondaryTopicFilter);
+  const lengths = selectedValues(els.lengthFilter);
+  const distributor = els.distributorFilter.value;
+  const programType = els.programTypeFilter.value;
+  const status = els.statusFilter.value;
+
+  if (search) {
+    items = items.filter((item) => {
+      const meta = item.__meta || decorateProgram(item).__meta;
+      if (searchField) return normalizeLower(item[searchField]).includes(search);
+      return meta.searchBlob.includes(search);
+    });
+  }
+  if (codes.length) items = items.filter((item) => (item.__meta || decorateProgram(item).__meta).legacyCodeUpper && codes.includes((item.__meta || decorateProgram(item).__meta).legacyCodeUpper));
+  if (topics.length) items = items.filter((item) => topics.includes(item.topic));
+  if (secondaryTopics.length) items = items.filter((item) => {
+    const itemTopics = (item.__meta || decorateProgram(item).__meta).secondaryTopics;
+    return secondaryTopics.some((topic) => itemTopics.includes(topic));
+  });
+  if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
+  if (distributor) items = items.filter((item) => item.distributor === distributor);
+  if (programType) items = items.filter((item) => item.program_type === programType);
+  if (status) items = items.filter((item) => matchesView(item, status));
+
+  const result = { items, pool, poolCount: pool.length };
+  state.filteredCache = { key, value: result };
+  return result;
 }
 
 function selectedValues(selectEl) {
@@ -736,50 +820,20 @@ function resetFilters() {
   els.statusFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
-  renderTable();
+  const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
-  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+  setStatus(`${count.toLocaleString()} matching programs.`);
 }
 
 function activePrograms() {
-  let items = programsInCurrentViewPool();
-  const search = normalizeLower(els.searchInput.value);
-  const searchField = els.searchFieldSelect.value;
-  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
-  const topics = selectedValues(els.topicFilter);
-  const secondaryTopics = selectedValues(els.secondaryTopicFilter);
-  const lengths = selectedValues(els.lengthFilter);
-  const distributor = els.distributorFilter.value;
-  const programType = els.programTypeFilter.value;
-  const status = els.statusFilter.value;
-
-  if (search) {
-    items = items.filter((item) => {
-      if (searchField) return normalizeLower(item[searchField]).includes(search);
-      return [
-        item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic,
-        item.aired_13_1, item.aired_13_3, item.distributor, item.rights_notes, item.package_type, item.program_type
-      ].some((value) => normalizeLower(value).includes(search));
-    });
-  }
-  if (codes.length) items = items.filter((item) => codes.includes(normalizeText(item.legacy_code).toUpperCase()));
-  if (topics.length) items = items.filter((item) => topics.includes(item.topic));
-  if (secondaryTopics.length) items = items.filter((item) => {
-    const itemTopics = splitMultiValues(item.secondary_topic);
-    return secondaryTopics.some((topic) => itemTopics.includes(topic));
-  });
-  if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
-  if (distributor) items = items.filter((item) => item.distributor === distributor);
-  if (programType) items = items.filter((item) => item.program_type === programType);
-  if (status) items = items.filter((item) => matchesView(item, status));
-
-  return items;
+  return getFilteredProgramsResult().items;
 }
 
 function matchesView(program, view) {
-  const flags = computeFlags(program);
-  const michiganText = [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | ');
+  const meta = program.__meta || decorateProgram(program).__meta;
+  const flags = meta.flags;
+  const michiganText = meta.michiganText;
   switch (view) {
     case 'all':
       return true;
@@ -808,7 +862,7 @@ function matchesView(program, view) {
     case 'michigan':
       return michiganText.includes('michigan');
     case 'evergreens':
-      return normalizeLower(program.package_type) === 'hdever';
+      return meta.packageTypeLower === 'hdever';
     default:
       return true;
   }
@@ -820,7 +874,7 @@ function topicColor(topicName) {
 }
 
 function badgesFor(program) {
-  const flags = computeFlags(program);
+  const flags = (program.__meta || decorateProgram(program).__meta).flags;
   const badges = [];
 
   if (flags.needsAptCheck) badges.push({ label: 'APT check', cls: 'danger' });
@@ -926,9 +980,8 @@ function scheduleSearchUpdate() {
 }
 
 function renderTable() {
-  const items = activePrograms();
+  const { items, poolCount } = getFilteredProgramsResult();
   const selectedId = state.selectedId;
-  const poolCount = programsInCurrentViewPool().length;
 
   updateListSummary(items.length, poolCount);
 
@@ -958,16 +1011,35 @@ function renderTable() {
       </tr>
     `;
   }).join('');
+  return { count: items.length, poolCount };
+}
+
+function getStatsSummary() {
+  const key = statsCacheKey();
+  if (state.statsCache.key === key && state.statsCache.value) return state.statsCache.value;
+  const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: 0 };
+  state.programs.forEach((program) => {
+    const flags = (program.__meta || decorateProgram(program).__meta).flags;
+    if (program.is_archived) {
+      summary.archived += 1;
+      return;
+    }
+    if (flags.needsAptCheck) summary.apt += 1;
+    if (flags.rightsStatus === 'Ending soon') summary.ending += 1;
+    if (flags.rightsStatus === 'Expired') summary.expired += 1;
+    if (flags.missingRights) summary.missingRights += 1;
+  });
+  state.statsCache = { key, value: summary };
+  return summary;
 }
 
 function renderStats() {
-  const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
-  const activeFlags = flags.filter((x) => !x.program.is_archived);
-  els.statApt.textContent = activeFlags.filter((x) => x.flags.needsAptCheck).length.toLocaleString();
-  els.statEnding.textContent = activeFlags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
-  els.statExpired.textContent = activeFlags.filter((x) => x.flags.rightsStatus === 'Expired').length.toLocaleString();
-  els.statMissingRights.textContent = activeFlags.filter((x) => x.flags.missingRights).length.toLocaleString();
-  els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
+  const summary = getStatsSummary();
+  els.statApt.textContent = summary.apt.toLocaleString();
+  els.statEnding.textContent = summary.ending.toLocaleString();
+  els.statExpired.textContent = summary.expired.toLocaleString();
+  els.statMissingRights.textContent = summary.missingRights.toLocaleString();
+  els.statArchived.textContent = summary.archived.toLocaleString();
   syncQuickViewState();
 }
 
@@ -1002,7 +1074,7 @@ function openEditor(id = null, duplicate = false) {
   updateVoteVisibility();
   renderFormFlags(item);
   renderDuplicateCheck();
-  renderTable();
+  syncSelectedRow();
   applyEditorMode();
 
   requestAnimationFrame(() => form.elements.title.focus());
@@ -1030,7 +1102,7 @@ function closeEditor() {
   state.selectedId = null;
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
-  renderTable();
+  syncSelectedRow();
 }
 
 async function saveProgram(event) {
@@ -1122,6 +1194,7 @@ async function deleteProgram() {
   }
 
   state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  invalidateProgramCaches(true);
   refreshUiAfterProgramMutation('Program deleted.');
   setLoading('');
   closeEditor();
@@ -1159,8 +1232,7 @@ function escapeHtml(text) {
 
 function updateQueryStatus() {
   rememberViewState();
-  const count = activePrograms().length;
-  renderTable();
+  const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
   setStatus(`${count.toLocaleString()} matching programs.`);
@@ -1177,12 +1249,18 @@ function bindEvents() {
     requestAnimationFrame(() => els.loginGitHubBtn?.focus());
   });
 
+  els.duplicateCheck?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-open-program]');
+    if (!btn) return;
+    openEditor(btn.dataset.openProgram);
+  });
+
   els.loginGitHubBtn?.addEventListener('click', async () => {
     els.authMessage.textContent = 'Sending you to GitHub…';
     const { error } = await state.supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: 'https://tpoirier1969.github.io/WNMU-Programming-library/'
+        redirectTo: getAdminRedirectUrl()
       }
     });
     if (error) {
