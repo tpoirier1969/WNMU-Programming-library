@@ -261,3 +261,14 @@ input:focus, select:focus, textarea:focus, button:focus {
 @media (max-width: 760px) {
   .template-tools { grid-template-columns: 1fr; }
 }
+
+
+.program-form .form-grid > label.checkbox.span-2 {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.program-form .form-grid > label.checkbox.span-2 input {
+  flex: 0 0 auto;
+}

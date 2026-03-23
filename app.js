@@ -97,6 +97,44 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function describeSupabaseError(error) {
+  const message = normalizeText(error?.message) || 'Unknown Supabase error.';
+  const lower = message.toLowerCase();
+  const hints = [];
+
+  if (lower.includes('row-level security') || lower.includes('permission denied') || lower.includes('not allowed')) {
+    hints.push('Check Supabase RLS policies for SELECT on programs_enriched, INSERT/UPDATE/DELETE on programs, and EXECUTE on auto_archive_due_programs.');
+  }
+  if (lower.includes('invalid login') || lower.includes('email not confirmed') || lower.includes('jwt') || lower.includes('auth')) {
+    hints.push('Sign in with a Supabase Auth email/password user from Authentication → Users.');
+  }
+  if (lower.includes('column') && lower.includes('does not exist')) {
+    hints.push('The table schema does not match this build.');
+  }
+
+  return hints.length ? `${message} ${hints.join(' ')}` : message;
+}
+
+function inferSavedProgramId(payload) {
+  const scored = state.programs
+    .map((program) => {
+      let score = 0;
+      if (normalizeLower(program.title) === normalizeLower(payload.title)) score += 5;
+      if (normalizeLower(program.nola_eidr) && normalizeLower(program.nola_eidr) === normalizeLower(payload.nola_eidr)) score += 4;
+      if (normalizeLower(program.legacy_code) && normalizeLower(program.legacy_code) === normalizeLower(payload.legacy_code)) score += 3;
+      if (normalizeLower(program.episode_season) && normalizeLower(program.episode_season) === normalizeLower(payload.episode_season)) score += 2;
+      if (normalizeLower(program.distributor) && normalizeLower(program.distributor) === normalizeLower(payload.distributor)) score += 1;
+      return { program, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return Number(b.program.id || 0) - Number(a.program.id || 0);
+    });
+
+  return scored[0]?.program?.id || null;
+}
+
 function isInteractiveElement(element) {
   return Boolean(element && (element.closest('input, textarea, select, button, label, [contenteditable="true"], .drawer') || element.isContentEditable));
 }
@@ -301,7 +339,7 @@ async function loadPrograms() {
     state.programs = await fetchAllRows('programs_enriched', 'title');
   } catch (error) {
     console.error(error);
-    setStatus(error.message);
+    setStatus(describeSupabaseError(error));
     return;
   }
 }
@@ -508,6 +546,8 @@ function matchesView(program, view) {
       return flags.missingRights;
     case 'missing_info':
       return !normalizeText(program.notes) || !normalizeText(program.topic) || !normalizeText(program.length_minutes) || !normalizeText(program.program_type) || !normalizeText(program.aired_13_1) || !normalizeText(program.aired_13_3) || !normalizeText(program.distributor);
+    case 'hdever':
+      return normalizeLower(program.package_type) === 'hdever';
     case 'michigan':
       return michiganText.includes('michigan');
     default:
@@ -764,26 +804,31 @@ async function saveProgram(event) {
 
   setStatus(programId ? 'Saving changes…' : 'Creating program…');
 
-  let response;
-  if (programId) {
-    response = await state.supabase.from('programs').update(payload).eq('id', programId).select().single();
-  } else {
-    response = await state.supabase.from('programs').insert(payload).select().single();
-  }
+  try {
+    const response = programId
+      ? await state.supabase.from('programs').update(payload).eq('id', programId)
+      : await state.supabase.from('programs').insert(payload);
 
-  if (response.error) {
-    console.error(response.error);
-    alert(response.error.message);
-    setStatus(response.error.message);
-    return;
-  }
+    if (response.error) throw response.error;
 
-  const savedId = response.data.id;
-  await loadPrograms();
-  renderTable();
-  renderStats();
-  openEditor(savedId);
-  setStatus('Saved.');
+    await loadPrograms();
+    renderTable();
+    renderStats();
+
+    const savedId = programId || inferSavedProgramId(payload);
+    if (savedId) {
+      openEditor(savedId);
+    } else {
+      closeEditor();
+    }
+
+    setStatus(programId ? 'Saved changes.' : 'Program created.');
+  } catch (error) {
+    console.error(error);
+    const message = describeSupabaseError(error);
+    alert(message);
+    setStatus(message);
+  }
 }
 
 async function deleteProgram() {
