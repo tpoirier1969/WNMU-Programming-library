@@ -830,6 +830,12 @@ function activePrograms() {
   return getFilteredProgramsResult().items;
 }
 
+function isMusicOrUse133(program) {
+  const topic = normalizeLower(program.topic);
+  const useCode = normalizeLower(program.legacy_code);
+  return topic === 'music' || useCode === '13.3';
+}
+
 function matchesView(program, view) {
   const meta = program.__meta || decorateProgram(program).__meta;
   const flags = meta.flags;
@@ -851,6 +857,8 @@ function matchesView(program, view) {
       return flags.newTo131;
     case 'new_to_13_3':
       return flags.newTo133;
+    case 'new_to_13_3_music_or_use':
+      return flags.newTo133 && isMusicOrUse133(program);
     case 'archive_candidate':
       return flags.archiveCandidate;
     case 'no_end_date':
@@ -989,25 +997,28 @@ function renderTable() {
     const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
     const selectedClass = item.id === selectedId ? 'selected' : '';
     const archivedClass = item.is_archived ? 'archived-row' : '';
+    const nolaMarkup = item.nola_eidr
+      ? `<span class="nola-pill" title="NOLA">NOLA <strong>${escapeHtml(item.nola_eidr)}</strong></span>`
+      : '';
     return `
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
-        <td>
+        <td data-label="Title">
           <div class="program-title">${escapeHtml(item.title || '')}</div>
-          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}</div>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${nolaMarkup}</div>
         </td>
-        <td>
+        <td data-label="Description">
           <div class="notes-cell">
             <div class="notes-text">${escapeHtml(item.notes || '')}</div>
             <button type="button" class="copy-note-btn" data-copy-note="${item.id}">Copy</button>
           </div>
         </td>
-        <td>${formatDetailsCell(item)}</td>
-        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
-        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
-        <td class="type-cell">${escapeHtml(item.package_type || '')}</td>
-        <td>${formatRightsWindow(item)}</td>
-        <td>${escapeHtml(item.distributor || '')}</td>
-        <td><div class="badges">${badges}</div></td>
+        <td data-label="Details">${formatDetailsCell(item)}</td>
+        <td data-label="Aired on 13.1"><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
+        <td data-label="Aired on 13.3"><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
+        <td data-label="Package type" class="type-cell">${escapeHtml(item.package_type || '')}</td>
+        <td data-label="Rights window">${formatRightsWindow(item)}</td>
+        <td data-label="Distributor">${escapeHtml(item.distributor || '')}</td>
+        <td data-label="Flags"><div class="badges">${badges}</div></td>
       </tr>
     `;
   }).join('');
