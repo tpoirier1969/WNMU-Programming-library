@@ -36,7 +36,7 @@ button { cursor: pointer; }
 .auth-form input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #fff; }
 .auth-message { min-height: 24px; margin-top: 12px; color: var(--warn); }
 
-.app-shell { padding: 12px 16px 16px; display: grid; gap: 10px; min-width: 1320px; }
+.app-shell { padding: 12px 16px 16px; display: grid; gap: 10px; min-width: 0; }
 .topbar {
   display: flex; gap: 16px; align-items: center; justify-content: space-between; background: var(--panel);
   border: 1px solid var(--border); border-radius: 18px; padding: 12px 16px; box-shadow: var(--shadow);
@@ -280,6 +280,18 @@ button:hover { transform: translateY(-1px); }
 .drawer-inline-flag { margin-right: auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: #f5fafc; }
 .drawer-inline-flag.unsupported { opacity: .72; background: #f2f4f6; color: var(--muted); }
 .drawer-inline-flag input { width: auto; }
+.read-only-details { margin-top: 12px; border: 1px solid var(--border); border-radius: 14px; background: #f9fcfd; padding: 12px; }
+.read-only-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 12px; }
+.read-only-row { display: grid; gap: 4px; padding: 9px 10px; border-radius: 12px; background: #fff; border: 1px solid #e4edf0; min-width: 0; }
+.read-only-row-title, .read-only-row-wide { grid-column: 1 / -1; }
+.read-only-label { font-size: .72rem; font-weight: 800; color: var(--pbs-blue-dark); text-transform: uppercase; letter-spacing: .06em; }
+.read-only-value { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.28; }
+.program-form.read-only-mode .form-grid { display: none; }
+.program-form.read-only-mode .template-tools { display: none; }
+.program-form.read-only-mode .duplicate-check { display: none !important; }
+@media (max-width: 760px) {
+  .read-only-grid { grid-template-columns: 1fr; }
+}
 
 input:focus, select:focus, textarea:focus, button:focus {
   outline: 3px solid rgba(36,176,168,0.22); outline-offset: 1px;
@@ -366,8 +378,43 @@ input:focus, select:focus, textarea:focus, button:focus {
 
 .topbar, .quick-strip, .controls, .list-panel { min-width: 0; }
 
-@media (max-width: 1320px) {
+@media (min-width: 1361px) {
   .app-shell { min-width: 1320px; }
+}
+
+@media (min-width: 761px) and (max-width: 1360px) {
+  html, body { overflow-x: hidden; }
+  .app-shell { padding: 10px 12px 12px; gap: 8px; }
+  .topbar { padding: 10px 12px; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .brand-logo { width: 76px; }
+  #appTitle { font-size: 1.22rem; line-height: 1.08; }
+  .status-line, .muted { font-size: .84rem; }
+  .topbar-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; width: 100%; }
+  .topbar-actions > button { min-height: 34px; padding: 6px 9px; font-size: .84rem; }
+  .quick-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat-card { padding: 8px 9px; min-height: 70px; }
+  .stat-value { font-size: 1rem; }
+  .controls { padding: 10px; }
+  .search-grid { grid-template-columns: 180px 1fr; }
+  .filters-grid { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+  .filter-box.wide { grid-column: span 3; }
+  .filter-help { width: 100%; }
+  .list-meta { padding: 8px 12px; }
+  .table-wrap { max-height: calc(100vh - 252px); }
+  .programs-table thead th { padding: 8px 8px; font-size: .78rem; }
+  .programs-table thead th.col-title { width: 225px; }
+  .programs-table thead th.col-notes { width: 280px; }
+  .programs-table thead th.col-details { width: 150px; }
+  .programs-table thead th.col-airing { width: 134px; }
+  .programs-table thead th.col-type { width: 96px; }
+  .programs-table thead th.col-rights { width: 126px; }
+  .programs-table thead th.col-distributor { width: 78px; }
+  .programs-table thead th.col-flags { width: 150px; }
+  .programs-table tbody td { padding: 7px 8px; font-size: .82rem; }
+  .program-title { font-size: .93rem; }
+  .program-sub, .secondary-topic, .details-meta, .airing-item, .rights-stack, .notes-text { font-size: .75rem; }
+  .badge { font-size: .68rem; }
+  .drawer { width: min(1120px, calc(100vw - 18px)); }
 }
 
 

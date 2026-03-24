@@ -91,6 +91,7 @@ const els = {
   evergreenOverrideWrap: $('#evergreenOverrideWrap'),
   evergreenOverrideLabel: $('#evergreenOverrideLabel'),
   readOnlyNote: $('#readOnlyNote'),
+  readOnlyDetails: $('#readOnlyDetails'),
   drawerModeBadge: $('#drawerModeBadge'),
   formFlags: $('#formFlags'),
   statApt: $('#statApt'),
@@ -226,6 +227,86 @@ function latestAiredTimestampForProgram(program) {
     });
   });
   return latest || null;
+}
+
+function displayValue(value, fallback = '—') {
+  const text = normalizeText(value);
+  return text || fallback;
+}
+
+function readOnlyRow(label, value, extraClass = '') {
+  const klass = ['read-only-row', extraClass].filter(Boolean).join(' ');
+  return `<div class="${klass}"><div class="read-only-label">${escapeHtml(label)}</div><div class="read-only-value">${escapeHtml(displayValue(value))}</div></div>`;
+}
+
+function currentProgramSnapshot() {
+  const form = els.programForm;
+  if (!form) return null;
+  const get = (name) => form.elements[name]?.value ?? '';
+  return {
+    id: form.dataset.programId || '',
+    title: get('title'),
+    nola_eidr: get('nola_eidr'),
+    length_minutes: get('length_minutes'),
+    legacy_code: get('legacy_code'),
+    notes: get('notes'),
+    episode_season: get('episode_season'),
+    program_type: get('program_type'),
+    topic: get('topic'),
+    secondary_topic: get('secondary_topic'),
+    rights_begin: get('rights_begin'),
+    rights_end: get('rights_end'),
+    aired_13_1: get('aired_13_1'),
+    aired_13_3: get('aired_13_3'),
+    distributor: get('distributor'),
+    vote: get('vote'),
+    package_type: get('package_type'),
+    server_tape: get('server_tape'),
+    rights_notes: get('rights_notes'),
+    can_be_used_as_evergreen: Boolean(form.elements.can_be_used_as_evergreen?.checked),
+    is_archived: form.dataset.programArchived === '1'
+  };
+}
+
+function renderReadOnlyDetails(program = null) {
+  if (!els.readOnlyDetails) return;
+  if (canEdit()) {
+    els.readOnlyDetails.classList.add('hidden');
+    els.readOnlyDetails.innerHTML = '';
+    return;
+  }
+  const item = program || currentProgramSnapshot();
+  if (!item) {
+    els.readOnlyDetails.classList.add('hidden');
+    els.readOnlyDetails.innerHTML = '';
+    return;
+  }
+  const rightsWindow = [item.rights_begin ? formatDate(item.rights_begin) : '', item.rights_end ? formatDate(item.rights_end) : ''].filter(Boolean).join(' to ');
+  const metaBits = [];
+  if (item.can_be_used_as_evergreen) metaBits.push('Can be used as evergreen');
+  if (item.is_archived) metaBits.push('Archived');
+  els.readOnlyDetails.innerHTML = `
+    <div class="read-only-grid">
+      ${readOnlyRow('Title', item.title, 'read-only-row-title')}
+      ${readOnlyRow('Use?', item.legacy_code)}
+      ${readOnlyRow('NOLA', item.nola_eidr)}
+      ${readOnlyRow('Length', item.length_minutes)}
+      ${readOnlyRow('Description', item.notes, 'read-only-row-wide')}
+      ${readOnlyRow('Program or series', item.program_type)}
+      ${readOnlyRow('Episode / Season', item.episode_season)}
+      ${readOnlyRow('Topic', item.topic)}
+      ${readOnlyRow('Secondary topic', item.secondary_topic)}
+      ${readOnlyRow('Rights window', rightsWindow)}
+      ${readOnlyRow('Aired on 13.1', item.aired_13_1)}
+      ${readOnlyRow('Aired on 13.3', item.aired_13_3)}
+      ${readOnlyRow('Distributor', item.distributor)}
+      ${readOnlyRow('Vote', item.vote)}
+      ${readOnlyRow('Package type', item.package_type)}
+      ${readOnlyRow('sIX/Server/Tape/FTP', item.server_tape)}
+      ${readOnlyRow('Rights notes', item.rights_notes, 'read-only-row-wide')}
+      ${metaBits.length ? readOnlyRow('Record flags', metaBits.join(' · '), 'read-only-row-wide') : ''}
+    </div>`;
+  els.readOnlyDetails.classList.remove('hidden');
 }
 
 function compareNullable(left, right, direction = 'asc') {
@@ -681,10 +762,15 @@ function applyEditorMode() {
     if (field.tagName === 'TEXTAREA') field.readOnly = !editing;
     if (field.tagName === 'SELECT' || type === 'checkbox') field.disabled = !editing;
   });
+  els.programForm.classList.toggle('read-only-mode', !editing);
+  if (els.templateTools) els.templateTools.classList.toggle('hidden', !editing);
+  if (els.duplicateCheck) els.duplicateCheck.classList.toggle('hidden', !editing || !els.duplicateCheck.innerHTML.trim());
   if (els.saveBtn) els.saveBtn.classList.toggle('hidden', !editing);
   if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
   if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
   if (els.unarchiveBtn && !editing) els.unarchiveBtn.classList.add('hidden');
+  if (els.evergreenOverrideWrap) els.evergreenOverrideWrap.classList.toggle('hidden', !editing);
+  renderReadOnlyDetails();
 }
 
 function updateListSummary(count, totalPool) {
@@ -1634,8 +1720,12 @@ async function openEditor(id = null, duplicate = false) {
   flushDuplicateCheck();
   syncSelectedRow();
   applyEditorMode();
+  renderReadOnlyDetails(item);
 
-  requestAnimationFrame(() => form.elements.title.focus());
+  requestAnimationFrame(() => {
+    if (canEdit()) form.elements.title.focus();
+    else els.closeDrawerBtn?.focus();
+  });
 }
 
 function renderFormFlags(item) {
@@ -1684,6 +1774,7 @@ function closeEditor() {
   state.dismissedDuplicateKey = '';
   updateUnarchiveButton(null);
   updateEvergreenOverrideUi();
+  renderReadOnlyDetails(null);
   syncSelectedRow();
 }
 
@@ -1954,7 +2045,6 @@ function bindEvents() {
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
     if (isMobileViewport()) return;
-    openEditor(row.dataset.id);
   });
 
   els.searchInput?.addEventListener('input', scheduleSearchUpdate);

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="WNMU-TV-logo-head2019.png" />
   <link rel="shortcut icon" href="WNMU-TV-logo-head2019.png" />
   <link rel="apple-touch-icon" href="WNMU-TV-logo-head2019.png" />
-  <link rel="stylesheet" href="styles.css?v=1.6.6" />
+  <link rel="stylesheet" href="styles.css?v=1.6.11" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -48,7 +48,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.6.10</span>
+            <span id="appVersion" class="version-pill">v1.6.11</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -326,6 +326,8 @@
 
       <div id="formFlags" class="form-flags"></div>
 
+      <section id="readOnlyDetails" class="read-only-details hidden" aria-live="polite"></section>
+
       <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
       <div class="drawer-actions">
         <button type="submit" id="saveBtn" class="primary">Save</button>
@@ -337,6 +339,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.6.10"></script>
+  <script src="app.js?v=1.6.11"></script>
 </body>
 </html>
