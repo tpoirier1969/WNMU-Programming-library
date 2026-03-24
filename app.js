@@ -1170,7 +1170,8 @@ function topicColor(topicName) {
 }
 
 function badgesFor(program) {
-  const flags = (program.__meta || decorateProgram(program).__meta).flags;
+  const meta = program.__meta || decorateProgram(program).__meta;
+  const flags = meta.flags;
   const badges = [];
 
   if (flags.needsAptCheck) badges.push({ label: 'APT check', cls: 'danger' });
