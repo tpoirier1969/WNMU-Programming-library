@@ -22,6 +22,9 @@ const state = {
   programRevision: 0,
   filteredCache: { key: '', value: null },
   statsCache: { key: '', value: null },
+  duplicateIndex: { title: new Map(), nola: new Map() },
+  duplicateCheckTimer: null,
+  lastDuplicateMarkup: '',
   mobilePanel: 'list',
   mobileExpandedId: null
 };
@@ -69,6 +72,7 @@ const els = {
   saveBtn: $('#saveBtn'),
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
+  unarchiveBtn: $('#unarchiveBtn'),
   readOnlyNote: $('#readOnlyNote'),
   drawerModeBadge: $('#drawerModeBadge'),
   formFlags: $('#formFlags'),
@@ -88,6 +92,8 @@ const els = {
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
+const DUPLICATE_CHECK_MIN_CHARS = 4;
+const DUPLICATE_CHECK_DEBOUNCE_MS = 320;
 const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
 const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
 
@@ -144,6 +150,75 @@ function normalizeText(value) {
 
 function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
+}
+
+function duplicateEligibleTitle(value) {
+  const title = normalizeLower(value);
+  return title.length >= DUPLICATE_CHECK_MIN_CHARS ? title : '';
+}
+
+function duplicateEligibleNola(value) {
+  const nola = normalizeLower(value);
+  return (nola.length >= DUPLICATE_CHECK_MIN_CHARS && !isPlaceholderNola(nola)) ? nola : '';
+}
+
+function clearDuplicateCheckTimer() {
+  if (state.duplicateCheckTimer) {
+    clearTimeout(state.duplicateCheckTimer);
+    state.duplicateCheckTimer = null;
+  }
+}
+
+function clearDuplicateCheckUi() {
+  clearDuplicateCheckTimer();
+  state.lastDuplicateMarkup = '';
+  if (!els.duplicateCheck) return;
+  els.duplicateCheck.innerHTML = '';
+  els.duplicateCheck.classList.add('hidden');
+}
+
+function addProgramToDuplicateIndex(map, key, program) {
+  if (!key) return;
+  const bucket = map.get(key);
+  if (bucket) bucket.push(program);
+  else map.set(key, [program]);
+}
+
+function rebuildDuplicateIndex() {
+  const title = new Map();
+  const nola = new Map();
+  state.programs.forEach((program) => {
+    const meta = program.__meta || decorateProgram(program).__meta;
+    addProgramToDuplicateIndex(title, duplicateEligibleTitle(meta.titleLower), program);
+    addProgramToDuplicateIndex(nola, duplicateEligibleNola(meta.nolaLower), program);
+  });
+  state.duplicateIndex = { title, nola };
+}
+
+function formatDuplicateDetails(item) {
+  const parts = [];
+  const length = normalizeText(item.length_minutes);
+  const nola = normalizeText(item.nola_eidr);
+  const rightsStart = formatDate(item.rights_begin) || '—';
+  const rightsEnd = formatDate(item.rights_end) || '—';
+  if (length) parts.push(`Length ${escapeHtml(length)}`);
+  parts.push(`NOLA ${escapeHtml(nola || '—')}`);
+  parts.push(`Rights ${escapeHtml(rightsStart)} → ${escapeHtml(rightsEnd)}`);
+  return `<span class="dup-detail-line">${parts.join('<span class="dup-sep">•</span>')}</span>`;
+}
+
+function formatDuplicatePrompt(matches) {
+  const lines = matches.slice(0, 6).map((item) => {
+    const length = normalizeText(item.length_minutes) || '—';
+    const nola = normalizeText(item.nola_eidr) || '—';
+    const rightsStart = formatDate(item.rights_begin) || '—';
+    const rightsEnd = formatDate(item.rights_end) || '—';
+    return `• ${normalizeText(item.title) || '(untitled)'} | ${length} | ${nola} | ${rightsStart} → ${rightsEnd}`;
+  });
+  if (matches.length > 6) lines.push(`• +${matches.length - 6} more`);
+  return `Possible duplicate${matches.length === 1 ? '' : 's'} found:
+
+${lines.join('\n')}\n\nSave anyway?`;
 }
 
 function decorateProgram(program) {
@@ -233,48 +308,85 @@ function isInteractiveElement(element) {
 }
 
 function duplicateMatches(titleValue, nolaValue, currentId = null) {
-  const title = normalizeLower(titleValue);
-  const normalizedNola = normalizeLower(nolaValue);
-  const nola = normalizedNola && !isPlaceholderNola(normalizedNola) ? normalizedNola : '';
+  const matches = [];
+  const seen = new Set();
   const current = currentId == null ? null : String(currentId);
-  return state.programs.filter((program) => {
-    if (current && String(program.id) === current) return false;
-    const meta = program.__meta || decorateProgram(program).__meta;
-    const titleMatch = title && meta.titleLower === title;
-    const programNola = meta.nolaLower;
-    const nolaMatch = nola && programNola === nola && !isPlaceholderNola(programNola);
-    return titleMatch || nolaMatch;
+  const eligibleTitle = duplicateEligibleTitle(titleValue);
+  const eligibleNola = duplicateEligibleNola(nolaValue);
+
+  [
+    ...(state.duplicateIndex.title.get(eligibleTitle) || []),
+    ...(state.duplicateIndex.nola.get(eligibleNola) || [])
+  ].forEach((program) => {
+    const id = String(program.id);
+    if (!id || seen.has(id) || (current && id === current)) return;
+    seen.add(id);
+    matches.push(program);
   });
+
+  return matches.sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }));
 }
 
 function renderDuplicateCheck() {
   const form = els.programForm;
-  if (!form) return;
-  const currentId = form.dataset.programId || null;
-  const matches = duplicateMatches(form.elements.title.value, form.elements.nola_eidr.value, currentId);
-  if (!matches.length) {
-    els.duplicateCheck.innerHTML = '';
-    els.duplicateCheck.classList.add('hidden');
+  if (!form || !els.duplicateCheck) return;
+  const eligibleTitle = duplicateEligibleTitle(form.elements.title.value);
+  const eligibleNola = duplicateEligibleNola(form.elements.nola_eidr.value);
+  if (!eligibleTitle && !eligibleNola) {
+    clearDuplicateCheckUi();
     return;
   }
+
+  const currentId = form.dataset.programId || null;
+  const matches = duplicateMatches(eligibleTitle, eligibleNola, currentId);
+  if (!matches.length) {
+    clearDuplicateCheckUi();
+    return;
+  }
+
   const titleValue = normalizeLower(form.elements.title.value);
-  const nolaValue = normalizeLower(form.elements.nola_eidr.value);
-  const meaningfulNola = nolaValue && !isPlaceholderNola(nolaValue) ? nolaValue : '';
+  const meaningfulNola = duplicateEligibleNola(form.elements.nola_eidr.value);
   const items = matches.slice(0, 6).map((item) => {
     const reasons = [];
     if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
     if (meaningfulNola && normalizeLower(item.nola_eidr) === meaningfulNola) reasons.push('same NOLA');
-    return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${item.nola_eidr ? ` <span class="dup-meta">· ${escapeHtml(item.nola_eidr)}</span>` : ''}${reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : ''}</li>`;
+    const reasonMarkup = reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : '';
+    return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${reasonMarkup}${formatDuplicateDetails(item)}</li>`;
   }).join('');
   const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
-  els.duplicateCheck.innerHTML = `
+  const markup = `
     <div class="duplicate-card warn">
       <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
       <ul class="duplicate-list">${items}</ul>
       ${more}
     </div>
   `;
+  if (markup !== state.lastDuplicateMarkup) {
+    els.duplicateCheck.innerHTML = markup;
+    state.lastDuplicateMarkup = markup;
+  }
   els.duplicateCheck.classList.remove('hidden');
+}
+
+function scheduleDuplicateCheck() {
+  const form = els.programForm;
+  if (!form) return;
+  const eligibleTitle = duplicateEligibleTitle(form.elements.title.value);
+  const eligibleNola = duplicateEligibleNola(form.elements.nola_eidr.value);
+  if (!eligibleTitle && !eligibleNola) {
+    clearDuplicateCheckUi();
+    return;
+  }
+  clearDuplicateCheckTimer();
+  state.duplicateCheckTimer = setTimeout(() => {
+    state.duplicateCheckTimer = null;
+    renderDuplicateCheck();
+  }, DUPLICATE_CHECK_DEBOUNCE_MS);
+}
+
+function flushDuplicateCheck() {
+  clearDuplicateCheckTimer();
+  renderDuplicateCheck();
 }
 
 function renderTemplateSourceList() {
@@ -379,6 +491,7 @@ function applyEditorMode() {
   if (els.saveBtn) els.saveBtn.classList.toggle('hidden', !editing);
   if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
   if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
+  if (els.unarchiveBtn && !editing) els.unarchiveBtn.classList.add('hidden');
 }
 
 function updateListSummary(count, totalPool) {
@@ -429,7 +542,7 @@ function restoreDrawerDraft(draft) {
     else field.value = value ?? '';
   });
   updateVoteVisibility();
-  renderDuplicateCheck();
+  flushDuplicateCheck();
   applyEditorMode();
 }
 
@@ -538,6 +651,7 @@ async function fetchAllRows(tableName, orderColumn = 'title') {
 async function loadPrograms() {
   try {
     state.programs = decoratePrograms(await fetchAllRows('programs_enriched', 'title'));
+    rebuildDuplicateIndex();
     invalidateProgramCaches(true);
   } catch (error) {
     console.error(error);
@@ -583,6 +697,7 @@ function mergeProgramIntoState(program) {
   if (index >= 0) state.programs[index] = prepared;
   else state.programs.push(prepared);
   sortProgramsInPlace();
+  rebuildDuplicateIndex();
   invalidateProgramCaches(true);
 }
 
@@ -1155,7 +1270,8 @@ function openEditor(id = null, duplicate = false) {
 
   updateVoteVisibility();
   renderFormFlags(item);
-  renderDuplicateCheck();
+  updateUnarchiveButton(item);
+  flushDuplicateCheck();
   syncSelectedRow();
   applyEditorMode();
 
@@ -1170,6 +1286,12 @@ function renderFormFlags(item) {
   els.formFlags.innerHTML = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
 }
 
+function updateUnarchiveButton(item) {
+  if (!els.unarchiveBtn) return;
+  const show = canEdit() && Boolean(item?.id) && Boolean(item?.is_archived);
+  els.unarchiveBtn.classList.toggle('hidden', !show);
+}
+
 function updateVoteVisibility() {
   const isApt = normalizeLower(els.programForm.elements.distributor.value) === 'apt';
   els.voteFieldWrap.classList.toggle('hidden-field', !isApt);
@@ -1182,8 +1304,8 @@ function closeEditor() {
   els.drawerBackdrop.classList.add('hidden');
   document.body.classList.remove('modal-open');
   state.selectedId = null;
-  els.duplicateCheck.innerHTML = '';
-  els.duplicateCheck.classList.add('hidden');
+  clearDuplicateCheckUi();
+  updateUnarchiveButton(null);
   syncSelectedRow();
 }
 
@@ -1226,7 +1348,7 @@ async function saveProgram(event) {
 
   const dupes = duplicateMatches(payload.title, payload.nola_eidr, programId);
   if (dupes.length) {
-    const proceed = confirm(`Possible duplicate found (${dupes.length}). Save anyway?`);
+    const proceed = confirm(formatDuplicatePrompt(dupes));
     if (!proceed) return;
   }
 
@@ -1247,8 +1369,7 @@ async function saveProgram(event) {
     refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
     setLoading('');
 
-    if (programId) openEditor(refreshedProgram.id);
-    else closeEditor();
+    closeEditor();
   } catch (error) {
     console.error(error);
     setLoading('');
@@ -1276,10 +1397,33 @@ async function deleteProgram() {
   }
 
   state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  rebuildDuplicateIndex();
   invalidateProgramCaches(true);
   refreshUiAfterProgramMutation('Program deleted.');
   setLoading('');
   closeEditor();
+}
+
+async function unarchiveProgram() {
+  if (!canEdit()) return;
+  const id = els.programForm.dataset.programId;
+  if (!id) return;
+
+  setLoading('Unarchiving program…');
+  try {
+    const { error } = await state.supabase.from('programs').update({ is_archived: false }).eq('id', id);
+    if (error) throw error;
+    const refreshedProgram = await fetchProgramById(id);
+    mergeProgramIntoState(refreshedProgram);
+    refreshUiAfterProgramMutation('Program unarchived.');
+    setLoading('');
+    closeEditor();
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    alert(error.message);
+    setStatus(error.message);
+  }
 }
 
 function exportCurrentView() {
@@ -1369,10 +1513,13 @@ function bindEvents() {
   els.drawerBackdrop.addEventListener('click', closeEditor);
   els.programForm.addEventListener('submit', saveProgram);
   els.deleteBtn.addEventListener('click', deleteProgram);
+  els.unarchiveBtn?.addEventListener('click', unarchiveProgram);
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
-    els.programForm.elements[field].addEventListener('input', renderDuplicateCheck);
-    els.programForm.elements[field].addEventListener('change', renderDuplicateCheck);
+    els.programForm.elements[field].setAttribute('spellcheck', 'false');
+    els.programForm.elements[field].addEventListener('input', scheduleDuplicateCheck);
+    els.programForm.elements[field].addEventListener('change', flushDuplicateCheck);
+    els.programForm.elements[field].addEventListener('blur', flushDuplicateCheck);
   });
   els.duplicateBtn.addEventListener('click', () => {
     const id = els.programForm.dataset.programId;
@@ -1452,6 +1599,7 @@ function bindEvents() {
     state.currentView = btn.dataset.view;
     syncQuickViewState();
     els.statusFilter.value = '';
+    if (isMobileViewport()) setMobilePanel('list');
     updateQueryStatus();
   });
 

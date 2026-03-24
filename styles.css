@@ -51,6 +51,7 @@ button { cursor: pointer; }
 #appTitle { margin: 2px 0; font-size: 1.45rem; line-height: 1; color: var(--heading); letter-spacing: .03em; }
 .status-line, .muted { color: var(--muted); font-size: .92rem; }
 .topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.topbar-actions > button { padding: 7px 10px; font-size: .92rem; }
 
 .loading-overlay {
   position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
@@ -299,7 +300,10 @@ input:focus, select:focus, textarea:focus, button:focus {
   color: #704f00;
 }
 .duplicate-title { font-weight: 800; margin-bottom: 6px; }
-.duplicate-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.duplicate-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.duplicate-list li { line-height: 1.25; }
+.dup-detail-line { display: block; margin-top: 3px; font-size: .82rem; color: #476074; }
+.dup-detail-line .dup-sep { opacity: .6; margin: 0 4px; }
 .linkish {
   background: none;
   border: none;
@@ -344,11 +348,13 @@ input:focus, select:focus, textarea:focus, button:focus {
   #appTitle { font-size: 1.16rem; line-height: 1.12; }
   .status-line, .muted { font-size: .84rem; }
   .topbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-  .topbar-actions > button { width: 100%; min-height: 42px; }
+  .topbar-actions > button { width: 100%; min-height: 36px; padding: 6px 9px; font-size: .88rem; }
   .quick-strip { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
   .stat-card { min-height: 72px; padding: 8px 9px; }
   .stat-value { font-size: 1rem; }
   .controls { padding: 10px; }
+  .controls-head { justify-content: stretch; }
+  .top-reset { width: 100%; }
   .filter-foot { flex-direction: column; align-items: stretch; }
   .reset-all { margin-left: 0; width: 100%; }
   .filter-box select[multiple] { min-height: 96px; }
@@ -446,7 +452,7 @@ input:focus, select:focus, textarea:focus, button:focus {
 }
 
 @media (max-width: 520px) {
-  .quick-strip, .topbar-actions, .drawer-actions { grid-template-columns: 1fr; }
+  .topbar-actions, .drawer-actions { grid-template-columns: 1fr; }
   .brand-wrap { gap: 10px; }
   .brand-logo { width: 68px; }
   .stat-card { min-height: 0; }
