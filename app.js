@@ -22,7 +22,8 @@ const state = {
   programRevision: 0,
   filteredCache: { key: '', value: null },
   statsCache: { key: '', value: null },
-  mobilePanel: 'list'
+  mobilePanel: 'list',
+  mobileExpandedId: null
 };
 
 const els = {
@@ -87,6 +88,8 @@ const els = {
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
+const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
+const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
 
 function hasValidConfig() {
   return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
@@ -96,12 +99,33 @@ function canEdit() {
   return Boolean(state.session);
 }
 
+function isMobileViewport() {
+  return mobileLayoutQuery.matches;
+}
+
 function setMobilePanel(panel = 'list') {
   const nextPanel = panel === 'filters' ? 'filters' : 'list';
   state.mobilePanel = nextPanel;
   document.body.dataset.mobilePanel = nextPanel;
   document.querySelectorAll('[data-mobile-panel]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.mobilePanel === nextPanel);
+    const isActive = button.dataset.mobilePanel === nextPanel;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+    button.tabIndex = isActive ? 0 : -1;
+  });
+}
+
+function syncResponsiveLayout() {
+  if (isMobileViewport()) {
+    setMobilePanel(state.mobilePanel || 'list');
+    return;
+  }
+  delete document.body.dataset.mobilePanel;
+  document.querySelectorAll('[data-mobile-panel]').forEach((button) => {
+    const isActive = button.dataset.mobilePanel === (state.mobilePanel || 'list');
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+    button.tabIndex = 0;
   });
 }
 
@@ -158,6 +182,23 @@ function syncSelectedRow() {
   els.tableBody.querySelectorAll('tr[data-id]').forEach((row) => {
     row.classList.toggle('selected', String(row.dataset.id) === String(state.selectedId ?? ''));
   });
+}
+
+function syncExpandedRows() {
+  if (!els.tableBody) return;
+  els.tableBody.querySelectorAll('tr[data-id]').forEach((row) => {
+    const isExpanded = isMobileViewport() && String(row.dataset.id) === String(state.mobileExpandedId ?? '');
+    row.classList.toggle('mobile-expanded', isExpanded);
+    row.querySelectorAll('[data-mobile-toggle]').forEach((button) => {
+      button.setAttribute('aria-expanded', String(isExpanded));
+    });
+  });
+}
+
+function toggleMobileRow(id) {
+  const nextId = String(id ?? '');
+  state.mobileExpandedId = String(state.mobileExpandedId ?? '') === nextId ? null : nextId;
+  syncExpandedRows();
 }
 
 function filteredCacheKey() {
@@ -409,6 +450,8 @@ async function init() {
     global: { fetch: noStoreFetch }
   });
   bindEvents();
+  syncResponsiveLayout();
+  mobileLayoutQuery.addEventListener('change', syncResponsiveLayout);
 
   const authHashError = parseAuthErrorFromHash();
   if (authHashError) {
@@ -1008,14 +1051,30 @@ function renderTable() {
     const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
     const selectedClass = item.id === selectedId ? 'selected' : '';
     const archivedClass = item.is_archived ? 'archived-row' : '';
+    const isExpanded = String(item.id) === String(state.mobileExpandedId ?? '');
+    const expandedClass = isExpanded ? 'mobile-expanded' : '';
+    const safeTitle = escapeHtml(item.title || 'Untitled program');
     const nolaMarkup = item.nola_eidr
       ? `<span class="nola-pill" title="NOLA">NOLA <strong>${escapeHtml(item.nola_eidr)}</strong></span>`
-      : '';
+      : '<span class="nola-pill empty" title="NOLA">NOLA <strong>—</strong></span>';
+    const useMarkup = item.legacy_code
+      ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>`
+      : '<span class="code-pill empty">Use? —</span>';
     return `
-      <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
+      <tr data-id="${item.id}" class="${selectedClass} ${archivedClass} ${expandedClass}">
         <td data-label="Title">
-          <div class="program-title">${escapeHtml(item.title || '')}</div>
-          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${nolaMarkup}</div>
+          <div class="desktop-title-wrap">
+            <div class="program-title">${safeTitle}</div>
+            <div class="program-sub">${useMarkup}${nolaMarkup}</div>
+          </div>
+          <button type="button" class="mobile-row-toggle" data-mobile-toggle="${item.id}" aria-expanded="${String(isExpanded)}" aria-label="Toggle details for ${safeTitle}">
+            <span class="mobile-row-toggle-copy">
+              <span class="program-title">${safeTitle}</span>
+              <span class="program-sub">${useMarkup}${nolaMarkup}</span>
+            </span>
+            <span class="mobile-row-chevron" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="mobile-open-record" data-open-program="${item.id}">Open full record</button>
         </td>
         <td data-label="Description">
           <div class="notes-cell">
@@ -1033,6 +1092,7 @@ function renderTable() {
       </tr>
     `;
   }).join('');
+  syncExpandedRows();
   return { count: items.length, poolCount };
 }
 
@@ -1327,8 +1387,21 @@ function bindEvents() {
       await handleCopyNote(copyBtn.dataset.copyNote, copyBtn);
       return;
     }
+    const openBtn = event.target.closest('[data-open-program]');
+    if (openBtn) {
+      event.stopPropagation();
+      openEditor(openBtn.dataset.openProgram);
+      return;
+    }
+    const toggleBtn = event.target.closest('[data-mobile-toggle]');
+    if (toggleBtn) {
+      event.stopPropagation();
+      toggleMobileRow(toggleBtn.dataset.mobileToggle);
+      return;
+    }
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
+    if (isMobileViewport()) return;
     openEditor(row.dataset.id);
   });
 
