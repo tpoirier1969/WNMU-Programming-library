@@ -5,11 +5,13 @@ const state = {
   supabase: null,
   session: null,
   programs: [],
+  activeCatalog: [],
   archivedCount: 0,
   archivedLoaded: false,
   duplicateCatalog: [],
   evergreenOverrideMap: new Map(),
   supportsEvergreenOverride: false,
+  supportsHolidayProgram: false,
   lookups: {
     topics: [],
     secondary_topics: [],
@@ -32,7 +34,10 @@ const state = {
   lastDuplicateMarkup: '',
   dismissedDuplicateKey: '',
   mobilePanel: 'list',
-  mobileExpandedId: null
+  mobileExpandedId: null,
+  currentPoolCount: 0,
+  sortField: 'title',
+  sortDirection: 'asc'
 };
 
 const els = {
@@ -67,7 +72,12 @@ const els = {
   clearSecondaryTopicFilter: $('#clearSecondaryTopicFilter'),
   clearLengthFilter: $('#clearLengthFilter'),
   resetFiltersBtn: $('#resetFiltersBtn'),
+  includeHolidayWrap: $('#includeHolidayWrap'),
+  includeHolidayPrograms: $('#includeHolidayPrograms'),
+  includeHolidayLabel: $('#includeHolidayLabel'),
   listSummary: $('#listSummary'),
+  mobileSortSelect: $('#mobileSortSelect'),
+  mobileSortDirectionBtn: $('#mobileSortDirectionBtn'),
   tableBody: $('#programTableBody'),
   quickStrip: $('#quickStrip'),
   drawer: $('#editorDrawer'),
@@ -79,6 +89,8 @@ const els = {
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
   unarchiveBtn: $('#unarchiveBtn'),
+  holidayProgramWrap: $('#holidayProgramWrap'),
+  holidayProgramLabel: $('#holidayProgramLabel'),
   evergreenOverrideWrap: $('#evergreenOverrideWrap'),
   evergreenOverrideLabel: $('#evergreenOverrideLabel'),
   readOnlyNote: $('#readOnlyNote'),
@@ -113,8 +125,33 @@ function canEdit() {
   return Boolean(state.session);
 }
 
+function includeHolidayProgramsEnabled() {
+  return Boolean(els.includeHolidayPrograms?.checked);
+}
+
 function isMobileViewport() {
   return mobileLayoutQuery.matches;
+}
+
+function setSort(field = 'title', direction = null) {
+  const allowed = new Set(['title', 'rights_end', 'aired_recent']);
+  const nextField = allowed.has(field) ? field : 'title';
+  let nextDirection = direction;
+  if (!nextDirection) nextDirection = state.sortField === nextField && state.sortDirection === 'asc' ? 'desc' : 'asc';
+  state.sortField = nextField;
+  state.sortDirection = nextDirection === 'desc' ? 'desc' : 'asc';
+  syncSortUi();
+}
+
+function syncSortUi() {
+  document.querySelectorAll('[data-sort]').forEach((btn) => {
+    const active = btn.dataset.sort === state.sortField;
+    btn.classList.toggle('active', active);
+    btn.classList.toggle('desc', active && state.sortDirection === 'desc');
+    btn.setAttribute('aria-sort', active ? (state.sortDirection === 'desc' ? 'descending' : 'ascending') : 'none');
+  });
+  if (els.mobileSortSelect) els.mobileSortSelect.value = state.sortField;
+  if (els.mobileSortDirectionBtn) els.mobileSortDirectionBtn.textContent = state.sortDirection === 'desc' ? '↓' : '↑';
 }
 
 function setMobilePanel(panel = 'list') {
@@ -160,6 +197,60 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function latestAiredTimestampForProgram(program) {
+  const sources = [program?.aired_13_1, program?.aired_13_3];
+  let latest = 0;
+  sources.forEach((value) => {
+    const text = normalizeText(value);
+    if (!text) return;
+    const matches = text.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g) || [];
+    matches.forEach((raw) => {
+      const parts = raw.replace(/-/g, '/').split('/').map(Number);
+      if (parts.length !== 3) return;
+      let [month, day, year] = parts;
+      if (year < 100) year += year >= 70 ? 1900 : 2000;
+      const stamp = Date.UTC(year, month - 1, day);
+      if (!Number.isNaN(stamp) && stamp > latest) latest = stamp;
+    });
+  });
+  return latest || null;
+}
+
+function compareNullable(left, right, direction = 'asc') {
+  const leftNull = left == null || left === '';
+  const rightNull = right == null || right === '';
+  if (leftNull && rightNull) return 0;
+  if (leftNull) return 1;
+  if (rightNull) return -1;
+  if (left < right) return direction === 'desc' ? 1 : -1;
+  if (left > right) return direction === 'desc' ? -1 : 1;
+  return 0;
+}
+
+function sortProgramsArray(programs) {
+  const direction = state.sortDirection === 'desc' ? 'desc' : 'asc';
+  return [...(programs || [])].sort((a, b) => {
+    if (state.sortField === 'rights_end') {
+      const result = compareNullable(normalizeText(a.rights_end), normalizeText(b.rights_end), direction);
+      if (result) return result;
+    } else if (state.sortField === 'aired_recent') {
+      const result = compareNullable(a.__meta?.recentAirTimestamp ?? latestAiredTimestampForProgram(a), b.__meta?.recentAirTimestamp ?? latestAiredTimestampForProgram(b), direction);
+      if (result) return result;
+    } else {
+      const result = normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' });
+      if (result) return direction === 'desc' ? -result : result;
+    }
+    return normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' });
+  });
+}
+
+function titleStem(value) {
+  const normalized = normalizeLower(value).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const words = normalized.split(' ').filter(Boolean);
+  if (words.length >= 2) return words.slice(0, 2).join(' ');
+  return normalized.slice(0, 12);
+}
 
 function duplicateInputKey(titleValue, nolaValue) {
   return `${duplicateEligibleTitle(titleValue)}::${duplicateEligibleNola(nolaValue)}`;
@@ -261,7 +352,10 @@ function decorateProgram(program) {
     searchBlob: searchFields.map(normalizeLower).join('\n'),
     michiganText: [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | '),
     distributorLower: normalizeLower(program.distributor),
-    packageTypeLower: normalizeLower(program.package_type)
+    packageTypeLower: normalizeLower(program.package_type),
+    recentAirTimestamp: latestAiredTimestampForProgram(program),
+    titleStem: titleStem(program.title),
+    isHolidayProgram: Boolean(program.is_holiday_program)
   };
   return program;
 }
@@ -305,7 +399,7 @@ function filteredCacheKey() {
 }
 
 function statsCacheKey() {
-  return String(state.programRevision);
+  return `${state.programRevision}::${includeHolidayProgramsEnabled() ? 'holiday-on' : 'holiday-off'}`;
 }
 
 const NOLA_PLACEHOLDERS = new Set(['nonola', 'no nola', 'no-nola', 'n/a', 'na', 'none', 'unknown']);
@@ -351,6 +445,21 @@ function duplicateMatches(titleValue, nolaValue, currentId = null) {
   return matches.sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }));
 }
 
+function duplicateStemMatches(titleValue, currentId = null) {
+  const stem = titleStem(titleValue);
+  if (!stem || stem.length < DUPLICATE_CHECK_MIN_CHARS) return [];
+  const current = currentId == null ? null : String(currentId);
+  return state.duplicateCatalog
+    .filter((program) => {
+      const id = String(program.id);
+      if (!id || (current && id === current)) return false;
+      const exactTitle = normalizeLower(program.title) === normalizeLower(titleValue);
+      if (exactTitle) return false;
+      return titleStem(program.title) === stem;
+    })
+    .slice(0, 6);
+}
+
 function renderDuplicateCheck() {
   const form = els.programForm;
   if (!form || !els.duplicateCheck) return;
@@ -367,33 +476,63 @@ function renderDuplicateCheck() {
   }
 
   const currentId = form.dataset.programId || null;
-  const matches = duplicateMatches(eligibleTitle, eligibleNola, currentId);
-  if (!matches.length) {
+  const matches = duplicateMatches(form.elements.title.value, form.elements.nola_eidr.value, currentId);
+  const exactTitleKey = duplicateEligibleTitle(form.elements.title.value);
+  const exactNolaKey = duplicateEligibleNola(form.elements.nola_eidr.value);
+  const exactTitleMatches = exactTitleKey ? (state.duplicateIndex.title.get(exactTitleKey) || []).filter((item) => String(item.id) !== String(currentId || '')) : [];
+  const exactNolaMatches = exactNolaKey ? (state.duplicateIndex.nola.get(exactNolaKey) || []).filter((item) => String(item.id) !== String(currentId || '')) : [];
+  const stemMatches = duplicateStemMatches(form.elements.title.value, currentId);
+
+  if (!matches.length && !stemMatches.length) {
     clearDuplicateCheckUi();
     return;
   }
 
-  const titleValue = normalizeLower(form.elements.title.value);
-  const meaningfulNola = duplicateEligibleNola(form.elements.nola_eidr.value);
-  const items = matches.slice(0, 6).map((item) => {
-    const reasons = [];
-    if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
-    if (meaningfulNola && normalizeLower(item.nola_eidr) === meaningfulNola) reasons.push('same NOLA');
-    if (item.is_archived) reasons.push('archived');
-    const reasonMarkup = reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : '';
-    return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${reasonMarkup}${formatDuplicateDetails(item)}</li>`;
-  }).join('');
-  const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
-  const markup = `
-    <div class="duplicate-card warn">
-      <div class="duplicate-head">
-        <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
-        <button type="button" class="ghost dup-dismiss" data-dismiss-duplicates="true" aria-label="Dismiss duplicate warning">Dismiss</button>
+  let markup = '';
+  if (exactNolaMatches.length >= 3 && exactNolaKey) {
+    markup = `
+      <div class="duplicate-card warn">
+        <div class="duplicate-head">
+          <div class="duplicate-title">Duplicate NOLA, proceed?</div>
+          <button type="button" class="ghost dup-dismiss" data-dismiss-duplicates="true" aria-label="Dismiss duplicate warning">Dismiss</button>
+        </div>
+        <div class="dup-meta">Exact NOLA <strong>${escapeHtml(normalizeText(form.elements.nola_eidr.value))}</strong> already appears ${exactNolaMatches.length} time${exactNolaMatches.length === 1 ? '' : 's'}. That may be expected for a repeated series.</div>
+      </div>`;
+  } else if (exactTitleMatches.length || exactNolaMatches.length) {
+    const items = matches.slice(0, 6).map((item) => {
+      const reasons = [];
+      if (exactTitleMatches.some((match) => String(match.id) === String(item.id))) reasons.push('same title');
+      if (exactNolaMatches.some((match) => String(match.id) === String(item.id))) reasons.push('same NOLA');
+      if (item.is_archived) reasons.push('archived');
+      const reasonMarkup = reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : '';
+      return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${reasonMarkup}${formatDuplicateDetails(item)}</li>`;
+    }).join('');
+    const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
+    markup = `
+      <div class="duplicate-card warn">
+        <div class="duplicate-head">
+          <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
+          <button type="button" class="ghost dup-dismiss" data-dismiss-duplicates="true" aria-label="Dismiss duplicate warning">Dismiss</button>
+        </div>
+        <ul class="duplicate-list">${items}</ul>
+        ${more}
       </div>
-      <ul class="duplicate-list">${items}</ul>
-      ${more}
-    </div>
-  `;
+    `;
+  } else if (stemMatches.length) {
+    markup = `
+      <div class="duplicate-card warn">
+        <div class="duplicate-head">
+          <div class="duplicate-title">Similar title, proceed?</div>
+          <button type="button" class="ghost dup-dismiss" data-dismiss-duplicates="true" aria-label="Dismiss duplicate warning">Dismiss</button>
+        </div>
+        <div class="dup-meta">Several titles begin the same way as <strong>${escapeHtml(normalizeText(form.elements.title.value) || '(untitled)')}</strong>. This is a softer warning because it may just be part of a series.</div>
+      </div>`;
+  }
+
+  if (!markup) {
+    clearDuplicateCheckUi();
+    return;
+  }
   if (markup !== state.lastDuplicateMarkup) {
     els.duplicateCheck.innerHTML = markup;
     state.lastDuplicateMarkup = markup;
@@ -432,7 +571,7 @@ function dismissDuplicateCheck() {
 
 function renderTemplateSourceList() {
   if (!els.templateSourceList) return;
-  els.templateSourceList.innerHTML = state.programs
+  els.templateSourceList.innerHTML = state.activeCatalog
     .map((program) => `<option value="${escapeHtml(`${program.title || '(untitled)'}${program.nola_eidr ? ' — ' + program.nola_eidr : ''} [${program.id}]`)}"></option>`)
     .join('');
 }
@@ -448,7 +587,7 @@ function loadTemplateIntoForm() {
     alert('Choose a program from the list first.');
     return;
   }
-  const item = state.programs.find((program) => String(program.id) === String(id));
+  const item = state.activeCatalog.find((program) => String(program.id) === String(id)) || state.programs.find((program) => String(program.id) === String(id));
   if (!item) {
     alert('That source program could not be found.');
     return;
@@ -516,6 +655,7 @@ function updateModeUI() {
     els.drawerModeBadge.classList.toggle('admin', editing);
   }
   applyEditorMode();
+  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
 }
 
@@ -644,17 +784,21 @@ async function loadEverything() {
   setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
   if (canEdit()) await attemptAutoArchive();
   await loadEvergreenOverrides();
+  await loadHolidaySupport();
+  updateHolidayProgramUi();
+  updateEvergreenOverrideUi();
   await loadPrograms();
   await loadDuplicateCatalog();
   await syncProgramsForCurrentView();
   setLoading('Building filters and lookup lists…');
   await loadLookups();
   renderFilters();
+  syncSortUi();
   renderTable();
   renderStats();
   state.lastAppliedViewState = snapshotViewState();
   setLoading('');
-  setStatus(`Loaded ${state.programs.length.toLocaleString()} active programs. Archived programs (${state.archivedCount.toLocaleString()}) load only when you open Archived.`);
+  setStatus(`Loaded ${state.activeCatalog.length.toLocaleString()} active programs. Archived programs (${state.archivedCount.toLocaleString()}) stay out of memory until you ask for them.`);
 }
 
 async function attemptAutoArchive() {
@@ -665,52 +809,61 @@ async function attemptAutoArchive() {
   }
 }
 
+function escapeSearchPattern(value) {
+  return `%${normalizeText(value).replace(/[%]/g, '').replace(/,/g, ' ').trim()}%`;
+}
 
-async function fetchAllRows(tableName, orderColumn = 'title', buildQuery = null, loadingLabel = tableName) {
-  const pageSize = 1000;
-  let from = 0;
-  let allRows = [];
+function searchableColumns() {
+  return ['title', 'notes', 'legacy_code', 'nola_eidr', 'topic', 'secondary_topic', 'aired_13_1', 'aired_13_3', 'distributor', 'rights_notes', 'package_type', 'program_type'];
+}
 
-  while (true) {
-    setLoading(`Loading ${loadingLabel.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
-    let query = state.supabase.from(tableName);
-    query = buildQuery ? buildQuery(query) : query.select('*');
-    const { data, error } = await query
-      .order(orderColumn, { ascending: true })
-      .range(from, from + pageSize - 1);
+function buildVisibleProgramsQuery(query) {
+  query = query.select('*');
+  if (state.currentView === 'archived') query = query.eq('is_archived', true);
+  else query = query.eq('is_archived', false);
+  if (state.supportsHolidayProgram && !includeHolidayProgramsEnabled()) query = query.not('is_holiday_program', 'is', 'true');
 
-    if (error) throw error;
+  const searchText = normalizeText(els.searchInput?.value);
+  const searchField = normalizeText(els.searchFieldSelect?.value);
+  const topics = selectedValues(els.topicFilter);
+  const lengths = selectedValues(els.lengthFilter);
+  const codes = selectedValues(els.codeFilter);
+  const distributor = normalizeText(els.distributorFilter?.value);
+  const programType = normalizeText(els.programTypeFilter?.value);
 
-    const rows = data || [];
-    allRows = allRows.concat(rows);
-
-    if (rows.length < pageSize) break;
-    from += pageSize;
+  if (searchText) {
+    const pattern = escapeSearchPattern(searchText);
+    if (searchField) query = query.ilike(searchField, pattern);
+    else query = query.or(searchableColumns().map((column) => `${column}.ilike.${pattern}`).join(','));
   }
+  if (topics.length) query = query.in('topic', topics);
+  if (lengths.length) query = query.in('length_minutes', lengths);
+  if (codes.length) query = query.in('legacy_code', codes);
+  if (distributor) query = query.eq('distributor', distributor);
+  if (programType) query = query.eq('program_type', programType);
 
-  return allRows;
+  return query;
 }
 
 async function loadPrograms() {
   try {
-    state.programs = decoratePrograms(await fetchAllRows('programs_enriched', 'title', (query) => query.select('*').eq('is_archived', false), 'active programs'));
+    state.activeCatalog = sortProgramsArray(decoratePrograms(await fetchAllRows('programs', 'title', (query) => query.select('*').eq('is_archived', false), 'active programs')));
     state.archivedLoaded = false;
     invalidateProgramCaches(true);
   } catch (error) {
     console.error(error);
     setLoading('');
     setStatus(error.message);
-    return;
   }
 }
 
 async function loadDuplicateCatalog() {
   try {
-    state.duplicateCatalog = await fetchAllRows('programs_enriched', 'title', (query) => query.select('id,title,nola_eidr,length_minutes,rights_begin,rights_end,is_archived'), 'duplicate lookup data');
+    state.duplicateCatalog = await fetchAllRows('programs', 'title', (query) => query.select('id,title,nola_eidr,length_minutes,rights_begin,rights_end,is_archived'), 'duplicate lookup data');
     rebuildDuplicateIndex();
   } catch (error) {
     console.error(error);
-    state.duplicateCatalog = state.programs.map((program) => ({
+    state.duplicateCatalog = state.activeCatalog.map((program) => ({
       id: program.id,
       title: program.title,
       nola_eidr: program.nola_eidr,
@@ -736,36 +889,34 @@ async function loadEvergreenOverrides() {
   }
 }
 
-async function ensureArchivedProgramsLoaded() {
-  if (state.archivedLoaded) return;
-  const archivedPrograms = decoratePrograms(await fetchAllRows('programs_enriched', 'title', (query) => query.select('*').eq('is_archived', true), 'archived programs'));
-  state.programs = decoratePrograms(state.programs.filter((program) => !program.is_archived).concat(archivedPrograms));
-  state.archivedLoaded = true;
-  invalidateProgramCaches(true);
-}
-
-function unloadArchivedPrograms() {
-  if (!state.archivedLoaded) return;
-  state.programs = decoratePrograms(state.programs.filter((program) => !program.is_archived));
-  state.archivedLoaded = false;
-  invalidateProgramCaches(true);
+async function loadHolidaySupport() {
+  try {
+    const { error } = await state.supabase.from('programs').select('id,is_holiday_program').limit(1);
+    if (error) throw error;
+    state.supportsHolidayProgram = true;
+  } catch (error) {
+    console.warn('Holiday flag column unavailable:', error);
+    state.supportsHolidayProgram = false;
+  }
 }
 
 async function syncProgramsForCurrentView() {
-  if (state.currentView === 'archived') {
-    await ensureArchivedProgramsLoaded();
-    return;
-  }
-  unloadArchivedPrograms();
+  const orderColumn = state.sortField === 'rights_end' ? 'rights_end' : 'title';
+  const orderOptions = { ascending: state.sortDirection === 'asc', nullsFirst: false };
+  const rows = await fetchAllRows('programs', orderColumn, buildVisibleProgramsQuery, state.currentView === 'archived' ? 'archived programs' : 'visible programs', orderOptions);
+  state.programs = sortProgramsArray(decoratePrograms(rows));
+  state.archivedLoaded = state.currentView === 'archived';
+  state.currentPoolCount = state.programs.length;
+  invalidateProgramCaches(true);
 }
 
 function sortProgramsInPlace() {
-  state.programs.sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }));
+  state.programs = sortProgramsArray(state.programs);
 }
 
 async function fetchProgramById(id) {
   const { data, error } = await state.supabase
-    .from('programs_enriched')
+    .from('programs')
     .select('*')
     .eq('id', id)
     .single();
@@ -776,7 +927,7 @@ async function fetchProgramById(id) {
 
 async function fetchInsertedProgram(payload) {
   let query = state.supabase
-    .from('programs_enriched')
+    .from('programs')
     .select('*')
     .eq('title', payload.title)
     .order('id', { ascending: false })
@@ -792,14 +943,18 @@ async function fetchInsertedProgram(payload) {
 
 function mergeProgramIntoState(program) {
   const prepared = decorateProgram(program);
-  const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
-  if (prepared.is_archived && !state.archivedLoaded && state.currentView !== 'archived') {
-    if (index >= 0) state.programs.splice(index, 1);
-  } else if (index >= 0) {
-    state.programs[index] = prepared;
+  const visibleIndex = state.programs.findIndex((item) => String(item.id) === String(program.id));
+  if (visibleIndex >= 0) state.programs[visibleIndex] = prepared;
+
+  const catalogIndex = state.activeCatalog.findIndex((item) => String(item.id) === String(program.id));
+  if (prepared.is_archived) {
+    if (catalogIndex >= 0) state.activeCatalog.splice(catalogIndex, 1);
+  } else if (catalogIndex >= 0) {
+    state.activeCatalog[catalogIndex] = prepared;
   } else {
-    state.programs.push(prepared);
+    state.activeCatalog.push(prepared);
   }
+
   const duplicateRow = {
     id: prepared.id,
     title: prepared.title,
@@ -813,7 +968,8 @@ function mergeProgramIntoState(program) {
   if (dupIndex >= 0) state.duplicateCatalog[dupIndex] = duplicateRow;
   else state.duplicateCatalog.push(duplicateRow);
   state.evergreenOverrideMap.set(String(prepared.id), Boolean(prepared.can_be_used_as_evergreen));
-  sortProgramsInPlace();
+  state.programs = sortProgramsArray(state.programs);
+  state.activeCatalog = sortProgramsArray(state.activeCatalog);
   rebuildDuplicateIndex();
   invalidateProgramCaches(true);
 }
@@ -905,7 +1061,7 @@ function sortCodeValues(values) {
 
 function uniqueCodeValues() {
   const normalized = Array.from(new Set(
-    state.programs
+    state.activeCatalog
       .map((p) => normalizeText(p.legacy_code))
       .filter(Boolean)
       .map((value) => value.toUpperCase())
@@ -916,8 +1072,8 @@ function uniqueCodeValues() {
 
 function uniqueLookupFromPrograms(field) {
   const values = field === 'secondary_topic'
-    ? Array.from(new Set(state.programs.flatMap((p) => splitMultiValues(p[field]))))
-    : Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
+    ? Array.from(new Set(state.activeCatalog.flatMap((p) => splitMultiValues(p[field]))))
+    : Array.from(new Set(state.activeCatalog.map((p) => normalizeText(p[field])).filter(Boolean)));
   if (field === 'length_minutes') return sortLengthValues(values);
   return values.sort((a, b) => a.localeCompare(b));
 }
@@ -979,6 +1135,9 @@ function snapshotViewState() {
     distributorFilter: els.distributorFilter.value,
     programTypeFilter: els.programTypeFilter.value,
     statusFilter: els.statusFilter.value,
+    includeHolidayPrograms: includeHolidayProgramsEnabled(),
+    sortField: state.sortField,
+    sortDirection: state.sortDirection,
     currentView: state.currentView
   };
 }
@@ -1007,8 +1166,12 @@ async function applySnapshot(snapshot) {
   els.distributorFilter.value = snapshot.distributorFilter || '';
   els.programTypeFilter.value = snapshot.programTypeFilter || '';
   els.statusFilter.value = snapshot.statusFilter || '';
+  if (els.includeHolidayPrograms) els.includeHolidayPrograms.checked = Boolean(snapshot.includeHolidayPrograms);
   state.currentView = snapshot.currentView || 'active';
+  state.sortField = snapshot.sortField || 'title';
+  state.sortDirection = snapshot.sortDirection || 'asc';
   syncQuickViewState();
+  syncSortUi();
   await syncProgramsForCurrentView();
   const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
@@ -1105,8 +1268,12 @@ async function resetFilters() {
   els.distributorFilter.value = '';
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
+  if (els.includeHolidayPrograms) els.includeHolidayPrograms.checked = false;
   state.currentView = 'active';
+  state.sortField = 'title';
+  state.sortDirection = 'asc';
   syncQuickViewState();
+  syncSortUi();
   await syncProgramsForCurrentView();
   const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
@@ -1299,10 +1466,10 @@ function renderTable() {
     return `
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass} ${expandedClass}">
         <td data-label="Title">
-          <div class="desktop-title-wrap">
+          <button type="button" class="desktop-open-record desktop-title-wrap" data-open-program="${item.id}" aria-label="Open details for ${safeTitle}">
             <div class="program-title">${safeTitle}</div>
             <div class="program-sub">${useMarkup}${nolaMarkup}</div>
-          </div>
+          </button>
           <button type="button" class="mobile-row-toggle" data-mobile-toggle="${item.id}" aria-expanded="${String(isExpanded)}" aria-label="Toggle details for ${safeTitle}">
             <span class="mobile-row-toggle-copy">
               <span class="program-title">${safeTitle}</span>
@@ -1336,14 +1503,15 @@ function getStatsSummary() {
   const key = statsCacheKey();
   if (state.statsCache.key === key && state.statsCache.value) return state.statsCache.value;
   const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: state.archivedCount };
-  state.programs.forEach((program) => {
-    const flags = (program.__meta || decorateProgram(program).__meta).flags;
-    if (program.is_archived) return;
-    if (flags.needsAptCheck) summary.apt += 1;
-    if (flags.rightsStatus === 'Ending soon') summary.ending += 1;
-    if (flags.rightsStatus === 'Expired') summary.expired += 1;
-    if (flags.missingRights) summary.missingRights += 1;
-  });
+  state.activeCatalog
+    .filter((program) => includeHolidayProgramsEnabled() || !Boolean(program.is_holiday_program))
+    .forEach((program) => {
+      const flags = (program.__meta || decorateProgram(program).__meta).flags;
+      if (flags.needsAptCheck) summary.apt += 1;
+      if (flags.rightsStatus === 'Ending soon') summary.ending += 1;
+      if (flags.rightsStatus === 'Expired') summary.expired += 1;
+      if (flags.missingRights) summary.missingRights += 1;
+    });
   state.statsCache = { key, value: summary };
   return summary;
 }
@@ -1360,6 +1528,7 @@ function renderStats() {
 
 function syncQuickViewState() {
   document.querySelectorAll('#quickStrip [data-view]').forEach((card) => card.classList.toggle('active', card.dataset.view === state.currentView));
+  syncSortUi();
 }
 
 async function openEditor(id = null, duplicate = false) {
@@ -1395,6 +1564,7 @@ async function openEditor(id = null, duplicate = false) {
     form.elements[field].value = value;
   }
   if (form.elements.can_be_used_as_evergreen) form.elements.can_be_used_as_evergreen.checked = Boolean(item?.can_be_used_as_evergreen);
+  if (form.elements.is_holiday_program) form.elements.is_holiday_program.checked = Boolean(item?.is_holiday_program);
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
@@ -1402,6 +1572,7 @@ async function openEditor(id = null, duplicate = false) {
   updateVoteVisibility();
   renderFormFlags(item);
   updateUnarchiveButton(item);
+  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
   state.dismissedDuplicateKey = '';
   flushDuplicateCheck();
@@ -1425,6 +1596,21 @@ function updateUnarchiveButton(item) {
   els.unarchiveBtn.classList.toggle('hidden', !show);
 }
 
+function updateHolidayProgramUi() {
+  if (!els.holidayProgramWrap || !els.programForm?.elements.is_holiday_program) return;
+  const field = els.programForm.elements.is_holiday_program;
+  const editing = canEdit();
+  const supported = state.supportsHolidayProgram;
+  field.checked = supported ? field.checked : false;
+  field.disabled = !editing || !supported;
+  els.holidayProgramWrap.classList.toggle('unsupported', !supported);
+  if (els.holidayProgramLabel) {
+    els.holidayProgramLabel.textContent = supported ? 'Holiday program' : 'Holiday program (DB column needed)';
+  }
+  if (els.includeHolidayWrap) els.includeHolidayWrap.classList.toggle('unsupported', !supported);
+  if (els.includeHolidayPrograms) els.includeHolidayPrograms.disabled = !supported;
+  if (els.includeHolidayLabel) els.includeHolidayLabel.textContent = supported ? 'Include holiday programs' : 'Include holiday programs (DB column needed)';
+}
 
 function updateEvergreenOverrideUi() {
   if (!els.evergreenOverrideWrap || !els.programForm?.elements.can_be_used_as_evergreen) return;
@@ -1457,6 +1643,7 @@ function closeEditor() {
   clearDuplicateCheckUi();
   state.dismissedDuplicateKey = '';
   updateUnarchiveButton(null);
+  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
   syncSelectedRow();
 }
@@ -1497,6 +1684,9 @@ async function saveProgram(event) {
   if (state.supportsEvergreenOverride && form.elements.can_be_used_as_evergreen) {
     payload.can_be_used_as_evergreen = Boolean(form.elements.can_be_used_as_evergreen.checked);
   }
+  if (state.supportsHolidayProgram && form.elements.is_holiday_program) {
+    payload.is_holiday_program = Boolean(form.elements.is_holiday_program.checked);
+  }
 
   if (!payload.title) {
     alert('Title is required.');
@@ -1525,6 +1715,7 @@ async function saveProgram(event) {
     }
     mergeProgramIntoState(refreshedProgram);
     syncLookupsFromProgram(refreshedProgram);
+    await syncProgramsForCurrentView();
     refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
     setLoading('');
 
@@ -1556,10 +1747,12 @@ async function deleteProgram() {
   }
 
   state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  state.activeCatalog = state.activeCatalog.filter((program) => String(program.id) !== String(id));
   state.duplicateCatalog = state.duplicateCatalog.filter((program) => String(program.id) !== String(id));
   state.evergreenOverrideMap.delete(String(id));
   rebuildDuplicateIndex();
   invalidateProgramCaches(true);
+  await syncProgramsForCurrentView();
   refreshUiAfterProgramMutation('Program deleted.');
   setLoading('');
   closeEditor();
@@ -1576,6 +1769,7 @@ async function unarchiveProgram() {
     if (error) throw error;
     const refreshedProgram = await fetchProgramById(id);
     mergeProgramIntoState(refreshedProgram);
+    await syncProgramsForCurrentView();
     refreshUiAfterProgramMutation('Program unarchived.');
     setLoading('');
     closeEditor();
@@ -1589,7 +1783,7 @@ async function unarchiveProgram() {
 
 function exportCurrentView() {
   const items = activePrograms();
-  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive','can_be_used_as_evergreen'];
+  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive','can_be_used_as_evergreen','is_holiday_program'];
   const lines = [columns.join(',')];
   for (const item of items) {
     lines.push(columns.map((col) => csvEscape(item[col])).join(','));
@@ -1683,6 +1877,7 @@ function bindEvents() {
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.unarchiveBtn?.addEventListener('click', unarchiveProgram);
   els.programForm.elements.can_be_used_as_evergreen?.addEventListener('change', () => { state.dismissedDuplicateKey = ''; });
+  els.programForm.elements.is_holiday_program?.addEventListener('change', () => { state.dismissedDuplicateKey = ''; });
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
     els.programForm.elements[field].setAttribute('spellcheck', 'false');
@@ -1755,6 +1950,19 @@ function bindEvents() {
     updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
+  els.includeHolidayPrograms?.addEventListener('change', updateQueryStatus);
+  els.mobileSortSelect?.addEventListener('change', async () => {
+    setSort(els.mobileSortSelect.value, state.sortField === els.mobileSortSelect.value ? state.sortDirection : 'asc');
+    await updateQueryStatus();
+  });
+  els.mobileSortDirectionBtn?.addEventListener('click', async () => {
+    setSort(state.sortField, state.sortDirection === 'asc' ? 'desc' : 'asc');
+    await updateQueryStatus();
+  });
+  document.querySelectorAll('[data-sort]').forEach((button) => button.addEventListener('click', async () => {
+    setSort(button.dataset.sort);
+    await updateQueryStatus();
+  }));
 
   els.mobileViewTabs?.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-mobile-panel]');

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="WNMU-TV-logo-head2019.png" />
   <link rel="shortcut icon" href="WNMU-TV-logo-head2019.png" />
   <link rel="apple-touch-icon" href="WNMU-TV-logo-head2019.png" />
-  <link rel="stylesheet" href="styles.css?v=1.6.5" />
+  <link rel="stylesheet" href="styles.css?v=1.6.6" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -48,7 +48,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.6.5</span>
+            <span id="appVersion" class="version-pill">v1.6.6</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -182,6 +182,10 @@
         </div>
       </div>
       <div class="filter-foot">
+        <label id="includeHolidayWrap" class="checkbox-box inline-filter-check">
+          <input id="includeHolidayPrograms" type="checkbox" />
+          <span id="includeHolidayLabel">Include holiday programs</span>
+        </label>
         <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, lengths, or code values.</div>
       </div>
     </section>
@@ -192,18 +196,29 @@
           <div class="list-title">Program list</div>
           <div id="listSummary" class="list-summary">Showing 0 programs.</div>
         </div>
+        <div class="mobile-sort-tools">
+          <label class="mobile-sort-label" for="mobileSortSelect">Sort</label>
+          <div class="mobile-sort-row">
+            <select id="mobileSortSelect">
+              <option value="title">Title</option>
+              <option value="rights_end">Rights End</option>
+              <option value="aired_recent">Aired On</option>
+            </select>
+            <button type="button" id="mobileSortDirectionBtn" class="sort-direction-btn" aria-label="Toggle sort direction">↑</button>
+          </div>
+        </div>
       </div>
       <div class="table-wrap">
         <table class="programs-table compact-table">
           <thead>
             <tr>
-              <th class="col-title">Title</th>
+              <th class="col-title"><button type="button" class="sort-head" data-sort="title">Title <span class="sort-arrow" aria-hidden="true"></span></button></th>
               <th class="col-notes">Description</th>
               <th class="col-details">Details</th>
-              <th class="col-airing">Aired on 13.1</th>
-              <th class="col-airing">Aired on 13.3</th>
+              <th class="col-airing"><button type="button" class="sort-head" data-sort="aired_recent">Aired on 13.1 <span class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th class="col-airing"><button type="button" class="sort-head" data-sort="aired_recent">Aired on 13.3 <span class="sort-arrow" aria-hidden="true"></span></button></th>
               <th class="col-type">Package type</th>
-              <th class="col-rights">Rights window</th>
+              <th class="col-rights"><button type="button" class="sort-head" data-sort="rights_end">Rights window <span class="sort-arrow" aria-hidden="true"></span></button></th>
               <th class="col-distributor">Distributor</th>
               <th class="col-flags">Flags</th>
             </tr>
@@ -314,6 +329,7 @@
       <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
       <div class="drawer-actions">
         <button type="submit" id="saveBtn" class="primary">Save</button>
+        <label id="holidayProgramWrap" class="checkbox drawer-inline-flag"><input name="is_holiday_program" type="checkbox" /><span id="holidayProgramLabel">Holiday program</span></label>
         <label id="evergreenOverrideWrap" class="checkbox drawer-inline-flag"><input name="can_be_used_as_evergreen" type="checkbox" /><span id="evergreenOverrideLabel">Can be used as evergreen</span></label>
         <button type="button" id="duplicateBtn">Duplicate</button>
         <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
@@ -322,6 +338,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.6.5"></script>
+  <script src="app.js?v=1.6.6"></script>
 </body>
 </html>

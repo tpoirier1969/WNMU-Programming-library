@@ -112,6 +112,9 @@ button:hover { transform: translateY(-1px); }
 .filter-label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .mini-clear { padding: 4px 8px; font-size: .72rem; border-radius: 999px; background: #f3f8fb; color: var(--teal-dark); }
 .filter-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.inline-filter-check { display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:800; color: var(--pbs-blue-dark); }
+.inline-filter-check input { width:auto; }
+.inline-filter-check.unsupported { opacity:.72; color: var(--muted); }
 .reset-all { margin-left:auto; }
 .filter-box select, .filter-box input {
   width: 100%; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--text);
@@ -123,7 +126,13 @@ button:hover { transform: translateY(-1px); }
 .list-panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden;
 }
-.list-meta { display:flex; align-items:center; justify-content:space-between; padding: 10px 14px; border-bottom:1px solid var(--border); background: rgba(255,255,255,.75); }
+.list-meta { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 10px 14px; border-bottom:1px solid var(--border); background: rgba(255,255,255,.75); }
+.mobile-sort-tools { display:none; }
+.mobile-sort-label { display:block; font-size:.72rem; font-weight:800; color: var(--pbs-blue-dark); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+.mobile-sort-row { display:flex; align-items:center; gap:8px; }
+.mobile-sort-row .sort-direction-btn { flex: 0 0 auto; }
+.mobile-sort-row select { min-width: 148px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background:#fff; }
+.sort-direction-btn { min-width: 40px; padding: 8px 10px; border-radius: 10px; font-weight: 900; }
 .list-title { font-weight: 800; color: var(--pbs-blue-dark); font-size: 1rem; }
 .list-summary { color: var(--muted); font-size: .87rem; }
 
@@ -158,6 +167,34 @@ button:hover { transform: translateY(-1px); }
 .programs-table thead th.col-rights { width: 138px; }
 .programs-table thead th.col-distributor { width: 86px; }
 .programs-table thead th.col-flags { width: 170px; }
+
+.sort-head {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:none;
+  background:transparent;
+  color:inherit;
+  padding:0;
+  font:inherit;
+  font-weight:inherit;
+  cursor:pointer;
+}
+.sort-head .sort-arrow::before { content: '↕'; opacity: .55; }
+.sort-head.active .sort-arrow::before { content: '↑'; opacity: 1; }
+.sort-head.active.desc .sort-arrow::before { content: '↓'; }
+.desktop-open-record {
+  display:block;
+  width:100%;
+  padding:0;
+  border:none;
+  background:transparent;
+  text-align:left;
+  color:inherit;
+  cursor:pointer;
+}
+.desktop-open-record:hover .program-title, .desktop-open-record:focus .program-title { text-decoration: underline; }
+
 .programs-table tbody td {
   padding: 8px 10px; border-bottom: 1px solid #e4edf0; vertical-align: top; font-size: .88rem; line-height: 1.22;
 }
@@ -241,6 +278,7 @@ button:hover { transform: translateY(-1px); }
 .read-only-note { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background:#f4f8fb; color:#496273; border:1px solid #dbe7ee; font-size:.84rem; }
 .drawer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
 .drawer-inline-flag { margin-right: auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: #f5fafc; }
+#holidayProgramWrap { margin-right: 0; }
 .drawer-inline-flag.unsupported { opacity: .72; background: #f2f4f6; color: var(--muted); }
 .drawer-inline-flag input { width: auto; }
 
@@ -347,6 +385,9 @@ input:focus, select:focus, textarea:focus, button:focus {
 
 @media (max-width: 760px) {
   html, body { overflow-x: hidden; }
+  .mobile-sort-tools { display:block; width:100%; }
+  .list-meta { flex-direction:column; align-items:stretch; }
+  .mobile-sort-row select { min-width: 0; width:100%; }
   .app-shell { min-width: 0; width: 100%; padding: 10px; gap: 8px; }
   .topbar, .controls, .list-panel { border-radius: 16px; }
   .title-row { align-items: flex-start; }
