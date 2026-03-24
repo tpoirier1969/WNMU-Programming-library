@@ -938,13 +938,26 @@ async function loadEvergreenOverrides() {
 
 
 async function syncProgramsForCurrentView() {
-  const orderColumn = state.sortField === 'rights_end' ? 'rights_end' : 'title';
-  const orderOptions = { ascending: state.sortDirection === 'asc', nullsFirst: false };
-  const rows = await fetchAllRows(READ_SOURCE, orderColumn, buildVisibleProgramsQuery, state.currentView === 'archived' ? 'archived programs' : 'visible programs', orderOptions);
-  state.programs = sortProgramsArray(decoratePrograms(rows));
-  state.archivedLoaded = state.currentView === 'archived';
+  if (state.currentView === 'archived') {
+    const rows = await fetchAllRows(
+      READ_SOURCE,
+      state.sortField === 'rights_end' ? 'rights_end' : 'title',
+      (query) => buildVisibleProgramsQuery(query.eq('is_archived', true)),
+      'archived programs',
+      { ascending: state.sortDirection === 'asc', nullsFirst: false }
+    );
+    state.programs = sortProgramsArray(decoratePrograms(rows));
+    state.archivedLoaded = true;
+    state.currentPoolCount = state.programs.length;
+    invalidateProgramCaches(true);
+    return;
+  }
+
+  state.programs = sortProgramsArray([...(state.activeCatalog || [])]);
+  state.archivedLoaded = false;
   state.currentPoolCount = state.programs.length;
   invalidateProgramCaches(true);
+  setLoading('');
 }
 
 function sortProgramsInPlace() {
@@ -1252,11 +1265,19 @@ function getFilteredProgramsResult() {
     pool = pool.filter((item) => matchesView(item, state.currentView));
   }
 
+  const topics = effectiveTopicValues();
+  if (state.currentView !== 'archived') {
+    if (topics.length) {
+      pool = pool.filter((item) => topics.includes(normalizeText(item.topic)));
+    } else if (!includeHolidayProgramsEnabled()) {
+      pool = pool.filter((item) => !((item.__meta || decorateProgram(item).__meta).isHolidayProgram));
+    }
+  }
+
   let items = pool;
   const search = normalizeLower(els.searchInput.value);
   const searchField = els.searchFieldSelect.value;
   const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
-  const topics = selectedValues(els.topicFilter);
   const secondaryTopics = selectedValues(els.secondaryTopicFilter);
   const lengths = selectedValues(els.lengthFilter);
   const distributor = els.distributorFilter.value;
