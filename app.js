@@ -803,6 +803,31 @@ async function attemptAutoArchive() {
   }
 }
 
+async function fetchAllRows(tableName, orderColumn = 'title', buildQuery = null, loadingLabel = tableName, orderOptions = { ascending: true }) {
+  const pageSize = 1000;
+  let from = 0;
+  let allRows = [];
+
+  while (true) {
+    setLoading(`Loading ${String(loadingLabel).replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
+    let query = state.supabase.from(tableName);
+    query = buildQuery ? buildQuery(query) : query.select('*');
+
+    if (orderColumn) query = query.order(orderColumn, orderOptions || { ascending: true });
+
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) throw error;
+
+    const rows = data || [];
+    allRows = allRows.concat(rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
 function escapeSearchPattern(value) {
   return `%${normalizeText(value).replace(/[%]/g, '').replace(/,/g, ' ').trim()}%`;
 }
