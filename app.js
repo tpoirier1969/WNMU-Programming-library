@@ -11,7 +11,6 @@ const state = {
   duplicateCatalog: [],
   evergreenOverrideMap: new Map(),
   supportsEvergreenOverride: false,
-  supportsHolidayProgram: false,
   lookups: {
     topics: [],
     secondary_topics: [],
@@ -89,8 +88,6 @@ const els = {
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
   unarchiveBtn: $('#unarchiveBtn'),
-  holidayProgramWrap: $('#holidayProgramWrap'),
-  holidayProgramLabel: $('#holidayProgramLabel'),
   evergreenOverrideWrap: $('#evergreenOverrideWrap'),
   evergreenOverrideLabel: $('#evergreenOverrideLabel'),
   readOnlyNote: $('#readOnlyNote'),
@@ -355,7 +352,7 @@ function decorateProgram(program) {
     packageTypeLower: normalizeLower(program.package_type),
     recentAirTimestamp: latestAiredTimestampForProgram(program),
     titleStem: titleStem(program.title),
-    isHolidayProgram: Boolean(program.is_holiday_program)
+    isHolidayProgram: normalizeLower(program.topic) === 'holiday'
   };
   return program;
 }
@@ -655,7 +652,6 @@ function updateModeUI() {
     els.drawerModeBadge.classList.toggle('admin', editing);
   }
   applyEditorMode();
-  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
 }
 
@@ -784,8 +780,6 @@ async function loadEverything() {
   setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
   if (canEdit()) await attemptAutoArchive();
   await loadEvergreenOverrides();
-  await loadHolidaySupport();
-  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
   await loadPrograms();
   await loadDuplicateCatalog();
@@ -821,7 +815,7 @@ function buildVisibleProgramsQuery(query) {
   query = query.select('*');
   if (state.currentView === 'archived') query = query.eq('is_archived', true);
   else query = query.eq('is_archived', false);
-  if (state.supportsHolidayProgram && !includeHolidayProgramsEnabled()) query = query.not('is_holiday_program', 'is', 'true');
+  if (!includeHolidayProgramsEnabled()) query = query.not('topic', 'eq', 'Holiday');
 
   const searchText = normalizeText(els.searchInput?.value);
   const searchField = normalizeText(els.searchFieldSelect?.value);
@@ -889,16 +883,6 @@ async function loadEvergreenOverrides() {
   }
 }
 
-async function loadHolidaySupport() {
-  try {
-    const { error } = await state.supabase.from('programs').select('id,is_holiday_program').limit(1);
-    if (error) throw error;
-    state.supportsHolidayProgram = true;
-  } catch (error) {
-    console.warn('Holiday flag column unavailable:', error);
-    state.supportsHolidayProgram = false;
-  }
-}
 
 async function syncProgramsForCurrentView() {
   const orderColumn = state.sortField === 'rights_end' ? 'rights_end' : 'title';
@@ -1504,7 +1488,7 @@ function getStatsSummary() {
   if (state.statsCache.key === key && state.statsCache.value) return state.statsCache.value;
   const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: state.archivedCount };
   state.activeCatalog
-    .filter((program) => includeHolidayProgramsEnabled() || !Boolean(program.is_holiday_program))
+    .filter((program) => includeHolidayProgramsEnabled() || !(program.__meta || decorateProgram(program).__meta).isHolidayProgram)
     .forEach((program) => {
       const flags = (program.__meta || decorateProgram(program).__meta).flags;
       if (flags.needsAptCheck) summary.apt += 1;
@@ -1564,7 +1548,6 @@ async function openEditor(id = null, duplicate = false) {
     form.elements[field].value = value;
   }
   if (form.elements.can_be_used_as_evergreen) form.elements.can_be_used_as_evergreen.checked = Boolean(item?.can_be_used_as_evergreen);
-  if (form.elements.is_holiday_program) form.elements.is_holiday_program.checked = Boolean(item?.is_holiday_program);
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
@@ -1572,7 +1555,6 @@ async function openEditor(id = null, duplicate = false) {
   updateVoteVisibility();
   renderFormFlags(item);
   updateUnarchiveButton(item);
-  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
   state.dismissedDuplicateKey = '';
   flushDuplicateCheck();
@@ -1594,22 +1576,6 @@ function updateUnarchiveButton(item) {
   if (!els.unarchiveBtn) return;
   const show = canEdit() && Boolean(item?.id) && Boolean(item?.is_archived);
   els.unarchiveBtn.classList.toggle('hidden', !show);
-}
-
-function updateHolidayProgramUi() {
-  if (!els.holidayProgramWrap || !els.programForm?.elements.is_holiday_program) return;
-  const field = els.programForm.elements.is_holiday_program;
-  const editing = canEdit();
-  const supported = state.supportsHolidayProgram;
-  field.checked = supported ? field.checked : false;
-  field.disabled = !editing || !supported;
-  els.holidayProgramWrap.classList.toggle('unsupported', !supported);
-  if (els.holidayProgramLabel) {
-    els.holidayProgramLabel.textContent = supported ? 'Holiday program' : 'Holiday program (DB column needed)';
-  }
-  if (els.includeHolidayWrap) els.includeHolidayWrap.classList.toggle('unsupported', !supported);
-  if (els.includeHolidayPrograms) els.includeHolidayPrograms.disabled = !supported;
-  if (els.includeHolidayLabel) els.includeHolidayLabel.textContent = supported ? 'Include holiday programs' : 'Include holiday programs (DB column needed)';
 }
 
 function updateEvergreenOverrideUi() {
@@ -1643,7 +1609,6 @@ function closeEditor() {
   clearDuplicateCheckUi();
   state.dismissedDuplicateKey = '';
   updateUnarchiveButton(null);
-  updateHolidayProgramUi();
   updateEvergreenOverrideUi();
   syncSelectedRow();
 }
@@ -1683,9 +1648,6 @@ async function saveProgram(event) {
   };
   if (state.supportsEvergreenOverride && form.elements.can_be_used_as_evergreen) {
     payload.can_be_used_as_evergreen = Boolean(form.elements.can_be_used_as_evergreen.checked);
-  }
-  if (state.supportsHolidayProgram && form.elements.is_holiday_program) {
-    payload.is_holiday_program = Boolean(form.elements.is_holiday_program.checked);
   }
 
   if (!payload.title) {
@@ -1783,7 +1745,7 @@ async function unarchiveProgram() {
 
 function exportCurrentView() {
   const items = activePrograms();
-  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive','can_be_used_as_evergreen','is_holiday_program'];
+  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive','can_be_used_as_evergreen'];
   const lines = [columns.join(',')];
   for (const item of items) {
     lines.push(columns.map((col) => csvEscape(item[col])).join(','));
@@ -1877,7 +1839,6 @@ function bindEvents() {
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.unarchiveBtn?.addEventListener('click', unarchiveProgram);
   els.programForm.elements.can_be_used_as_evergreen?.addEventListener('change', () => { state.dismissedDuplicateKey = ''; });
-  els.programForm.elements.is_holiday_program?.addEventListener('change', () => { state.dismissedDuplicateKey = ''; });
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
     els.programForm.elements[field].setAttribute('spellcheck', 'false');

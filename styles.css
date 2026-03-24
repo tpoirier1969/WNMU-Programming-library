@@ -278,7 +278,6 @@ button:hover { transform: translateY(-1px); }
 .read-only-note { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background:#f4f8fb; color:#496273; border:1px solid #dbe7ee; font-size:.84rem; }
 .drawer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
 .drawer-inline-flag { margin-right: auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: #f5fafc; }
-#holidayProgramWrap { margin-right: 0; }
 .drawer-inline-flag.unsupported { opacity: .72; background: #f2f4f6; color: var(--muted); }
 .drawer-inline-flag input { width: auto; }
 
