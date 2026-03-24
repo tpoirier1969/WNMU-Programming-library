@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="WNMU-TV-logo-head2019.png" />
   <link rel="shortcut icon" href="WNMU-TV-logo-head2019.png" />
   <link rel="apple-touch-icon" href="WNMU-TV-logo-head2019.png" />
-  <link rel="stylesheet" href="styles.css?v=1.6.3" />
+  <link rel="stylesheet" href="styles.css?v=1.6.4" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -48,7 +48,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.6.3</span>
+            <span id="appVersion" class="version-pill">v1.6.4</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -69,13 +69,9 @@
     </section>
 
     <section class="quick-strip" id="quickStrip" data-mobile-section="filters">
-      <button type="button" class="stat-card quick-card quick-view" data-view="all">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">All programs</div>
-      </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="active">
         <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Active</div>
+        <div class="stat-value small">Active Programs</div>
       </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
         <div class="stat-label">Quick filter</div>
@@ -83,7 +79,7 @@
       </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3_music_or_use">
         <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">New to 13.3<br><span class="quick-subline">Music or Use 13.3</span></div>
+        <div class="stat-value small">New to 13.3</div>
       </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
         <div class="stat-label">Quick filter</div>
@@ -318,6 +314,7 @@
       <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
       <div class="drawer-actions">
         <button type="submit" id="saveBtn" class="primary">Save</button>
+        <label id="evergreenOverrideWrap" class="checkbox drawer-inline-flag"><input name="can_be_used_as_evergreen" type="checkbox" /><span id="evergreenOverrideLabel">Can be used as evergreen</span></label>
         <button type="button" id="duplicateBtn">Duplicate</button>
         <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
         <button type="button" id="unarchiveBtn" class="secondary hidden">Unarchive</button>
@@ -325,6 +322,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.6.3"></script>
+  <script src="app.js?v=1.6.4"></script>
 </body>
 </html>

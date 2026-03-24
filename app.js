@@ -5,6 +5,11 @@ const state = {
   supabase: null,
   session: null,
   programs: [],
+  archivedCount: 0,
+  archivedLoaded: false,
+  duplicateCatalog: [],
+  evergreenOverrideMap: new Map(),
+  supportsEvergreenOverride: false,
   lookups: {
     topics: [],
     secondary_topics: [],
@@ -14,7 +19,7 @@ const state = {
     program_types: []
   },
   selectedId: null,
-  currentView: 'all',
+  currentView: 'active',
   viewHistory: [],
   lastAppliedViewState: null,
   isLoading: false,
@@ -25,6 +30,7 @@ const state = {
   duplicateIndex: { title: new Map(), nola: new Map() },
   duplicateCheckTimer: null,
   lastDuplicateMarkup: '',
+  dismissedDuplicateKey: '',
   mobilePanel: 'list',
   mobileExpandedId: null
 };
@@ -73,6 +79,8 @@ const els = {
   duplicateBtn: $('#duplicateBtn'),
   deleteBtn: $('#deleteBtn'),
   unarchiveBtn: $('#unarchiveBtn'),
+  evergreenOverrideWrap: $('#evergreenOverrideWrap'),
+  evergreenOverrideLabel: $('#evergreenOverrideLabel'),
   readOnlyNote: $('#readOnlyNote'),
   drawerModeBadge: $('#drawerModeBadge'),
   formFlags: $('#formFlags'),
@@ -152,6 +160,18 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+
+function duplicateInputKey(titleValue, nolaValue) {
+  return `${duplicateEligibleTitle(titleValue)}::${duplicateEligibleNola(nolaValue)}`;
+}
+
+function applyEvergreenOverride(program) {
+  if (!program || typeof program !== 'object') return program;
+  const override = state.evergreenOverrideMap.get(String(program.id));
+  program.can_be_used_as_evergreen = override === true;
+  return program;
+}
+
 function duplicateEligibleTitle(value) {
   const title = normalizeLower(value);
   return title.length >= DUPLICATE_CHECK_MIN_CHARS ? title : '';
@@ -187,11 +207,14 @@ function addProgramToDuplicateIndex(map, key, program) {
 function rebuildDuplicateIndex() {
   const title = new Map();
   const nola = new Map();
-  state.programs.forEach((program) => {
-    const meta = program.__meta || decorateProgram(program).__meta;
-    addProgramToDuplicateIndex(title, duplicateEligibleTitle(meta.titleLower), program);
-    addProgramToDuplicateIndex(nola, duplicateEligibleNola(meta.nolaLower), program);
+  state.duplicateCatalog.forEach((program) => {
+    const prepared = applyEvergreenOverride({ ...program });
+    const titleKey = duplicateEligibleTitle(prepared.title);
+    const nolaKey = duplicateEligibleNola(prepared.nola_eidr);
+    addProgramToDuplicateIndex(title, titleKey, prepared);
+    addProgramToDuplicateIndex(nola, nolaKey, prepared);
   });
+  state.archivedCount = state.duplicateCatalog.filter((program) => Boolean(program.is_archived)).length;
   state.duplicateIndex = { title, nola };
 }
 
@@ -223,6 +246,7 @@ ${lines.join('\n')}\n\nSave anyway?`;
 
 function decorateProgram(program) {
   if (!program || typeof program !== 'object') return program;
+  applyEvergreenOverride(program);
   const flags = computeFlags(program);
   const searchFields = [
     program.title, program.notes, program.legacy_code, program.nola_eidr, program.secondary_topic, program.topic,
@@ -332,7 +356,12 @@ function renderDuplicateCheck() {
   if (!form || !els.duplicateCheck) return;
   const eligibleTitle = duplicateEligibleTitle(form.elements.title.value);
   const eligibleNola = duplicateEligibleNola(form.elements.nola_eidr.value);
+  const currentKey = duplicateInputKey(form.elements.title.value, form.elements.nola_eidr.value);
   if (!eligibleTitle && !eligibleNola) {
+    clearDuplicateCheckUi();
+    return;
+  }
+  if (state.dismissedDuplicateKey && state.dismissedDuplicateKey === currentKey) {
     clearDuplicateCheckUi();
     return;
   }
@@ -350,13 +379,17 @@ function renderDuplicateCheck() {
     const reasons = [];
     if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
     if (meaningfulNola && normalizeLower(item.nola_eidr) === meaningfulNola) reasons.push('same NOLA');
+    if (item.is_archived) reasons.push('archived');
     const reasonMarkup = reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : '';
     return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${reasonMarkup}${formatDuplicateDetails(item)}</li>`;
   }).join('');
   const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
   const markup = `
     <div class="duplicate-card warn">
-      <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
+      <div class="duplicate-head">
+        <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
+        <button type="button" class="ghost dup-dismiss" data-dismiss-duplicates="true" aria-label="Dismiss duplicate warning">Dismiss</button>
+      </div>
       <ul class="duplicate-list">${items}</ul>
       ${more}
     </div>
@@ -373,6 +406,8 @@ function scheduleDuplicateCheck() {
   if (!form) return;
   const eligibleTitle = duplicateEligibleTitle(form.elements.title.value);
   const eligibleNola = duplicateEligibleNola(form.elements.nola_eidr.value);
+  const currentKey = duplicateInputKey(form.elements.title.value, form.elements.nola_eidr.value);
+  if (state.dismissedDuplicateKey && state.dismissedDuplicateKey !== currentKey) state.dismissedDuplicateKey = '';
   if (!eligibleTitle && !eligibleNola) {
     clearDuplicateCheckUi();
     return;
@@ -387,6 +422,12 @@ function scheduleDuplicateCheck() {
 function flushDuplicateCheck() {
   clearDuplicateCheckTimer();
   renderDuplicateCheck();
+}
+
+function dismissDuplicateCheck() {
+  const form = els.programForm;
+  if (form) state.dismissedDuplicateKey = duplicateInputKey(form.elements.title.value, form.elements.nola_eidr.value);
+  clearDuplicateCheckUi();
 }
 
 function renderTemplateSourceList() {
@@ -475,6 +516,7 @@ function updateModeUI() {
     els.drawerModeBadge.classList.toggle('admin', editing);
   }
   applyEditorMode();
+  updateEvergreenOverrideUi();
 }
 
 function applyEditorMode() {
@@ -601,17 +643,18 @@ function showApp() {
 async function loadEverything() {
   setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
   if (canEdit()) await attemptAutoArchive();
+  await loadEvergreenOverrides();
   await loadPrograms();
+  await loadDuplicateCatalog();
+  await syncProgramsForCurrentView();
   setLoading('Building filters and lookup lists…');
   await loadLookups();
   renderFilters();
   renderTable();
   renderStats();
   state.lastAppliedViewState = snapshotViewState();
-  const activeCount = state.programs.filter((item) => !item.is_archived).length;
-  const archivedCount = state.programs.filter((item) => item.is_archived).length;
   setLoading('');
-  setStatus(`Loaded ${state.programs.length.toLocaleString()} total programs (${activeCount.toLocaleString()} active, ${archivedCount.toLocaleString()} archived).`);
+  setStatus(`Loaded ${state.programs.length.toLocaleString()} active programs. Archived programs (${state.archivedCount.toLocaleString()}) load only when you open Archived.`);
 }
 
 async function attemptAutoArchive() {
@@ -623,16 +666,16 @@ async function attemptAutoArchive() {
 }
 
 
-async function fetchAllRows(tableName, orderColumn = 'title') {
+async function fetchAllRows(tableName, orderColumn = 'title', buildQuery = null, loadingLabel = tableName) {
   const pageSize = 1000;
   let from = 0;
   let allRows = [];
 
   while (true) {
-    setLoading(`Loading ${tableName.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
-    const { data, error } = await state.supabase
-      .from(tableName)
-      .select('*')
+    setLoading(`Loading ${loadingLabel.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
+    let query = state.supabase.from(tableName);
+    query = buildQuery ? buildQuery(query) : query.select('*');
+    const { data, error } = await query
       .order(orderColumn, { ascending: true })
       .range(from, from + pageSize - 1);
 
@@ -650,8 +693,8 @@ async function fetchAllRows(tableName, orderColumn = 'title') {
 
 async function loadPrograms() {
   try {
-    state.programs = decoratePrograms(await fetchAllRows('programs_enriched', 'title'));
-    rebuildDuplicateIndex();
+    state.programs = decoratePrograms(await fetchAllRows('programs_enriched', 'title', (query) => query.select('*').eq('is_archived', false), 'active programs'));
+    state.archivedLoaded = false;
     invalidateProgramCaches(true);
   } catch (error) {
     console.error(error);
@@ -659,6 +702,61 @@ async function loadPrograms() {
     setStatus(error.message);
     return;
   }
+}
+
+async function loadDuplicateCatalog() {
+  try {
+    state.duplicateCatalog = await fetchAllRows('programs_enriched', 'title', (query) => query.select('id,title,nola_eidr,length_minutes,rights_begin,rights_end,is_archived'), 'duplicate lookup data');
+    rebuildDuplicateIndex();
+  } catch (error) {
+    console.error(error);
+    state.duplicateCatalog = state.programs.map((program) => ({
+      id: program.id,
+      title: program.title,
+      nola_eidr: program.nola_eidr,
+      length_minutes: program.length_minutes,
+      rights_begin: program.rights_begin,
+      rights_end: program.rights_end,
+      is_archived: program.is_archived
+    }));
+    rebuildDuplicateIndex();
+    setStatus(`Duplicate index fallback: ${error.message}`);
+  }
+}
+
+async function loadEvergreenOverrides() {
+  try {
+    const rows = await fetchAllRows('programs', 'id', (query) => query.select('id,can_be_used_as_evergreen'), 'evergreen override flags');
+    state.evergreenOverrideMap = new Map(rows.map((row) => [String(row.id), Boolean(row.can_be_used_as_evergreen)]));
+    state.supportsEvergreenOverride = true;
+  } catch (error) {
+    console.warn('Evergreen override column unavailable:', error);
+    state.evergreenOverrideMap = new Map();
+    state.supportsEvergreenOverride = false;
+  }
+}
+
+async function ensureArchivedProgramsLoaded() {
+  if (state.archivedLoaded) return;
+  const archivedPrograms = decoratePrograms(await fetchAllRows('programs_enriched', 'title', (query) => query.select('*').eq('is_archived', true), 'archived programs'));
+  state.programs = decoratePrograms(state.programs.filter((program) => !program.is_archived).concat(archivedPrograms));
+  state.archivedLoaded = true;
+  invalidateProgramCaches(true);
+}
+
+function unloadArchivedPrograms() {
+  if (!state.archivedLoaded) return;
+  state.programs = decoratePrograms(state.programs.filter((program) => !program.is_archived));
+  state.archivedLoaded = false;
+  invalidateProgramCaches(true);
+}
+
+async function syncProgramsForCurrentView() {
+  if (state.currentView === 'archived') {
+    await ensureArchivedProgramsLoaded();
+    return;
+  }
+  unloadArchivedPrograms();
 }
 
 function sortProgramsInPlace() {
@@ -672,8 +770,9 @@ async function fetchProgramById(id) {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return data;
+  return decorateProgram(data);
 }
+
 
 async function fetchInsertedProgram(payload) {
   let query = state.supabase
@@ -692,10 +791,28 @@ async function fetchInsertedProgram(payload) {
 }
 
 function mergeProgramIntoState(program) {
-  const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
   const prepared = decorateProgram(program);
-  if (index >= 0) state.programs[index] = prepared;
-  else state.programs.push(prepared);
+  const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
+  if (prepared.is_archived && !state.archivedLoaded && state.currentView !== 'archived') {
+    if (index >= 0) state.programs.splice(index, 1);
+  } else if (index >= 0) {
+    state.programs[index] = prepared;
+  } else {
+    state.programs.push(prepared);
+  }
+  const duplicateRow = {
+    id: prepared.id,
+    title: prepared.title,
+    nola_eidr: prepared.nola_eidr,
+    length_minutes: prepared.length_minutes,
+    rights_begin: prepared.rights_begin,
+    rights_end: prepared.rights_end,
+    is_archived: prepared.is_archived
+  };
+  const dupIndex = state.duplicateCatalog.findIndex((item) => String(item.id) === String(prepared.id));
+  if (dupIndex >= 0) state.duplicateCatalog[dupIndex] = duplicateRow;
+  else state.duplicateCatalog.push(duplicateRow);
+  state.evergreenOverrideMap.set(String(prepared.id), Boolean(prepared.can_be_used_as_evergreen));
   sortProgramsInPlace();
   rebuildDuplicateIndex();
   invalidateProgramCaches(true);
@@ -879,7 +996,7 @@ function rememberViewState() {
   syncUndoButton();
 }
 
-function applySnapshot(snapshot) {
+async function applySnapshot(snapshot) {
   if (!snapshot) return;
   els.searchInput.value = snapshot.searchInput || '';
   els.searchFieldSelect.value = snapshot.searchFieldSelect || '';
@@ -890,18 +1007,19 @@ function applySnapshot(snapshot) {
   els.distributorFilter.value = snapshot.distributorFilter || '';
   els.programTypeFilter.value = snapshot.programTypeFilter || '';
   els.statusFilter.value = snapshot.statusFilter || '';
-  state.currentView = snapshot.currentView || 'all';
+  state.currentView = snapshot.currentView || 'active';
   syncQuickViewState();
+  await syncProgramsForCurrentView();
   const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
   setStatus(`${count.toLocaleString()} matching programs.`);
 }
 
-function undoViewState() {
+async function undoViewState() {
   const snapshot = state.viewHistory.pop();
   if (!snapshot) return;
-  applySnapshot(snapshot);
+  await applySnapshot(snapshot);
 }
 
 function syncUndoButton() {
@@ -976,7 +1094,7 @@ function clearMultiSelect(selectEl) {
   Array.from(selectEl.options).forEach((opt) => { opt.selected = false; });
 }
 
-function resetFilters() {
+async function resetFilters() {
   rememberViewState();
   els.searchInput.value = '';
   els.searchFieldSelect.value = '';
@@ -987,8 +1105,9 @@ function resetFilters() {
   els.distributorFilter.value = '';
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
-  state.currentView = 'all';
+  state.currentView = 'active';
   syncQuickViewState();
+  await syncProgramsForCurrentView();
   const { count } = renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -1039,7 +1158,7 @@ function matchesView(program, view) {
     case 'michigan':
       return michiganText.includes('michigan');
     case 'evergreens':
-      return meta.packageTypeLower === 'hdever';
+      return meta.packageTypeLower === 'hdever' || Boolean(program.can_be_used_as_evergreen);
     default:
       return true;
   }
@@ -1060,6 +1179,7 @@ function badgesFor(program) {
   if (flags.missingRights) badges.push({ label: 'Missing rights', cls: 'warn' });
   if (flags.newTo131) badges.push({ label: 'New to 13.1', cls: 'info' });
   if (flags.newTo133) badges.push({ label: 'New to 13.3', cls: 'info' });
+  if (Boolean(program.can_be_used_as_evergreen) && meta.packageTypeLower !== 'hdever') badges.push({ label: 'Evergreen override', cls: 'info' });
   if (program.is_archived) badges.push({ label: 'Archived', cls: 'good' });
   return badges;
 }
@@ -1214,13 +1334,10 @@ function renderTable() {
 function getStatsSummary() {
   const key = statsCacheKey();
   if (state.statsCache.key === key && state.statsCache.value) return state.statsCache.value;
-  const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: 0 };
+  const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: state.archivedCount };
   state.programs.forEach((program) => {
     const flags = (program.__meta || decorateProgram(program).__meta).flags;
-    if (program.is_archived) {
-      summary.archived += 1;
-      return;
-    }
+    if (program.is_archived) return;
     if (flags.needsAptCheck) summary.apt += 1;
     if (flags.rightsStatus === 'Ending soon') summary.ending += 1;
     if (flags.rightsStatus === 'Expired') summary.expired += 1;
@@ -1244,9 +1361,19 @@ function syncQuickViewState() {
   document.querySelectorAll('#quickStrip [data-view]').forEach((card) => card.classList.toggle('active', card.dataset.view === state.currentView));
 }
 
-function openEditor(id = null, duplicate = false) {
+async function openEditor(id = null, duplicate = false) {
   const form = els.programForm;
   let item = state.programs.find((program) => String(program.id) === String(id)) || null;
+  if (id != null && !item) {
+    try {
+      item = decorateProgram(await fetchProgramById(id));
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+      setStatus(error.message);
+      return;
+    }
+  }
 
   if (duplicate && item) {
     item = { ...item, id: null, title: `${item.title} (copy)` };
@@ -1258,12 +1385,15 @@ function openEditor(id = null, duplicate = false) {
   document.body.classList.add('modal-open');
   els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : (canEdit() ? item.title : `View: ${item.title}`)) : 'New program';
   form.dataset.programId = item?.id || '';
+  form.dataset.programArchived = item?.is_archived ? '1' : '';
+  form.dataset.excludeFromAutoArchive = item?.exclude_from_auto_archive ? '1' : '';
 
   const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
   for (const field of fields) {
     const value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
     form.elements[field].value = value;
   }
+  if (form.elements.can_be_used_as_evergreen) form.elements.can_be_used_as_evergreen.checked = Boolean(item?.can_be_used_as_evergreen);
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
@@ -1271,6 +1401,8 @@ function openEditor(id = null, duplicate = false) {
   updateVoteVisibility();
   renderFormFlags(item);
   updateUnarchiveButton(item);
+  updateEvergreenOverrideUi();
+  state.dismissedDuplicateKey = '';
   flushDuplicateCheck();
   syncSelectedRow();
   applyEditorMode();
@@ -1292,6 +1424,20 @@ function updateUnarchiveButton(item) {
   els.unarchiveBtn.classList.toggle('hidden', !show);
 }
 
+
+function updateEvergreenOverrideUi() {
+  if (!els.evergreenOverrideWrap || !els.programForm?.elements.can_be_used_as_evergreen) return;
+  const field = els.programForm.elements.can_be_used_as_evergreen;
+  const editing = canEdit();
+  const supported = state.supportsEvergreenOverride;
+  field.checked = supported ? field.checked : false;
+  field.disabled = !editing || !supported;
+  els.evergreenOverrideWrap.classList.toggle('unsupported', !supported);
+  if (els.evergreenOverrideLabel) {
+    els.evergreenOverrideLabel.textContent = supported ? 'Can be used as evergreen' : 'Can be used as evergreen (DB column needed)';
+  }
+}
+
 function updateVoteVisibility() {
   const isApt = normalizeLower(els.programForm.elements.distributor.value) === 'apt';
   els.voteFieldWrap.classList.toggle('hidden-field', !isApt);
@@ -1304,8 +1450,13 @@ function closeEditor() {
   els.drawerBackdrop.classList.add('hidden');
   document.body.classList.remove('modal-open');
   state.selectedId = null;
+  els.programForm.dataset.programId = '';
+  els.programForm.dataset.programArchived = '';
+  els.programForm.dataset.excludeFromAutoArchive = '';
   clearDuplicateCheckUi();
+  state.dismissedDuplicateKey = '';
   updateUnarchiveButton(null);
+  updateEvergreenOverrideUi();
   syncSelectedRow();
 }
 
@@ -1318,6 +1469,8 @@ async function saveProgram(event) {
   const form = els.programForm;
   const programId = form.dataset.programId || null;
   const existingItem = programId ? state.programs.find((program) => String(program.id) === String(programId)) : null;
+  const existingArchived = existingItem ? Boolean(existingItem.is_archived) : form.dataset.programArchived === '1';
+  const existingExcludeFromAutoArchive = existingItem ? Boolean(existingItem.exclude_from_auto_archive) : form.dataset.excludeFromAutoArchive === '1';
   const payload = {
     legacy_code: form.elements.legacy_code.value || null,
     title: form.elements.title.value.trim(),
@@ -1337,9 +1490,12 @@ async function saveProgram(event) {
     package_type: form.elements.package_type.value || null,
     server_tape: form.elements.server_tape.value || null,
     distributor: form.elements.distributor.value || null,
-    exclude_from_auto_archive: Boolean(existingItem?.exclude_from_auto_archive),
-    is_archived: Boolean(existingItem?.is_archived)
+    exclude_from_auto_archive: existingExcludeFromAutoArchive,
+    is_archived: existingArchived
   };
+  if (state.supportsEvergreenOverride && form.elements.can_be_used_as_evergreen) {
+    payload.can_be_used_as_evergreen = Boolean(form.elements.can_be_used_as_evergreen.checked);
+  }
 
   if (!payload.title) {
     alert('Title is required.');
@@ -1348,8 +1504,7 @@ async function saveProgram(event) {
 
   const dupes = duplicateMatches(payload.title, payload.nola_eidr, programId);
   if (dupes.length) {
-    const proceed = confirm(formatDuplicatePrompt(dupes));
-    if (!proceed) return;
+    setStatus(`Possible duplicate${dupes.length === 1 ? '' : 's'} noted while saving. Review the yellow duplicate panel if needed.`);
   }
 
   setLoading(programId ? 'Saving changes…' : 'Creating program…');
@@ -1364,6 +1519,9 @@ async function saveProgram(event) {
     if (response.error) throw response.error;
 
     const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
+    if (state.supportsEvergreenOverride && Object.prototype.hasOwnProperty.call(payload, 'can_be_used_as_evergreen')) {
+      state.evergreenOverrideMap.set(String(refreshedProgram.id), Boolean(payload.can_be_used_as_evergreen));
+    }
     mergeProgramIntoState(refreshedProgram);
     syncLookupsFromProgram(refreshedProgram);
     refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
@@ -1397,6 +1555,8 @@ async function deleteProgram() {
   }
 
   state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  state.duplicateCatalog = state.duplicateCatalog.filter((program) => String(program.id) !== String(id));
+  state.evergreenOverrideMap.delete(String(id));
   rebuildDuplicateIndex();
   invalidateProgramCaches(true);
   refreshUiAfterProgramMutation('Program deleted.');
@@ -1428,7 +1588,7 @@ async function unarchiveProgram() {
 
 function exportCurrentView() {
   const items = activePrograms();
-  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive'];
+  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive','can_be_used_as_evergreen'];
   const lines = [columns.join(',')];
   for (const item of items) {
     lines.push(columns.map((col) => csvEscape(item[col])).join(','));
@@ -1456,9 +1616,11 @@ function escapeHtml(text) {
     .replaceAll('"', '&quot;');
 }
 
-function updateQueryStatus() {
+async function updateQueryStatus() {
   rememberViewState();
+  await syncProgramsForCurrentView();
   const { count } = renderTable();
+  renderStats();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
   setStatus(`${count.toLocaleString()} matching programs.`);
@@ -1476,6 +1638,11 @@ function bindEvents() {
   });
 
   els.duplicateCheck?.addEventListener('click', (event) => {
+    const dismissBtn = event.target.closest('[data-dismiss-duplicates]');
+    if (dismissBtn) {
+      dismissDuplicateCheck();
+      return;
+    }
     const btn = event.target.closest('[data-open-program]');
     if (!btn) return;
     openEditor(btn.dataset.openProgram);
@@ -1514,6 +1681,7 @@ function bindEvents() {
   els.programForm.addEventListener('submit', saveProgram);
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.unarchiveBtn?.addEventListener('click', unarchiveProgram);
+  els.programForm.elements.can_be_used_as_evergreen?.addEventListener('change', () => { state.dismissedDuplicateKey = ''; });
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
     els.programForm.elements[field].setAttribute('spellcheck', 'false');
@@ -1593,14 +1761,14 @@ function bindEvents() {
     setMobilePanel(btn.dataset.mobilePanel);
   });
 
-  els.quickStrip.addEventListener('click', (event) => {
+  els.quickStrip.addEventListener('click', async (event) => {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;
     state.currentView = btn.dataset.view;
     syncQuickViewState();
     els.statusFilter.value = '';
     if (isMobileViewport()) setMobilePanel('list');
-    updateQueryStatus();
+    await updateQueryStatus();
   });
 
   els.exportBtn.addEventListener('click', exportCurrentView);
