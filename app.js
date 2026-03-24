@@ -21,7 +21,8 @@ const state = {
   searchDebounceTimer: null,
   programRevision: 0,
   filteredCache: { key: '', value: null },
-  statsCache: { key: '', value: null }
+  statsCache: { key: '', value: null },
+  mobilePanel: 'list'
 };
 
 const els = {
@@ -41,6 +42,7 @@ const els = {
   newProgramBtn: $('#newProgramBtn'),
   exportBtn: $('#exportBtn'),
   refreshBtn: $('#refreshBtn'),
+  mobileViewTabs: $('#mobileViewTabs'),
   searchInput: $('#searchInput'),
   searchFieldSelect: $('#searchFieldSelect'),
   topicFilter: $('#topicFilter'),
@@ -92,6 +94,15 @@ function hasValidConfig() {
 
 function canEdit() {
   return Boolean(state.session);
+}
+
+function setMobilePanel(panel = 'list') {
+  const nextPanel = panel === 'filters' ? 'filters' : 'list';
+  state.mobilePanel = nextPanel;
+  document.body.dataset.mobilePanel = nextPanel;
+  document.querySelectorAll('[data-mobile-panel]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.mobilePanel === nextPanel);
+  });
 }
 
 function formatDate(value) {
@@ -1355,6 +1366,12 @@ function bindEvents() {
     updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
+
+  els.mobileViewTabs?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-mobile-panel]');
+    if (!btn) return;
+    setMobilePanel(btn.dataset.mobilePanel);
+  });
 
   els.quickStrip.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-view]');

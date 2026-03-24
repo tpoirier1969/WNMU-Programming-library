@@ -126,6 +126,23 @@ button:hover { transform: translateY(-1px); }
 .list-title { font-weight: 800; color: var(--pbs-blue-dark); font-size: 1rem; }
 .list-summary { color: var(--muted); font-size: .87rem; }
 
+
+.mobile-view-tabs { display: none; }
+.mobile-view-tab {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--pbs-blue-dark);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+.mobile-view-tab.active {
+  background: linear-gradient(135deg, var(--pbs-blue), var(--teal));
+  color: #fff;
+  border-color: transparent;
+}
+
 .table-wrap { overflow: auto; max-height: calc(100vh - 265px); min-width: 0; }
 .programs-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .programs-table thead th {
@@ -303,6 +320,17 @@ input:focus, select:focus, textarea:focus, button:focus {
   .app-shell { min-width: 1320px; }
 }
 
+
+@media (max-width: 760px) {
+  .mobile-view-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  body[data-mobile-panel="filters"] [data-mobile-section="list"] { display: none; }
+  body[data-mobile-panel="list"] [data-mobile-section="filters"] { display: none; }
+  body[data-mobile-panel="list"] .mobile-filters-only { display: none; }
+}
 
 @media (max-width: 760px) {
   html, body { overflow-x: hidden; }
