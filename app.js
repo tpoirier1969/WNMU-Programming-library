@@ -112,6 +112,8 @@ const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const DUPLICATE_CHECK_MIN_CHARS = 4;
 const DUPLICATE_CHECK_DEBOUNCE_MS = 320;
 const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
+const READ_SOURCE = 'programs_enriched';
+const HOLIDAY_TOPIC = 'Holiday';
 const mobileLayoutQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
 
 function hasValidConfig() {
@@ -124,6 +126,19 @@ function canEdit() {
 
 function includeHolidayProgramsEnabled() {
   return Boolean(els.includeHolidayPrograms?.checked);
+}
+
+function effectiveTopicValues() {
+  const topics = selectedValues(els.topicFilter);
+  if (!includeHolidayProgramsEnabled()) return topics;
+  return Array.from(new Set([HOLIDAY_TOPIC, ...topics]));
+}
+
+function holidayVisibilityIncludes(program) {
+  const meta = program.__meta || decorateProgram(program).__meta;
+  const topics = effectiveTopicValues();
+  if (topics.length) return topics.includes(normalizeText(program.topic));
+  return !meta.isHolidayProgram;
 }
 
 function isMobileViewport() {
@@ -777,22 +792,28 @@ function showApp() {
 }
 
 async function loadEverything() {
-  setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
-  if (canEdit()) await attemptAutoArchive();
-  await loadEvergreenOverrides();
-  updateEvergreenOverrideUi();
-  await loadPrograms();
-  await loadDuplicateCatalog();
-  await syncProgramsForCurrentView();
-  setLoading('Building filters and lookup lists…');
-  await loadLookups();
-  renderFilters();
-  syncSortUi();
-  renderTable();
-  renderStats();
-  state.lastAppliedViewState = snapshotViewState();
-  setLoading('');
-  setStatus(`Loaded ${state.activeCatalog.length.toLocaleString()} active programs. Archived programs (${state.archivedCount.toLocaleString()}) stay out of memory until you ask for them.`);
+  try {
+    setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
+    if (canEdit()) await attemptAutoArchive();
+    await loadEvergreenOverrides();
+    updateEvergreenOverrideUi();
+    await loadPrograms();
+    await loadDuplicateCatalog();
+    await syncProgramsForCurrentView();
+    setLoading('Building filters and lookup lists…');
+    await loadLookups();
+    renderFilters();
+    syncSortUi();
+    renderTable();
+    renderStats();
+    state.lastAppliedViewState = snapshotViewState();
+    setLoading('');
+    setStatus(`Loaded ${state.activeCatalog.length.toLocaleString()} active programs. Archived programs (${state.archivedCount.toLocaleString()}) stay out of memory until you ask for them.`);
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    setStatus(error?.message || 'Library load failed.');
+  }
 }
 
 async function attemptAutoArchive() {
@@ -840,11 +861,12 @@ function buildVisibleProgramsQuery(query) {
   query = query.select('*');
   if (state.currentView === 'archived') query = query.eq('is_archived', true);
   else query = query.eq('is_archived', false);
-  if (!includeHolidayProgramsEnabled()) query = query.not('topic', 'eq', 'Holiday');
 
   const searchText = normalizeText(els.searchInput?.value);
   const searchField = normalizeText(els.searchFieldSelect?.value);
-  const topics = selectedValues(els.topicFilter);
+  const topics = effectiveTopicValues();
+  if (!includeHolidayProgramsEnabled()) query = query.not('topic', 'eq', HOLIDAY_TOPIC);
+  else if (topics.length === 1 && topics[0] === HOLIDAY_TOPIC) query = query.eq('topic', HOLIDAY_TOPIC);
   const lengths = selectedValues(els.lengthFilter);
   const codes = selectedValues(els.codeFilter);
   const distributor = normalizeText(els.distributorFilter?.value);
@@ -855,7 +877,7 @@ function buildVisibleProgramsQuery(query) {
     if (searchField) query = query.ilike(searchField, pattern);
     else query = query.or(searchableColumns().map((column) => `${column}.ilike.${pattern}`).join(','));
   }
-  if (topics.length) query = query.in('topic', topics);
+  if (topics.length && !(includeHolidayProgramsEnabled() && topics.length === 1 && topics[0] === HOLIDAY_TOPIC)) query = query.in('topic', topics);
   if (lengths.length) query = query.in('length_minutes', lengths);
   if (codes.length) query = query.in('legacy_code', codes);
   if (distributor) query = query.eq('distributor', distributor);
@@ -866,7 +888,7 @@ function buildVisibleProgramsQuery(query) {
 
 async function loadPrograms() {
   try {
-    state.activeCatalog = sortProgramsArray(decoratePrograms(await fetchAllRows('programs', 'title', (query) => query.select('*').eq('is_archived', false), 'active programs')));
+    state.activeCatalog = sortProgramsArray(decoratePrograms(await fetchAllRows(READ_SOURCE, 'title', (query) => query.select('*').eq('is_archived', false), 'active programs')));
     state.archivedLoaded = false;
     invalidateProgramCaches(true);
   } catch (error) {
@@ -878,7 +900,7 @@ async function loadPrograms() {
 
 async function loadDuplicateCatalog() {
   try {
-    state.duplicateCatalog = await fetchAllRows('programs', 'title', (query) => query.select('id,title,nola_eidr,length_minutes,rights_begin,rights_end,is_archived'), 'duplicate lookup data');
+    state.duplicateCatalog = await fetchAllRows(READ_SOURCE, 'title', (query) => query.select('id,title,nola_eidr,length_minutes,rights_begin,rights_end,is_archived'), 'duplicate lookup data');
     rebuildDuplicateIndex();
   } catch (error) {
     console.error(error);
@@ -898,13 +920,19 @@ async function loadDuplicateCatalog() {
 
 async function loadEvergreenOverrides() {
   try {
-    const rows = await fetchAllRows('programs', 'id', (query) => query.select('id,can_be_used_as_evergreen'), 'evergreen override flags');
+    const rows = await fetchAllRows(READ_SOURCE, 'id', (query) => query.select('id,can_be_used_as_evergreen'), 'evergreen override flags');
     state.evergreenOverrideMap = new Map(rows.map((row) => [String(row.id), Boolean(row.can_be_used_as_evergreen)]));
     state.supportsEvergreenOverride = true;
-  } catch (error) {
-    console.warn('Evergreen override column unavailable:', error);
-    state.evergreenOverrideMap = new Map();
-    state.supportsEvergreenOverride = false;
+  } catch (viewError) {
+    try {
+      const rows = await fetchAllRows('programs', 'id', (query) => query.select('id,can_be_used_as_evergreen'), 'evergreen override flags');
+      state.evergreenOverrideMap = new Map(rows.map((row) => [String(row.id), Boolean(row.can_be_used_as_evergreen)]));
+      state.supportsEvergreenOverride = true;
+    } catch (error) {
+      console.warn('Evergreen override column unavailable:', error || viewError);
+      state.evergreenOverrideMap = new Map();
+      state.supportsEvergreenOverride = false;
+    }
   }
 }
 
@@ -912,7 +940,7 @@ async function loadEvergreenOverrides() {
 async function syncProgramsForCurrentView() {
   const orderColumn = state.sortField === 'rights_end' ? 'rights_end' : 'title';
   const orderOptions = { ascending: state.sortDirection === 'asc', nullsFirst: false };
-  const rows = await fetchAllRows('programs', orderColumn, buildVisibleProgramsQuery, state.currentView === 'archived' ? 'archived programs' : 'visible programs', orderOptions);
+  const rows = await fetchAllRows(READ_SOURCE, orderColumn, buildVisibleProgramsQuery, state.currentView === 'archived' ? 'archived programs' : 'visible programs', orderOptions);
   state.programs = sortProgramsArray(decoratePrograms(rows));
   state.archivedLoaded = state.currentView === 'archived';
   state.currentPoolCount = state.programs.length;
@@ -925,7 +953,7 @@ function sortProgramsInPlace() {
 
 async function fetchProgramById(id) {
   const { data, error } = await state.supabase
-    .from('programs')
+    .from(READ_SOURCE)
     .select('*')
     .eq('id', id)
     .single();
@@ -936,7 +964,7 @@ async function fetchProgramById(id) {
 
 async function fetchInsertedProgram(payload) {
   let query = state.supabase
-    .from('programs')
+    .from(READ_SOURCE)
     .select('*')
     .eq('title', payload.title)
     .order('id', { ascending: false })
@@ -1513,7 +1541,7 @@ function getStatsSummary() {
   if (state.statsCache.key === key && state.statsCache.value) return state.statsCache.value;
   const summary = { apt: 0, ending: 0, expired: 0, missingRights: 0, archived: state.archivedCount };
   state.activeCatalog
-    .filter((program) => includeHolidayProgramsEnabled() || !(program.__meta || decorateProgram(program).__meta).isHolidayProgram)
+    .filter((program) => holidayVisibilityIncludes(program))
     .forEach((program) => {
       const flags = (program.__meta || decorateProgram(program).__meta).flags;
       if (flags.needsAptCheck) summary.apt += 1;
@@ -1799,13 +1827,19 @@ function escapeHtml(text) {
 }
 
 async function updateQueryStatus() {
-  rememberViewState();
-  await syncProgramsForCurrentView();
-  const { count } = renderTable();
-  renderStats();
-  state.lastAppliedViewState = snapshotViewState();
-  syncUndoButton();
-  setStatus(`${count.toLocaleString()} matching programs.`);
+  try {
+    rememberViewState();
+    await syncProgramsForCurrentView();
+    const { count } = renderTable();
+    renderStats();
+    state.lastAppliedViewState = snapshotViewState();
+    syncUndoButton();
+    setStatus(`${count.toLocaleString()} matching programs.`);
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    setStatus(error?.message || 'Unable to refresh the program list.');
+  }
 }
 
 function bindEvents() {
@@ -1936,7 +1970,10 @@ function bindEvents() {
     updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
-  els.includeHolidayPrograms?.addEventListener('change', updateQueryStatus);
+  els.includeHolidayPrograms?.addEventListener('change', async () => {
+    if (isMobileViewport()) setMobilePanel('list');
+    await updateQueryStatus();
+  });
   els.mobileSortSelect?.addEventListener('change', async () => {
     setSort(els.mobileSortSelect.value, state.sortField === els.mobileSortSelect.value ? state.sortDirection : 'asc');
     await updateQueryStatus();
