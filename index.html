@@ -4,10 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="icon" type="image/png" href="WNMU-TV-logo-head2019.png" />
-  <link rel="shortcut icon" href="WNMU-TV-logo-head2019.png" />
-  <link rel="apple-touch-icon" href="WNMU-TV-logo-head2019.png" />
-  <link rel="stylesheet" href="styles.css?v=1.6.11" />
+  <link rel="stylesheet" href="styles.css?v=1.5.8" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -48,12 +45,12 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.6.11</span>
+            <span id="appVersion" class="version-pill">v1.5.8</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
       </div>
-      <div class="topbar-actions mobile-filters-only">
+      <div class="topbar-actions">
         <button id="adminBtn" class="primary">Admin sign in</button>
         <button id="undoViewBtn" class="hidden">Undo view</button>
         <button id="newProgramBtn" class="primary hidden">New program</button>
@@ -63,21 +60,20 @@
       </div>
     </header>
 
-    <section class="mobile-view-tabs" id="mobileViewTabs" aria-label="Mobile sections" role="tablist">
-      <button type="button" class="mobile-view-tab active" data-mobile-panel="filters" role="tab" aria-selected="true">Filters &amp; settings</button>
-      <button type="button" class="mobile-view-tab" data-mobile-panel="list" role="tab" aria-selected="false">Program list</button>
-    </section>
-
-    <section class="quick-strip" id="quickStrip" data-mobile-section="filters">
+    <section class="quick-strip" id="quickStrip">
+      <button type="button" class="stat-card quick-card quick-view" data-view="all">
+        <div class="stat-label">Quick filter</div>
+        <div class="stat-value small">All programs</div>
+      </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="active">
         <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Active Programs</div>
+        <div class="stat-value small">Active</div>
       </button>
       <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
         <div class="stat-label">Quick filter</div>
         <div class="stat-value small">New to 13.1</div>
       </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3_music_or_use">
+      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
         <div class="stat-label">Quick filter</div>
         <div class="stat-value small">New to 13.3</div>
       </button>
@@ -115,10 +111,7 @@
       </button>
     </section>
 
-    <section class="controls compact-controls" data-mobile-section="filters">
-      <div class="controls-head">
-        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all top-reset">Clear all filters</button>
-      </div>
+    <section class="controls compact-controls">
       <div class="search-grid">
         <div class="search-mode-wrap">
           <label class="filter-label" for="searchFieldSelect">Search in</label>
@@ -127,7 +120,7 @@
             <option value="title">Title</option>
             <option value="notes">Description</option>
             <option value="legacy_code">Code / bucket</option>
-            <option value="nola_eidr">NOLA</option>
+            <option value="nola_eidr">NOLA / EIDR</option>
             <option value="topic">Topic</option>
             <option value="secondary_topic">Secondary topic</option>
             <option value="aired_13_1">Aired on 13.1</option>
@@ -182,43 +175,29 @@
         </div>
       </div>
       <div class="filter-foot">
-        <label id="includeHolidayWrap" class="checkbox-box inline-filter-check">
-          <input id="includeHolidayPrograms" type="checkbox" />
-          <span id="includeHolidayLabel">Holiday programming</span>
-        </label>
         <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, lengths, or code values.</div>
+        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
       </div>
     </section>
 
-    <section class="list-panel" data-mobile-section="list">
+    <section class="list-panel">
       <div class="list-meta">
         <div>
           <div class="list-title">Program list</div>
           <div id="listSummary" class="list-summary">Showing 0 programs.</div>
-        </div>
-        <div class="mobile-sort-tools">
-          <label class="mobile-sort-label" for="mobileSortSelect">Sort</label>
-          <div class="mobile-sort-row">
-            <select id="mobileSortSelect">
-              <option value="title">Title</option>
-              <option value="rights_end">Rights End</option>
-              <option value="aired_recent">Aired On</option>
-            </select>
-            <button type="button" id="mobileSortDirectionBtn" class="sort-direction-btn" aria-label="Toggle sort direction">↑</button>
-          </div>
         </div>
       </div>
       <div class="table-wrap">
         <table class="programs-table compact-table">
           <thead>
             <tr>
-              <th class="col-title"><button type="button" class="sort-head" data-sort="title">Title <span class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th class="col-title">Title</th>
               <th class="col-notes">Description</th>
               <th class="col-details">Details</th>
-              <th class="col-airing"><button type="button" class="sort-head" data-sort="aired_recent">Aired on 13.1 <span class="sort-arrow" aria-hidden="true"></span></button></th>
-              <th class="col-airing"><button type="button" class="sort-head" data-sort="aired_recent">Aired on 13.3 <span class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th class="col-airing">Aired on 13.1</th>
+              <th class="col-airing">Aired on 13.3</th>
               <th class="col-type">Package type</th>
-              <th class="col-rights"><button type="button" class="sort-head" data-sort="rights_end">Rights window <span class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th class="col-rights">Rights window</th>
               <th class="col-distributor">Distributor</th>
               <th class="col-flags">Flags</th>
             </tr>
@@ -256,43 +235,38 @@
       <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
 
       <div class="form-grid">
-        <label class="row-title">Title
+        <label class="span-title">Title
           <input name="title" type="text" required />
         </label>
-        <label class="row-nola">NOLA
-          <input name="nola_eidr" type="text" />
-        </label>
-        <label class="row-length">Length
-          <input name="length_minutes" type="text" />
-        </label>
-        <label class="row-use">Use?
+        <label class="code-field">Code
           <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
         </label>
 
-        <label class="span-full">Description
+        <label class="span-2">Description
           <textarea name="notes" rows="4"></textarea>
+        </label>
+
+        <label>Episode / Season
+          <input name="episode_season" type="text" />
+        </label>
+        <label>NOLA / EIDR
+          <input name="nola_eidr" type="text" />
         </label>
 
         <label>Program or series
           <select name="program_type"></select>
         </label>
-        <label>Episode / Season
-          <input name="episode_season" type="text" />
+        <label>Length
+          <input name="length_minutes" type="text" />
         </label>
+
         <label>Topic
           <select name="topic"></select>
         </label>
-        <label class="secondary-topic-field">Secondary topic
-          <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
-          <datalist id="secondaryTopicList"></datalist>
+        <label>Secondary topic
+          <select name="secondary_topic"></select>
         </label>
 
-        <label>Rights begin
-          <input name="rights_begin" type="date" />
-        </label>
-        <label>Rights end
-          <input name="rights_end" type="date" />
-        </label>
         <label>Aired on 13.1
           <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
@@ -300,9 +274,8 @@
           <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
 
-        <label class="distributor-field">Distributor
-          <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
-          <datalist id="distributorList"></datalist>
+        <label>Distributor
+          <select name="distributor"></select>
         </label>
         <label id="voteFieldWrap">Vote
           <select name="vote">
@@ -312,6 +285,18 @@
             <option value="M">M</option>
           </select>
         </label>
+
+        <label>Rights begin
+          <input name="rights_begin" type="date" />
+        </label>
+        <label>Rights end
+          <input name="rights_end" type="date" />
+        </label>
+
+        <label class="span-2">Rights notes
+          <textarea name="rights_notes" rows="2"></textarea>
+        </label>
+
         <label>Package type
           <select name="package_type"></select>
         </label>
@@ -319,26 +304,28 @@
           <select name="server_tape"></select>
         </label>
 
-        <label class="span-full">Rights notes
-          <textarea name="rights_notes" rows="2"></textarea>
+        <label class="checkbox span-2">
+          <input name="exclude_from_auto_archive" type="checkbox" />
+          Keep this out of auto-archive even if the rights end date is near.
+        </label>
+
+        <label class="checkbox span-2">
+          <input name="is_archived" type="checkbox" />
+          Archived
         </label>
       </div>
 
       <div id="formFlags" class="form-flags"></div>
 
-      <section id="readOnlyDetails" class="read-only-details hidden" aria-live="polite"></section>
-
       <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
       <div class="drawer-actions">
         <button type="submit" id="saveBtn" class="primary">Save</button>
-        <label id="evergreenOverrideWrap" class="checkbox drawer-inline-flag"><input name="can_be_used_as_evergreen" type="checkbox" /><span id="evergreenOverrideLabel">Can be used as evergreen</span></label>
         <button type="button" id="duplicateBtn">Duplicate</button>
         <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
-        <button type="button" id="unarchiveBtn" class="secondary hidden">Unarchive</button>
       </div>
     </form>
   </aside>
 
-  <script src="app.js?v=1.6.11"></script>
+  <script src="app.js?v=1.5.4"></script>
 </body>
 </html>
