@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.8" />
+  <link rel="stylesheet" href="styles.css?v=1.5.9" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -45,7 +45,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.8</span>
+            <span id="appVersion" class="version-pill">v1.5.9</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -97,10 +97,6 @@
         <div class="stat-label">Ending in 90 days</div>
         <div id="statEnding" class="stat-value">0</div>
       </button>
-      <button type="button" class="stat-card quick-card" data-view="expired">
-        <div class="stat-label">Expired</div>
-        <div id="statExpired" class="stat-value">0</div>
-      </button>
       <button type="button" class="stat-card quick-card" data-view="missing_rights">
         <div class="stat-label">Missing rights</div>
         <div id="statMissingRights" class="stat-value">0</div>
@@ -120,7 +116,7 @@
             <option value="title">Title</option>
             <option value="notes">Description</option>
             <option value="legacy_code">Code / bucket</option>
-            <option value="nola_eidr">NOLA / EIDR</option>
+            <option value="nola_eidr">NOLA</option>
             <option value="topic">Topic</option>
             <option value="secondary_topic">Secondary topic</option>
             <option value="aired_13_1">Aired on 13.1</option>
@@ -165,7 +161,6 @@
             <option value="">All statuses</option>
             <option value="needs_apt_check">Needs APT check</option>
             <option value="ending_soon">Ending within 90 days</option>
-            <option value="expired">Expired</option>
             <option value="new_to_13_1">New to 13.1</option>
             <option value="new_to_13_3">New to 13.3</option>
             <option value="archive_candidate">Archive candidate</option>
@@ -235,38 +230,43 @@
       <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
 
       <div class="form-grid">
-        <label class="span-title">Title
+        <label class="row-title">Title
           <input name="title" type="text" required />
         </label>
-        <label class="code-field">Code
+        <label class="row-nola">NOLA
+          <input name="nola_eidr" type="text" />
+        </label>
+        <label class="row-length">Length
+          <input name="length_minutes" type="text" />
+        </label>
+        <label class="row-use">Use?
           <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
         </label>
 
-        <label class="span-2">Description
+        <label class="span-full">Description
           <textarea name="notes" rows="4"></textarea>
-        </label>
-
-        <label>Episode / Season
-          <input name="episode_season" type="text" />
-        </label>
-        <label>NOLA / EIDR
-          <input name="nola_eidr" type="text" />
         </label>
 
         <label>Program or series
           <select name="program_type"></select>
         </label>
-        <label>Length
-          <input name="length_minutes" type="text" />
+        <label>Episode / Season
+          <input name="episode_season" type="text" />
         </label>
-
         <label>Topic
           <select name="topic"></select>
         </label>
-        <label>Secondary topic
-          <select name="secondary_topic"></select>
+        <label class="secondary-topic-field">Secondary topic
+          <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
+          <datalist id="secondaryTopicList"></datalist>
         </label>
 
+        <label>Rights begin
+          <input name="rights_begin" type="date" />
+        </label>
+        <label>Rights end
+          <input name="rights_end" type="date" />
+        </label>
         <label>Aired on 13.1
           <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
@@ -274,8 +274,9 @@
           <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
         </label>
 
-        <label>Distributor
-          <select name="distributor"></select>
+        <label class="distributor-field">Distributor
+          <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
+          <datalist id="distributorList"></datalist>
         </label>
         <label id="voteFieldWrap">Vote
           <select name="vote">
@@ -285,18 +286,6 @@
             <option value="M">M</option>
           </select>
         </label>
-
-        <label>Rights begin
-          <input name="rights_begin" type="date" />
-        </label>
-        <label>Rights end
-          <input name="rights_end" type="date" />
-        </label>
-
-        <label class="span-2">Rights notes
-          <textarea name="rights_notes" rows="2"></textarea>
-        </label>
-
         <label>Package type
           <select name="package_type"></select>
         </label>
@@ -304,14 +293,8 @@
           <select name="server_tape"></select>
         </label>
 
-        <label class="checkbox span-2">
-          <input name="exclude_from_auto_archive" type="checkbox" />
-          Keep this out of auto-archive even if the rights end date is near.
-        </label>
-
-        <label class="checkbox span-2">
-          <input name="is_archived" type="checkbox" />
-          Archived
+        <label class="span-full">Rights notes
+          <textarea name="rights_notes" rows="2"></textarea>
         </label>
       </div>
 
@@ -326,6 +309,6 @@
     </form>
   </aside>
 
-  <script src="app.js?v=1.5.4"></script>
+  <script src="app.js?v=1.5.9"></script>
 </body>
 </html>
