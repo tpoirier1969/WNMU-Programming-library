@@ -26,6 +26,8 @@ function openEditor(id = null, duplicate = false) {
   if (els.templateSourceInput) els.templateSourceInput.value = '';
 
   updateVoteVisibility();
+  setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
+  updateLookupButtonState();
   renderFormFlags(item);
   renderDuplicateCheck();
   renderTable();
@@ -56,6 +58,9 @@ function closeEditor() {
   state.selectedId = null;
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
+  state.lookupBusy = false;
+  setLookupMessage('');
+  updateLookupButtonState();
   renderTable();
 }
 

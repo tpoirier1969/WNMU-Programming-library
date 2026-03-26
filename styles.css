@@ -210,6 +210,26 @@ button:hover { transform: translateY(-1px); }
 .row-use { grid-column: 4; }
 .row-length, .row-use { max-width: 180px; }
 .secondary-topic-field input, .distributor-field input { min-height: 40px; }
+
+.lookup-tools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-top: -2px;
+}
+.lookup-tools button[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+.lookup-message {
+  min-height: 1.2em;
+  font-size: .84rem;
+}
+.lookup-message.info { color: var(--pbs-blue-dark); }
+.lookup-message.good { color: #13704d; }
+.lookup-message.warn { color: #8a5a00; }
+.lookup-message.danger { color: #9a2032; }
 .hidden-field { display: none !important; }
 .checkbox { display: flex !important; align-items: center; gap: 8px; font-weight: 700; }
 .form-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }

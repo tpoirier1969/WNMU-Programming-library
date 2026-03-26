@@ -21,7 +21,8 @@ const state = {
   viewHistory: [],
   lastAppliedViewState: null,
   isLoading: false,
-  searchDebounceTimer: null
+  searchDebounceTimer: null,
+  lookupBusy: false
 };
 
 const els = {
@@ -80,7 +81,9 @@ const els = {
   loadTemplateBtn: $('#loadTemplateBtn'),
   duplicateCheck: $('#duplicateCheck'),
   secondaryTopicList: $('#secondaryTopicList'),
-  distributorList: $('#distributorList')
+  distributorList: $('#distributorList'),
+  lookupBtn: $('#lookupBtn'),
+  lookupMessage: $('#lookupMessage')
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
@@ -219,6 +222,7 @@ function loadTemplateIntoForm() {
   });
   updateVoteVisibility();
   renderDuplicateCheck();
+  updateLookupButtonState();
   setStatus(`Copied template details from ${item.title}.`);
   requestAnimationFrame(() => form.elements.title.focus());
 }
@@ -285,6 +289,46 @@ function applyEditorMode() {
   if (els.saveBtn) els.saveBtn.classList.toggle('hidden', !editing);
   if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
   if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
+  if (els.lookupBtn) els.lookupBtn.classList.toggle('hidden', !editing);
+  updateLookupButtonState();
+}
+
+function ensureEditorSelectOption(fieldName, value) {
+  const select = els.programForm?.elements?.[fieldName];
+  const normalized = normalizeText(value);
+  if (!select || !normalized || select.tagName !== 'SELECT') return;
+  const exists = Array.from(select.options).some((option) => normalizeLower(option.value) === normalizeLower(normalized));
+  if (exists) return;
+  const option = document.createElement('option');
+  option.value = normalized;
+  option.textContent = normalized;
+  select.appendChild(option);
+}
+
+function setLookupMessage(message, tone = 'muted') {
+  if (!els.lookupMessage) return;
+  els.lookupMessage.textContent = message || '';
+  els.lookupMessage.className = `lookup-message ${tone}`.trim();
+}
+
+function updateLookupButtonState() {
+  if (!els.lookupBtn || !els.programForm) return;
+  const hasTitle = normalizeText(els.programForm.elements.title?.value).length > 0;
+  const enabled = canEdit() && hasTitle && !state.lookupBusy;
+  els.lookupBtn.disabled = !enabled;
+  if (state.lookupBusy) {
+    els.lookupBtn.textContent = 'Looking up…';
+    setLookupMessage('Checking PBS and NETA for matching metadata…', 'info');
+    return;
+  }
+  els.lookupBtn.textContent = 'Lookup online';
+  if (!canEdit()) {
+    setLookupMessage('Sign in as admin to use online lookup.', 'muted');
+  } else if (!hasTitle) {
+    setLookupMessage('Enter a title to enable lookup.', 'muted');
+  } else if (!normalizeText(els.lookupMessage?.textContent)) {
+    setLookupMessage('Lookup will fill blank fields it can verify from online sources.', 'muted');
+  }
 }
 
 function updateListSummary(count, totalPool) {

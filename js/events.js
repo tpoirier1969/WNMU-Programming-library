@@ -46,9 +46,16 @@ function bindEvents() {
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
-    els.programForm.elements[field].addEventListener('input', renderDuplicateCheck);
-    els.programForm.elements[field].addEventListener('change', renderDuplicateCheck);
+    els.programForm.elements[field].addEventListener('input', () => {
+      renderDuplicateCheck();
+      if (field === 'title') updateLookupButtonState();
+    });
+    els.programForm.elements[field].addEventListener('change', () => {
+      renderDuplicateCheck();
+      if (field === 'title') updateLookupButtonState();
+    });
   });
+  els.lookupBtn?.addEventListener('click', performMetadataLookup);
   els.duplicateBtn.addEventListener('click', () => {
     const id = els.programForm.dataset.programId;
     if (!id) return;
