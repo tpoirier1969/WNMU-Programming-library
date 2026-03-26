@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.11" />
+  <link rel="stylesheet" href="styles.css?v=1.5.13" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.11"></script>
-  <script defer src="js/auth-init.js?v=1.5.11"></script>
-  <script defer src="js/data-store.js?v=1.5.11"></script>
-  <script defer src="js/filters-list.js?v=1.5.11"></script>
-  <script defer src="js/editor-export.js?v=1.5.11"></script>
-  <script defer src="js/lookup.js?v=1.5.11"></script>
-  <script defer src="js/events.js?v=1.5.11"></script>
+  <script defer src="js/core.js?v=1.5.13"></script>
+  <script defer src="js/auth-init.js?v=1.5.13"></script>
+  <script defer src="js/data-store.js?v=1.5.13"></script>
+  <script defer src="js/filters-list.js?v=1.5.13"></script>
+  <script defer src="js/editor-export.js?v=1.5.13"></script>
+  <script defer src="js/lookup.js?v=1.5.13"></script>
+  <script defer src="js/events.js?v=1.5.13"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -52,7 +52,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.11</span>
+            <span id="appVersion" class="version-pill">v1.5.13</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -193,14 +193,14 @@
         <table class="programs-table compact-table">
           <thead>
             <tr>
-              <th class="col-title">Title</th>
-              <th class="col-notes">Description</th>
-              <th class="col-details">Details</th>
-              <th class="col-airing">Aired on 13.1</th>
-              <th class="col-airing">Aired on 13.3</th>
-              <th class="col-type">Package type</th>
-              <th class="col-rights">Rights window</th>
-              <th class="col-distributor">Distributor</th>
+              <th class="col-title"><button type="button" class="sort-header" data-sort-field="title">Title <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-notes"><button type="button" class="sort-header" data-sort-field="notes">Description <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-details"><button type="button" class="sort-header" data-sort-field="details">Details <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_1">Aired on 13.1 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_3">Aired on 13.3 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-type"><button type="button" class="sort-header" data-sort-field="package_type">Package type <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights window <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-distributor"><button type="button" class="sort-header" data-sort-field="distributor">Distributor <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-flags">Flags</th>
             </tr>
           </thead>

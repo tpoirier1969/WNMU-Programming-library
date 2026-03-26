@@ -109,6 +109,11 @@ function bindEvents() {
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
 
+
+  document.querySelectorAll('[data-sort-field]').forEach((button) => {
+    button.addEventListener('click', () => setSort(button.dataset.sortField));
+  });
+
   els.quickStrip.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;

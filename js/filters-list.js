@@ -389,11 +389,13 @@ function scheduleSearchUpdate() {
 }
 
 function renderTable() {
-  const items = activePrograms();
+  const items = sortProgramsForDisplay(activePrograms());
   const selectedId = state.selectedId;
   const poolCount = programsInCurrentViewPool().length;
 
   updateListSummary(items.length, poolCount);
+
+  renderSortHeaders();
 
   els.tableBody.innerHTML = items.map((item) => {
     const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');

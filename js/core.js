@@ -22,7 +22,8 @@ const state = {
   lastAppliedViewState: null,
   isLoading: false,
   searchDebounceTimer: null,
-  lookupBusy: false
+  lookupBusy: false,
+  currentSort: { field: 'title', direction: 'asc' }
 };
 
 const els = {
@@ -383,3 +384,102 @@ function restoreDrawerDraft(draft) {
   applyEditorMode();
 }
 
+
+
+const SORTABLE_FIELDS = new Set(['title','notes','details','aired_13_1','aired_13_3','package_type','rights_end','distributor']);
+
+function firstAiringSortKey(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  const normalized = text
+    .replace(/\r/g, '')
+    .replace(/\n+/g, ';')
+    .replace(/\s*;\s*/g, ';')
+    .replace(/,\s*(?=\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/g, ';');
+  const first = normalized.split(';').map((part) => normalizeText(part)).find(Boolean) || text;
+  const match = first.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(.*))?$/);
+  if (!match) return normalizeLower(first);
+  let month = Number(match[1]);
+  let day = Number(match[2]);
+  let year = Number(match[3]);
+  if (year < 100) year += year >= 70 ? 1900 : 2000;
+  const timePart = normalizeText(match[4] || '');
+  let hours = 0, minutes = 0;
+  const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i);
+  if (timeMatch) {
+    hours = Number(timeMatch[1]);
+    minutes = Number(timeMatch[2] || '0');
+    const mer = (timeMatch[3] || '').toLowerCase();
+    if (mer === 'pm' && hours < 12) hours += 12;
+    if (mer === 'am' && hours === 12) hours = 0;
+  }
+  return `${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+}
+
+function sortValueForProgram(program, field) {
+  switch (field) {
+    case 'title': return normalizeLower(program.title);
+    case 'notes': return normalizeLower(program.notes);
+    case 'details': return normalizeLower([program.topic, program.secondary_topic, program.length_minutes, program.program_type].filter(Boolean).join(' | '));
+    case 'aired_13_1': return firstAiringSortKey(program.aired_13_1);
+    case 'aired_13_3': return firstAiringSortKey(program.aired_13_3);
+    case 'package_type': return normalizeLower(program.package_type);
+    case 'rights_end': return normalizeText(program.rights_end) || '9999-99-99';
+    case 'distributor': return normalizeLower(program.distributor);
+    default: return normalizeLower(program[field]);
+  }
+}
+
+function comparePrograms(left, right, field, direction) {
+  const leftValue = sortValueForProgram(left, field);
+  const rightValue = sortValueForProgram(right, field);
+  let result = 0;
+  if (field === 'rights_end') {
+    result = leftValue.localeCompare(rightValue, undefined, { sensitivity: 'base' });
+  } else if (field.startsWith('aired_13_')) {
+    result = leftValue.localeCompare(rightValue, undefined, { sensitivity: 'base' });
+  } else {
+    result = String(leftValue).localeCompare(String(rightValue), undefined, { sensitivity: 'base', numeric: true });
+  }
+  if (result === 0) {
+    result = normalizeLower(left.title).localeCompare(normalizeLower(right.title), undefined, { sensitivity: 'base', numeric: true });
+  }
+  if (result === 0) {
+    result = Number(left.id || 0) - Number(right.id || 0);
+  }
+  return direction === 'desc' ? -result : result;
+}
+
+function sortProgramsForDisplay(items) {
+  const { field, direction } = state.currentSort || { field: 'title', direction: 'asc' };
+  return [...items].sort((a, b) => comparePrograms(a, b, field, direction));
+}
+
+function setSort(field) {
+  if (!SORTABLE_FIELDS.has(field)) return;
+  if (state.currentSort.field === field) {
+    state.currentSort.direction = state.currentSort.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.currentSort = { field, direction: field === 'rights_end' ? 'asc' : 'asc' };
+  }
+  renderTable();
+}
+
+function sortIndicator(field) {
+  if (!state.currentSort || state.currentSort.field !== field) return '↕';
+  return state.currentSort.direction === 'asc' ? '▲' : '▼';
+}
+
+function renderSortHeaders() {
+  document.querySelectorAll('[data-sort-field]').forEach((button) => {
+    const field = button.dataset.sortField;
+    const indicator = button.querySelector('.sort-indicator');
+    const active = state.currentSort.field === field;
+    const ariaValue = !active ? 'none' : (state.currentSort.direction === 'asc' ? 'ascending' : 'descending');
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-sort', ariaValue);
+    const headerCell = button.closest('th');
+    if (headerCell) headerCell.setAttribute('aria-sort', ariaValue);
+    if (indicator) indicator.textContent = sortIndicator(field);
+  });
+}
