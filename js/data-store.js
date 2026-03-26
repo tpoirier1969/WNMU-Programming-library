@@ -1,23 +1,97 @@
 // Supabase loading, lookups, and mutation refresh logic
 // Extracted from the former monolithic app.js during the v1.5.10 structural refactor.
 
-async function loadEverything() {
-  setLoading(canEdit() ? 'Checking archive status…' : 'Loading program library…');
-  if (canEdit()) await attemptAutoArchiveOncePerDay();
-  await loadPrograms();
-  renderTable();
-  renderStats();
-  state.lastAppliedViewState = snapshotViewState();
-  setLoading('Building filters and lookup lists…');
-  await loadLookups();
-  renderFilters();
-  renderTable();
-  renderStats();
-  state.lastAppliedViewState = snapshotViewState();
-  const activeCount = state.programs.filter((item) => !item.is_archived).length;
-  const archivedCount = state.programs.filter((item) => item.is_archived).length;
-  setLoading('');
-  setStatus(`Loaded ${state.programs.length.toLocaleString()} total programs (${activeCount.toLocaleString()} active, ${archivedCount.toLocaleString()} archived).`);
+async function loadEverything(options = {}) {
+  const forceFresh = Boolean(options.forceFresh);
+  let renderedFromCache = false;
+
+  if (!forceFresh && hydrateProgramsFromCache()) {
+    renderedFromCache = true;
+    renderTable();
+    renderStats();
+    renderFilters();
+    state.lastAppliedViewState = snapshotViewState();
+    setLoading('');
+    setStatus(`Showing cached library while refreshing… (${state.programs.length.toLocaleString()} programs cached)`);
+  } else {
+    setLoading(canEdit() ? 'Loading program library…' : 'Loading program library…');
+  }
+
+  try {
+    if (canEdit()) {
+      if (!renderedFromCache) setLoading('Checking archive status…');
+      await attemptAutoArchiveOncePerDay();
+    }
+
+    if (!renderedFromCache) setLoading('Loading program library…');
+    else setStatus('Refreshing library from server…');
+
+    await loadPrograms({ background: renderedFromCache });
+    persistProgramsCache();
+    renderTable();
+    renderStats();
+    renderFilters();
+    state.lastAppliedViewState = snapshotViewState();
+    setLoading('');
+
+    const activeCount = state.programs.filter((item) => !item.is_archived).length;
+    const archivedCount = state.programs.filter((item) => item.is_archived).length;
+    setStatus(`Loaded ${state.programs.length.toLocaleString()} total programs (${activeCount.toLocaleString()} active, ${archivedCount.toLocaleString()} archived).`);
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    const fallbackPrefix = renderedFromCache ? 'Showing cached library. ' : '';
+    setStatus(`${fallbackPrefix}${error.message}`);
+  }
+}
+
+function readProgramsCache() {
+  try {
+    const raw = window.localStorage?.getItem(PROGRAM_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.programs)) return null;
+    return parsed.programs;
+  } catch {
+    return null;
+  }
+}
+
+function hydrateProgramsFromCache() {
+  const cached = readProgramsCache();
+  if (!cached?.length) return false;
+  state.programs = cached;
+  sortProgramsInPlace();
+  state.templateSourceDirty = true;
+  return true;
+}
+
+function persistProgramsCache() {
+  try {
+    window.localStorage?.setItem(PROGRAM_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), programs: state.programs }));
+  } catch (error) {
+    console.warn('Programs cache skipped:', error);
+  }
+}
+
+async function ensureLookupsLoaded(background = false) {
+  if (state.lookupsLoaded) return true;
+  if (state.lookupsPromise) return state.lookupsPromise;
+
+  state.lookupsPromise = (async () => {
+    try {
+      if (!background) setStatus('Loading lookup lists…');
+      await loadLookups();
+      state.lookupsLoaded = true;
+      renderFilters();
+      if (!background) setStatus('Lookup lists loaded.');
+      return true;
+    } finally {
+      state.lookupsPromise = null;
+    }
+  })();
+
+  return state.lookupsPromise;
 }
 
 function todayKeyValue() {
@@ -38,13 +112,16 @@ async function attemptAutoArchiveOncePerDay(force = false) {
   }
 }
 
-async function fetchAllRows(tableName) {
+async function fetchAllRows(tableName, options = {}) {
+  const showOverlay = options.showOverlay !== false;
   const pageSize = 1000;
   let from = 0;
   let allRows = [];
 
   while (true) {
-    setLoading(`Loading ${tableName.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`);
+    const progressMessage = `Loading ${tableName.replaceAll('_', ' ')}… ${allRows.length.toLocaleString()} rows so far`;
+    if (showOverlay) setLoading(progressMessage);
+    else setStatus(progressMessage);
     const { data, error } = await state.supabase
       .from(tableName)
       .select('*')
@@ -63,16 +140,11 @@ async function fetchAllRows(tableName) {
   return allRows;
 }
 
-async function loadPrograms() {
-  try {
-    state.programs = await fetchAllRows('programs_enriched');
-    sortProgramsInPlace();
-  } catch (error) {
-    console.error(error);
-    setLoading('');
-    setStatus(error.message);
-    return;
-  }
+async function loadPrograms(options = {}) {
+  const showOverlay = !options.background;
+  state.programs = await fetchAllRows('programs_enriched', { showOverlay });
+  sortProgramsInPlace();
+  state.templateSourceDirty = true;
 }
 
 function sortProgramsInPlace() {
@@ -110,6 +182,7 @@ function mergeProgramIntoState(program) {
   if (index >= 0) state.programs[index] = program;
   else state.programs.push(program);
   sortProgramsInPlace();
+  state.templateSourceDirty = true;
 }
 
 function ensureLookupValue(collectionName, value) {
@@ -132,6 +205,7 @@ function syncLookupsFromProgram(program) {
 }
 
 function refreshUiAfterProgramMutation(statusMessage) {
+  persistProgramsCache();
   renderFilters();
   renderTable();
   renderStats();

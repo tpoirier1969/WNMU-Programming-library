@@ -61,6 +61,13 @@ function fillDatalist(listEl, items) {
   }
 }
 
+
+function lookupItemsOrFallback(key, fieldName) {
+  const items = state.lookups[key] || [];
+  if (items.length) return items;
+  return uniqueLookupFromPrograms(fieldName).map((name, index) => ({ name, sort_order: index + 1 }));
+}
+
 function fillSelect(selectEl, items, includeBlank = true) {
   const currentValues = selectEl.multiple ? selectedValues(selectEl) : [selectEl.value];
   selectEl.innerHTML = '';
@@ -79,21 +86,20 @@ function fillSelect(selectEl, items, includeBlank = true) {
 }
 
 function renderFilters() {
-  fillSelect(els.topicFilter, state.lookups.topics, false);
-  fillSelect(els.secondaryTopicFilter, state.lookups.secondary_topics, false);
-  fillSelect(els.distributorFilter, state.lookups.distributors);
-  fillSelect(els.programTypeFilter, state.lookups.program_types);
+  fillSelect(els.topicFilter, lookupItemsOrFallback('topics', 'topic'), false);
+  fillSelect(els.secondaryTopicFilter, lookupItemsOrFallback('secondary_topics', 'secondary_topic'), false);
+  fillSelect(els.distributorFilter, lookupItemsOrFallback('distributors', 'distributor'));
+  fillSelect(els.programTypeFilter, lookupItemsOrFallback('program_types', 'program_type'));
   fillSelect(els.lengthFilter, sortLengthValues(uniqueLookupFromPrograms('length_minutes')), false);
   fillSelect(els.codeFilter, uniqueCodeValues(), false);
 
   const form = els.programForm;
-  fillSelect(form.elements.program_type, state.lookups.program_types);
-  fillSelect(form.elements.topic, state.lookups.topics);
-  fillDatalist(els.secondaryTopicList, state.lookups.secondary_topics);
-  fillDatalist(els.distributorList, state.lookups.distributors);
-  fillSelect(form.elements.package_type, state.lookups.package_types);
-  fillSelect(form.elements.server_tape, state.lookups.server_locations);
-  renderTemplateSourceList();
+  fillSelect(form.elements.program_type, lookupItemsOrFallback('program_types', 'program_type'));
+  fillSelect(form.elements.topic, lookupItemsOrFallback('topics', 'topic'));
+  fillDatalist(els.secondaryTopicList, lookupItemsOrFallback('secondary_topics', 'secondary_topic'));
+  fillDatalist(els.distributorList, lookupItemsOrFallback('distributors', 'distributor'));
+  fillSelect(form.elements.package_type, lookupItemsOrFallback('package_types', 'package_type'));
+  fillSelect(form.elements.server_tape, lookupItemsOrFallback('server_locations', 'server_tape'));
 }
 
 function snapshotViewState() {
@@ -404,7 +410,7 @@ function renderTable() {
     return `
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
         <td>
-          <div class="program-title">${escapeHtml(item.title || '')}</div>
+          <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
           <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}</div>
         </td>
         <td>

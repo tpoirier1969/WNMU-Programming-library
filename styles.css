@@ -155,6 +155,25 @@ button:hover { transform: translateY(-1px); }
 .programs-table tbody tr.archived-row .notes-text { color: #667781; }
 .programs-table tbody tr.archived-row .topic-chip { filter: grayscale(.3) saturate(.6); }
 .program-title { font-size: 1rem; font-weight: 800; color: var(--heading); line-height: 1.15; }
+.program-title-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  font: inherit;
+}
+.program-title-button:hover .program-title,
+.program-title-button:focus-visible .program-title {
+  text-decoration: underline;
+}
+.program-title-button:focus-visible {
+  outline: 2px solid rgba(44, 163, 184, 0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .program-sub { margin-top: 5px; font-size: .78rem; color: var(--muted); word-break: break-word; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .code-pill { display:inline-flex; align-items:center; padding: 2px 7px; border-radius: 999px; background:#e6eef8; color: var(--pbs-blue-dark); font-weight:800; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .program-meta { color: var(--muted); }

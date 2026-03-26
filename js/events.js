@@ -63,6 +63,12 @@ function bindEvents() {
   });
 
   els.tableBody?.addEventListener('click', async (event) => {
+    const openBtn = event.target.closest('[data-open-program]');
+    if (openBtn) {
+      event.stopPropagation();
+      openEditor(openBtn.dataset.openProgram);
+      return;
+    }
     const copyBtn = event.target.closest('[data-copy-note]');
     if (copyBtn) {
       event.stopPropagation();
@@ -125,7 +131,7 @@ function bindEvents() {
 
   els.exportBtn.addEventListener('click', exportCurrentView);
   els.refreshBtn.addEventListener('click', async () => {
-    await loadEverything();
+    await loadEverything({ forceFresh: true });
   });
 
   document.addEventListener('keydown', (event) => {

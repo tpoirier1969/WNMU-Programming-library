@@ -24,6 +24,7 @@ function openEditor(id = null, duplicate = false) {
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
+  if (!item?.id) renderTemplateSourceList();
 
   updateVoteVisibility();
   setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
@@ -32,6 +33,10 @@ function openEditor(id = null, duplicate = false) {
   renderDuplicateCheck();
   renderTable();
   applyEditorMode();
+
+  if (canEdit() && !state.lookupsLoaded) {
+    ensureLookupsLoaded(true).catch((error) => console.warn('Lookup warm load skipped:', error));
+  }
 
   requestAnimationFrame(() => form.elements.title.focus());
 }
@@ -151,6 +156,7 @@ async function deleteProgram() {
   }
 
   state.programs = state.programs.filter((program) => String(program.id) !== String(id));
+  state.templateSourceDirty = true;
   refreshUiAfterProgramMutation('Program deleted.');
   setLoading('');
   closeEditor();

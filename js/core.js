@@ -23,7 +23,10 @@ const state = {
   isLoading: false,
   searchDebounceTimer: null,
   lookupBusy: false,
-  currentSort: { field: 'title', direction: 'asc' }
+  currentSort: { field: 'title', direction: 'asc' },
+  lookupsLoaded: false,
+  lookupsPromise: null,
+  templateSourceDirty: true
 };
 
 const els = {
@@ -89,6 +92,7 @@ const els = {
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const AUTO_ARCHIVE_LAST_RUN_KEY = 'program-library-auto-archive-last-run';
+const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
 
 function hasValidConfig() {
   return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
@@ -185,13 +189,15 @@ function renderDuplicateCheck() {
   });
 }
 
-function renderTemplateSourceList() {
+function renderTemplateSourceList(force = false) {
   if (!els.templateSourceList) return;
+  if (!force && !state.templateSourceDirty) return;
   els.templateSourceList.innerHTML = state.programs
     .slice()
     .sort((a, b) => normalizeText(a.title).localeCompare(normalizeText(b.title), undefined, { sensitivity: 'base' }))
     .map((program) => `<option value="${escapeHtml(`${program.title || '(untitled)'}${program.nola_eidr ? ' — ' + program.nola_eidr : ''} [${program.id}]`)}"></option>`)
     .join('');
+  state.templateSourceDirty = false;
 }
 
 function parseTemplateProgramId(value) {
