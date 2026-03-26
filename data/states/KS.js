@@ -1,0 +1,2 @@
+window.CAMPING_STATE_DATA = window.CAMPING_STATE_DATA || {};
+window.CAMPING_STATE_DATA['KS'] = [{"id": "s954", "name": "US National Forest Campground Guide", "lat": 38.0673956, "lng": -102.0776331, "stateCode": "KS", "stateName": "Kansas", "layer": "info", "subtype": "modern", "description": "", "website": "https://www.forestcamping.com/", "rawCategory": "info", "categoryLabel": "Info / Reference", "sourceFolder": "Misc Info and websites", "owner": "", "layerLabel": "Info / reference", "cost": "", "showers": ""}];

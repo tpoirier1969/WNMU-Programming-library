@@ -1,320 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.10" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.10"></script>
-  <script defer src="js/auth-init.js?v=1.5.10"></script>
-  <script defer src="js/data-store.js?v=1.5.10"></script>
-  <script defer src="js/filters-list.js?v=1.5.10"></script>
-  <script defer src="js/editor-export.js?v=1.5.10"></script>
-  <script defer src="js/events.js?v=1.5.10"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#294f3f">
+  <title>Camping Map v22.1.1 Audit Recovery</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+:root {
+  --bg: #edf1ea; --panel: rgba(248,247,241,.97); --panel-border:#c9cfbf; --text:#1c241f; --muted:#5b665d; --accent:#2f5f4a; --accent-2:#6f8f63; --accent-soft:#e5efe8;
+  --shadow:0 10px 30px rgba(24,33,27,.18); --radius:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}
+body{overflow:hidden}
+a{color:#215fcb}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+#app{position:relative;width:100%;height:100%}
+#map{position:absolute;inset:0;background:#d7e4d2}
+#menuToggle{position:absolute;z-index:1100;top:16px;left:16px;width:46px;height:46px;border-radius:12px;border:1px solid rgba(27,49,36,.15);background:linear-gradient(180deg,#f7fbf8,#edf3ec);box-shadow:var(--shadow)}
+#sidebar{position:absolute;z-index:1050;top:16px;left:16px;bottom:16px;width:min(430px,calc(100vw - 32px));background:linear-gradient(180deg,rgba(232,241,233,.98) 0%,rgba(248,247,241,.97) 18%,rgba(248,247,241,.97) 100%);border:1px solid rgba(36,60,46,.14);border-radius:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;transform:translateX(0);transition:transform .2s ease}
+#sidebar.closed{transform:translateX(calc(-100% - 22px))}
+.sidebar-scroll{overflow:auto;padding:18px 18px 26px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0))}
+.panel-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin:-18px -18px 14px;padding:18px 18px 16px;background:linear-gradient(135deg,#335f4d 0%,#6f8f63 100%);color:#fff;border-bottom:1px solid rgba(255,255,255,.14)}
+.panel-head h1{margin:0;font-size:1.7rem;color:#fff}
+.panel-head p{margin:6px 0 0;color:rgba(255,255,255,.88)}
+#closeSidebar{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.14);color:#fff;border-radius:10px;width:36px;height:36px}
+.section{padding:14px 0 18px;border-top:1px solid #d8ddd2}
+.section:first-of-type{border-top:0}
+.section h2{margin:0 0 12px;font-size:1.05rem;color:#274634}
+.mini-note,.muted{color:var(--muted);font-size:.92rem}
+.row{display:flex;gap:8px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #c8d2c6;background:#fff;color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+textarea{min-height:90px;resize:vertical}
+.primary,.secondary,.chip{border-radius:12px;border:1px solid #b8c8ba;padding:9px 12px;background:#fff}
+.primary{background:linear-gradient(180deg,#356a52,#294f3f);color:#fff;border-color:#294f3f}
+.chip{padding:6px 10px;font-size:.92rem}
+.toggle-grid{display:grid;gap:8px}
+.check{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid #d6ddd2;border-radius:12px;background:#fff}
+.check.small{padding:7px 10px}
+.check input{margin:0}
+.check .meta{margin-left:auto;color:var(--muted);font-size:.9rem}
+.quick-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.quick-filters button{border-radius:999px;border:1px solid #bfd0c0;background:#fff;padding:8px 13px}
+.quick-filters button.active{background:linear-gradient(180deg,#356a52,#294f3f);color:#fff;border-color:#294f3f}
+
+.field-grid{display:grid;gap:8px}
+#draftQueue{min-height:150px}
+#statusBar{position:absolute;z-index:900;right:16px;bottom:16px;max-width:min(520px,calc(100vw - 32px));padding:10px 14px;border-radius:12px;background:rgba(27,34,30,.82);color:#fff;box-shadow:var(--shadow)}
+#mapReadout{position:absolute;z-index:1150;top:16px;right:16px;padding:11px 13px;border-radius:12px;border:1px solid rgba(34,43,39,.16);background:rgba(251,250,246,.96);box-shadow:var(--shadow);font-size:.93rem;line-height:1.25;min-width:258px}.readout-main{font-weight:600}.readout-mini{font-size:.78rem;color:#5f695f;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mapLoading{position:absolute;z-index:1000;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(243,241,234,.6);color:#19311f;font-weight:600;pointer-events:none}
+#mapLoading.hidden{display:none}
+.leaflet-popup-content{margin:12px 14px}.popup-title{font-weight:700;font-size:1rem;margin-bottom:2px}.popup-meta{color:var(--muted);font-size:.9rem;margin-bottom:8px}.popup-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.map-pin{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid var(--stroke);background:var(--fill);color:var(--icon);box-shadow:0 2px 10px rgba(0,0,0,.14)}
+.map-pin svg{width:58%;height:58%;display:block}
+.pin-federal-modern{--fill:#2f6f53;--stroke:#245740;--icon:#fff}
+.pin-federal-rustic{--fill:#eef8f2;--stroke:#77a98d;--icon:#2f6f53}
+.pin-state-modern{--fill:#2d6fd7;--stroke:#255bb2;--icon:#fff}
+.pin-state-rustic{--fill:#eef5ff;--stroke:#7ba9ea;--icon:#2d67bc}
+.pin-local-modern{--fill:#7b54c7;--stroke:#6542a8;--icon:#fff}
+.pin-local-rustic{--fill:#f5efff;--stroke:#ac93dd;--icon:#6d4bbb}
+.pin-private-modern{--fill:#d97b1e;--stroke:#b8640f;--icon:#fff}
+.pin-private-rustic{--fill:#fff3e5;--stroke:#e2a35f;--icon:#c16a12}
+.pin-boondocking{--fill:#e8f6ec;--stroke:#348b45;--icon:#2f7e40}
+.pin-info{--fill:#fff8dc;--stroke:#bea03a;--icon:#8b7218}
+.pin-draft{--fill:#fff8ea;--stroke:#b58a1e;--icon:#8a6b16}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--stroke);background:var(--fill);display:inline-block}.state-badge{display:inline-flex;align-items:center;gap:8px;padding:4px 8px;border-radius:999px;background:#eef3ef;border:1px solid #d5ddd8;font-size:.9rem}.search-results{display:grid;gap:8px;margin-top:10px}.search-result{border:1px solid #d8d1c3;border-radius:12px;background:#fff;padding:10px 12px}
+
+.quick-filters button.partial{background:#edf5ef;border-color:#95b69a;color:#274634}
+.dropdown{position:relative}
+.dropdown-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid #bfd0c0;background:linear-gradient(180deg,#f8fcf9,#eef5ef);color:#214031;font-weight:600}
+.dropdown-btn .summary-note{margin-left:auto;color:#516457;font-weight:500;font-size:.92rem}
+.dropdown-btn .caret{font-size:1rem;color:#476353}
+.dropdown-panel{margin-top:10px;border:1px solid #cfe0d0;border-radius:16px;background:rgba(255,255,255,.92);box-shadow:0 8px 20px rgba(31,45,35,.08);padding:12px}
+.dropdown-panel[hidden]{display:none !important}
+#stateSelectMeta:empty,#dataStats:empty{display:none}
+
+@media (max-width:900px){#sidebar{width:min(430px,calc(100vw - 32px))}#mapReadout{top:70px;right:12px;min-width:230px}}
+  </style>
 </head>
 <body>
-  <div id="setupNotice" class="setup-notice hidden">
-    <div class="setup-card">
-      <h1>WNMU TV Programming Library</h1>
-      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
-      <p>The app will wake up after that.</p>
-    </div>
-  </div>
-
-  <div id="authShell" class="auth-shell hidden">
-    <div class="auth-card">
-      <div class="brand-auth">
-        <img src="WNMU-TV-logo-head2019.png" alt="WNMU-TV PBS logo" class="brand-logo auth-logo" />
+<div id="app">
+  <div id="map"></div>
+  <div id="mapLoading">Loading map…</div>
+  <div id="mapReadout"><div class="readout-main">Zoom -- · Cluster x-- · Markers --/--</div><div class="readout-mini">Loaded --</div></div>
+  <button id="menuToggle" aria-label="Open controls">☰</button>
+  <aside id="sidebar">
+    <div class="sidebar-scroll">
+      <div class="panel-head">
         <div>
-          <h1 id="authTitle">WNMU TV Programming Library</h1>
-          <div class="brand-subtitle">PROGRAMMING</div>
+          <div class="state-badge" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff;">Rebuild <strong id="versionTag">v22.1.1</strong></div>
+          <h1>Camping Map</h1>
+          <p id="statusLine">Starting up…</p>
+          <p id="dataStats" class="mini-note"></p>
         </div>
+        <button id="closeSidebar" aria-label="Close panel">✕</button>
       </div>
-      <p class="muted">Sign in with GitHub for admin access. Everyone else can keep using the library in read-only mode.</p>
-      <div class="auth-form">
-        <button type="button" id="loginGitHubBtn" class="primary auth-provider-btn">Sign in with GitHub</button>
-      </div>
-      <div id="authMessage" class="auth-message"></div>
-      <div class="auth-actions">
-        <button type="button" id="cancelLoginBtn" class="ghost">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="appShell" class="app-shell hidden">
-    <header class="topbar">
-      <div class="brand-wrap">
-        <img src="WNMU-TV-logo-head2019.png" alt="WNMU-TV PBS logo" class="brand-logo" />
-        <div>
-          <div class="brand-name">WNMU-TV PBS</div>
-          <div class="title-row">
-            <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.10</span>
+      <section class="section">
+        <h2>Find an area</h2>
+        <div class="row"><input id="searchInput" type="text" placeholder="City, park, address, or coordinates"><button id="searchBtn" class="primary" type="button">Go</button></div>
+        <div id="searchResults" class="search-results"></div>
+      </section>
+      <section class="section">
+        <h2>Basemap</h2>
+        <select id="basemapSelect">
+          <option value="topo">Topo</option>
+          <option value="opentopo">OpenTopo</option>
+          <option value="osm">OpenStreetMap</option>
+          <option value="satellite">Satellite</option>
+        </select>
+        <div class="mini-note" style="margin-top:10px;">Recovery build uses the classic four-way basemap set.</div>
+      </section>
+      <section class="section">
+        <h2>State view</h2>
+        <select id="stateSelect"><option value="__ALL__">All states loading</option></select>
+        <div id="stateSelectMeta" class="mini-note" style="margin-top:10px;">Showing all enabled state files.</div>
+      </section>
+      <section class="section">
+        <h2>Camping layers</h2>
+        <div class="quick-filters" id="layerQuickFilters">
+          <button type="button" data-layer-toggle-group="rustic">All Rustic</button>
+          <button type="button" data-layer-toggle-group="modern">All Modern</button>
+        </div>
+        <div class="dropdown">
+          <button id="layerMenuButton" class="dropdown-btn" type="button" aria-expanded="false" aria-controls="layerMenuPanel"><span>Choose camping layers</span><span id="layerMenuSummary" class="summary-note">-- selected</span><span class="caret">▾</span></button>
+          <div id="layerMenuPanel" class="dropdown-panel" hidden>
+            <div id="layerList" class="toggle-grid"></div>
           </div>
-          <div id="statusLine" class="status-line">Loading…</div>
         </div>
-      </div>
-      <div class="topbar-actions">
-        <button id="adminBtn" class="primary">Admin sign in</button>
-        <button id="undoViewBtn" class="hidden">Undo view</button>
-        <button id="newProgramBtn" class="primary hidden">New program</button>
-        <button id="exportBtn">Export current view</button>
-        <button id="refreshBtn">Refresh</button>
-        <button id="logoutBtn" class="hidden">Sign out</button>
-      </div>
-    </header>
-
-    <section class="quick-strip" id="quickStrip">
-      <button type="button" class="stat-card quick-card quick-view" data-view="all">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">All programs</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="active">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Active</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">New to 13.1</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">New to 13.3</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Michigan programming</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Evergreens</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Missing info</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
-        <div class="stat-label">APT check</div>
-        <div id="statApt" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="ending_soon">
-        <div class="stat-label">Ending in 90 days</div>
-        <div id="statEnding" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="missing_rights">
-        <div class="stat-label">Missing rights</div>
-        <div id="statMissingRights" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="archived">
-        <div class="stat-label">Archived</div>
-        <div id="statArchived" class="stat-value">0</div>
-      </button>
-    </section>
-
-    <section class="controls compact-controls">
-      <div class="search-grid">
-        <div class="search-mode-wrap">
-          <label class="filter-label" for="searchFieldSelect">Search in</label>
-          <select id="searchFieldSelect">
-            <option value="">All fields</option>
-            <option value="title">Title</option>
-            <option value="notes">Description</option>
-            <option value="legacy_code">Code / bucket</option>
-            <option value="nola_eidr">NOLA</option>
-            <option value="topic">Topic</option>
-            <option value="secondary_topic">Secondary topic</option>
-            <option value="aired_13_1">Aired on 13.1</option>
-            <option value="aired_13_3">Aired on 13.3</option>
-            <option value="distributor">Distributor</option>
-            <option value="rights_notes">Rights notes</option>
-          </select>
+      </section>
+      <section class="section">
+        <h2>Add a site</h2>
+        <label class="check"><input id="addMode" type="checkbox"><span>Click the map to drop a draft pin</span></label>
+        <div class="field-grid" style="margin-top:10px;">
+          <div class="mini-note" id="draftCoords">No draft point selected.</div>
+          <input id="draftName" type="text" placeholder="Site name">
+          <div class="row"><input id="draftState" type="text" maxlength="2" placeholder="State code"><select id="draftCategory"><option value="federal-modern">Federal modern</option><option value="federal-rustic">Federal rustic</option><option value="state-modern">State modern</option><option value="state-rustic">State rustic</option><option value="local-modern">Local modern</option><option value="local-rustic">Local rustic</option><option value="private-modern">Private modern</option><option value="private-rustic">Private rustic</option><option value="boondocking">Boondocking</option><option value="info">Info</option></select></div>
+          <input id="draftWebsite" type="url" placeholder="Website URL"><textarea id="draftNotes" placeholder="Notes"></textarea>
+          <div class="row wrap"><button id="appendDraftBtn" class="primary" type="button">Append to queue</button><button id="clearDraftBtn" class="secondary" type="button">Clear draft pin</button></div>
         </div>
-        <div class="search-block">
-          <label class="filter-label" for="searchInput">Search text</label>
-          <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
-        </div>
-      </div>
-      <div class="filters filters-grid">
-        <div class="filter-box wide">
-          <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></div>
-          <select id="topicFilter" multiple size="5"></select>
-        </div>
-        <div class="filter-box wide">
-          <div class="filter-label-row"><label class="filter-label" for="secondaryTopicFilter">Secondary topics</label><button type="button" id="clearSecondaryTopicFilter" class="mini-clear">Clear</button></div>
-          <select id="secondaryTopicFilter" multiple size="5"></select>
-        </div>
-        <div class="filter-box">
-          <div class="filter-label-row"><label class="filter-label" for="lengthFilter">Lengths</label><button type="button" id="clearLengthFilter" class="mini-clear">Clear</button></div>
-          <select id="lengthFilter" multiple size="5"></select>
-        </div>
-        <div class="filter-box">
-          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Code / bucket</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
-          <select id="codeFilter" multiple size="5"></select>
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="distributorFilter">Distributor</label>
-          <select id="distributorFilter"><option value="">All distributors</option></select>
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="programTypeFilter">Type</label>
-          <select id="programTypeFilter"><option value="">All types</option></select>
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="statusFilter">Status</label>
-          <select id="statusFilter">
-            <option value="">All statuses</option>
-            <option value="needs_apt_check">Needs APT check</option>
-            <option value="ending_soon">Ending within 90 days</option>
-            <option value="new_to_13_1">New to 13.1</option>
-            <option value="new_to_13_3">New to 13.3</option>
-            <option value="archive_candidate">Archive candidate</option>
-            <option value="missing_rights">Missing rights begin or end</option>
-            <option value="missing_info">Missing info</option>
-          </select>
-        </div>
-      </div>
-      <div class="filter-foot">
-        <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, lengths, or code values.</div>
-        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
-      </div>
-    </section>
-
-    <section class="list-panel">
-      <div class="list-meta">
-        <div>
-          <div class="list-title">Program list</div>
-          <div id="listSummary" class="list-summary">Showing 0 programs.</div>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="programs-table compact-table">
-          <thead>
-            <tr>
-              <th class="col-title">Title</th>
-              <th class="col-notes">Description</th>
-              <th class="col-details">Details</th>
-              <th class="col-airing">Aired on 13.1</th>
-              <th class="col-airing">Aired on 13.3</th>
-              <th class="col-type">Package type</th>
-              <th class="col-rights">Rights window</th>
-              <th class="col-distributor">Distributor</th>
-              <th class="col-flags">Flags</th>
-            </tr>
-          </thead>
-          <tbody id="programTableBody"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
-  <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite">
-    <div class="loading-card">
-      <div class="loading-spinner" aria-hidden="true"></div>
-      <div class="loading-title">Loading library</div>
-      <div id="loadingDetail" class="loading-detail">Loading data…</div>
+      </section>
+      <section class="section"><h2>Manual site queue</h2><textarea id="draftQueue" readonly></textarea><div class="row wrap" style="margin-top:10px;"><button id="copyQueueBtn" class="secondary" type="button">Copy queue</button><button id="clearQueueBtn" class="secondary" type="button">Clear queue</button></div></section>
     </div>
-  </div>
-
-  <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
-  <aside id="editorDrawer" class="drawer hidden" aria-modal="true" role="dialog">
-    <div class="drawer-header">
-      <div class="drawer-title-wrap"><h2 id="drawerTitle">Program</h2><span id="drawerModeBadge" class="drawer-mode-badge">Read only</span></div>
-      <button id="closeDrawerBtn" class="ghost">Close</button>
-    </div>
-
-    <form id="programForm" class="program-form">
-      <div class="template-tools span-2" id="templateTools">
-        <label class="template-field">Copy details from existing
-          <input id="templateSourceInput" type="text" list="templateSourceList" placeholder="Start typing a title, then choose one and click Load" />
-          <datalist id="templateSourceList"></datalist>
-        </label>
-        <button type="button" id="loadTemplateBtn">Load</button>
-      </div>
-
-      <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
-
-      <div class="form-grid">
-        <label class="row-title">Title
-          <input name="title" type="text" required />
-        </label>
-        <label class="row-nola">NOLA
-          <input name="nola_eidr" type="text" />
-        </label>
-        <label class="row-length">Length
-          <input name="length_minutes" type="text" />
-        </label>
-        <label class="row-use">Use?
-          <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
-        </label>
-
-        <label class="span-full">Description
-          <textarea name="notes" rows="4"></textarea>
-        </label>
-
-        <label>Program or series
-          <select name="program_type"></select>
-        </label>
-        <label>Episode / Season
-          <input name="episode_season" type="text" />
-        </label>
-        <label>Topic
-          <select name="topic"></select>
-        </label>
-        <label class="secondary-topic-field">Secondary topic
-          <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
-          <datalist id="secondaryTopicList"></datalist>
-        </label>
-
-        <label>Rights begin
-          <input name="rights_begin" type="date" />
-        </label>
-        <label>Rights end
-          <input name="rights_end" type="date" />
-        </label>
-        <label>Aired on 13.1
-          <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
-        </label>
-        <label>Aired on 13.3
-          <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
-        </label>
-
-        <label class="distributor-field">Distributor
-          <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
-          <datalist id="distributorList"></datalist>
-        </label>
-        <label id="voteFieldWrap">Vote
-          <select name="vote">
-            <option value=""></option>
-            <option value="Y">Y</option>
-            <option value="N">N</option>
-            <option value="M">M</option>
-          </select>
-        </label>
-        <label>Package type
-          <select name="package_type"></select>
-        </label>
-        <label>sIX/Server/Tape/FTP
-          <select name="server_tape"></select>
-        </label>
-
-        <label class="span-full">Rights notes
-          <textarea name="rights_notes" rows="2"></textarea>
-        </label>
-      </div>
-
-      <div id="formFlags" class="form-flags"></div>
-
-      <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
-      <div class="drawer-actions">
-        <button type="submit" id="saveBtn" class="primary">Save</button>
-        <button type="button" id="duplicateBtn">Duplicate</button>
-        <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
-      </div>
-    </form>
   </aside>
-
-  <script src="app.js?v=1.5.9"></script>
+  <div id="statusBar" hidden></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data/states-manifest-v22.1.1.js"></script>
+<script src="app-v22.1.1.js"></script>
 </body>
 </html>

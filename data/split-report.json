@@ -1,0 +1,315 @@
+{
+  "version": "v22.1.1",
+  "totalRecords": 1103,
+  "states": [
+    {
+      "code": "AL",
+      "name": "Alabama",
+      "count": 2,
+      "counts": {
+        "local_modern": 2
+      },
+      "file": "data/states/AL.js"
+    },
+    {
+      "code": "AR",
+      "name": "Arkansas",
+      "count": 33,
+      "counts": {
+        "state_modern": 33
+      },
+      "file": "data/states/AR.js"
+    },
+    {
+      "code": "AZ",
+      "name": "Arizona",
+      "count": 10,
+      "counts": {
+        "state_modern": 4,
+        "federal_rustic": 2,
+        "info": 1,
+        "federal_modern": 1,
+        "boondocking": 2
+      },
+      "file": "data/states/AZ.js"
+    },
+    {
+      "code": "CA",
+      "name": "California",
+      "count": 9,
+      "counts": {
+        "boondocking": 3,
+        "state_modern": 6
+      },
+      "file": "data/states/CA.js"
+    },
+    {
+      "code": "CO",
+      "name": "Colorado",
+      "count": 36,
+      "counts": {
+        "state_modern": 8,
+        "boondocking": 15,
+        "federal_rustic": 7,
+        "info": 6
+      },
+      "file": "data/states/CO.js"
+    },
+    {
+      "code": "DE",
+      "name": "Delaware",
+      "count": 1,
+      "counts": {
+        "private_modern": 1
+      },
+      "file": "data/states/DE.js"
+    },
+    {
+      "code": "FL",
+      "name": "Florida",
+      "count": 1,
+      "counts": {
+        "local_rustic": 1
+      },
+      "file": "data/states/FL.js"
+    },
+    {
+      "code": "IA",
+      "name": "Iowa",
+      "count": 19,
+      "counts": {
+        "state_modern": 14,
+        "local_modern": 3,
+        "boondocking": 1,
+        "info": 1
+      },
+      "file": "data/states/IA.js"
+    },
+    {
+      "code": "IL",
+      "name": "Illinois",
+      "count": 101,
+      "counts": {
+        "private_modern": 5,
+        "state_modern": 84,
+        "local_modern": 5,
+        "federal_rustic": 4,
+        "boondocking": 3
+      },
+      "file": "data/states/IL.js"
+    },
+    {
+      "code": "IN",
+      "name": "Indiana",
+      "count": 5,
+      "counts": {
+        "private_modern": 1,
+        "federal_rustic": 1,
+        "boondocking": 1,
+        "info": 1,
+        "state_modern": 1
+      },
+      "file": "data/states/IN.js"
+    },
+    {
+      "code": "KS",
+      "name": "Kansas",
+      "count": 1,
+      "counts": {
+        "info": 1
+      },
+      "file": "data/states/KS.js"
+    },
+    {
+      "code": "LA",
+      "name": "Louisiana",
+      "count": 3,
+      "counts": {
+        "state_modern": 3
+      },
+      "file": "data/states/LA.js"
+    },
+    {
+      "code": "ME",
+      "name": "Maine",
+      "count": 6,
+      "counts": {
+        "boondocking": 3,
+        "state_modern": 2,
+        "info": 1
+      },
+      "file": "data/states/ME.js"
+    },
+    {
+      "code": "MI",
+      "name": "Michigan",
+      "count": 535,
+      "counts": {
+        "state_rustic": 125,
+        "boondocking": 55,
+        "local_modern": 46,
+        "local_rustic": 3,
+        "private_modern": 37,
+        "state_modern": 227,
+        "federal_rustic": 26,
+        "federal_modern": 14,
+        "private_rustic": 2
+      },
+      "file": "data/states/MI.js"
+    },
+    {
+      "code": "MN",
+      "name": "Minnesota",
+      "count": 27,
+      "counts": {
+        "private_modern": 15,
+        "federal_rustic": 2,
+        "state_modern": 9,
+        "info": 1
+      },
+      "file": "data/states/MN.js"
+    },
+    {
+      "code": "MO",
+      "name": "Missouri",
+      "count": 37,
+      "counts": {
+        "state_modern": 34,
+        "private_modern": 2,
+        "federal_rustic": 1
+      },
+      "file": "data/states/MO.js"
+    },
+    {
+      "code": "MS",
+      "name": "Mississippi",
+      "count": 2,
+      "counts": {
+        "federal_rustic": 2
+      },
+      "file": "data/states/MS.js"
+    },
+    {
+      "code": "MT",
+      "name": "Montana",
+      "count": 7,
+      "counts": {
+        "federal_rustic": 5,
+        "state_modern": 1,
+        "boondocking": 1
+      },
+      "file": "data/states/MT.js"
+    },
+    {
+      "code": "ND",
+      "name": "North Dakota",
+      "count": 2,
+      "counts": {
+        "boondocking": 1,
+        "federal_rustic": 1
+      },
+      "file": "data/states/ND.js"
+    },
+    {
+      "code": "NE",
+      "name": "Nebraska",
+      "count": 19,
+      "counts": {
+        "state_rustic": 1,
+        "state_modern": 6,
+        "local_modern": 1,
+        "boondocking": 7,
+        "federal_rustic": 4
+      },
+      "file": "data/states/NE.js"
+    },
+    {
+      "code": "NH",
+      "name": "New Hampshire",
+      "count": 1,
+      "counts": {
+        "boondocking": 1
+      },
+      "file": "data/states/NH.js"
+    },
+    {
+      "code": "OH",
+      "name": "Ohio",
+      "count": 1,
+      "counts": {
+        "state_modern": 1
+      },
+      "file": "data/states/OH.js"
+    },
+    {
+      "code": "SD",
+      "name": "South Dakota",
+      "count": 8,
+      "counts": {
+        "boondocking": 3,
+        "federal_rustic": 2,
+        "state_modern": 2,
+        "info": 1
+      },
+      "file": "data/states/SD.js"
+    },
+    {
+      "code": "TN",
+      "name": "Tennessee",
+      "count": 19,
+      "counts": {
+        "federal_rustic": 7,
+        "private_modern": 8,
+        "state_modern": 4
+      },
+      "file": "data/states/TN.js"
+    },
+    {
+      "code": "TX",
+      "name": "Texas",
+      "count": 1,
+      "counts": {
+        "federal_rustic": 1
+      },
+      "file": "data/states/TX.js"
+    },
+    {
+      "code": "UT",
+      "name": "Utah",
+      "count": 5,
+      "counts": {
+        "boondocking": 2,
+        "private_modern": 1,
+        "state_modern": 2
+      },
+      "file": "data/states/UT.js"
+    },
+    {
+      "code": "WI",
+      "name": "Wisconsin",
+      "count": 194,
+      "counts": {
+        "private_modern": 102,
+        "state_modern": 69,
+        "federal_rustic": 13,
+        "local_modern": 6,
+        "boondocking": 1,
+        "private_rustic": 1,
+        "state_rustic": 1,
+        "info": 1
+      },
+      "file": "data/states/WI.js"
+    },
+    {
+      "code": "WY",
+      "name": "Wyoming",
+      "count": 18,
+      "counts": {
+        "boondocking": 4,
+        "federal_rustic": 9,
+        "state_modern": 5
+      },
+      "file": "data/states/WY.js"
+    }
+  ]
+}

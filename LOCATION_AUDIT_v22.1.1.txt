@@ -1,0 +1,12 @@
+Camping Map v22.1.1 — Location Audit Notes
+
+This build was regenerated from the master dataset and then split back into per-state files.
+
+What was corrected in this audit pass:
+- Coordinate/state mismatches corrected for a set of obvious outliers, including records that had drifted from Michigan into Wisconsin and several records assigned to the wrong western or southern state.
+- Quartzsite / La Posa style Arizona BLM reference link cleaned up to the official BLM page where applicable.
+- KML cross-check performed against Campsites.kml. The Black Hills KML points the user called out are present in the rebuilt dataset, including Bismark Lake Campground and the Hidden Valley / Creekside point.
+
+Important scope note:
+- This was a real location audit pass focused on state/location mismatches and obvious bad placements.
+- It was not a manual official-source verification of every single one of the 1103 records.
