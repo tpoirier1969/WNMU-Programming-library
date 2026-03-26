@@ -429,6 +429,7 @@ function renderTable() {
       </tr>
     `;
   }).join('');
+  setSelectedRowHighlight(selectedId);
 }
 
 function renderStats() {

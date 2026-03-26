@@ -26,7 +26,8 @@ const state = {
   currentSort: { field: 'title', direction: 'asc' },
   lookupsLoaded: false,
   lookupsPromise: null,
-  templateSourceDirty: true
+  templateSourceDirty: true,
+  editorOpenToken: 0
 };
 
 const els = {
@@ -341,6 +342,15 @@ function updateLookupButtonState() {
 function updateListSummary(count, totalPool) {
   const noun = count === 1 ? 'program' : 'programs';
   els.listSummary.textContent = `Showing ${count.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}.`;
+}
+
+function setSelectedRowHighlight(selectedId = null) {
+  if (!els.tableBody) return;
+  els.tableBody.querySelectorAll('tr.selected').forEach((row) => row.classList.remove('selected'));
+  if (selectedId == null) return;
+  const targetId = String(selectedId);
+  const row = Array.from(els.tableBody.querySelectorAll('tr[data-id]')).find((item) => item.dataset.id === targetId);
+  if (row) row.classList.add('selected');
 }
 
 function getAdminRedirectUrl() {

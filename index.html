@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.15" />
+  <link rel="stylesheet" href="styles.css?v=1.5.16" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.15"></script>
-  <script defer src="js/auth-init.js?v=1.5.15"></script>
-  <script defer src="js/data-store.js?v=1.5.15"></script>
-  <script defer src="js/filters-list.js?v=1.5.15"></script>
-  <script defer src="js/editor-export.js?v=1.5.15"></script>
-  <script defer src="js/lookup.js?v=1.5.15"></script>
-  <script defer src="js/events.js?v=1.5.15"></script>
+  <script defer src="js/core.js?v=1.5.16"></script>
+  <script defer src="js/auth-init.js?v=1.5.16"></script>
+  <script defer src="js/data-store.js?v=1.5.16"></script>
+  <script defer src="js/filters-list.js?v=1.5.16"></script>
+  <script defer src="js/editor-export.js?v=1.5.16"></script>
+  <script defer src="js/lookup.js?v=1.5.16"></script>
+  <script defer src="js/events.js?v=1.5.16"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -52,7 +52,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.15</span>
+            <span id="appVersion" class="version-pill">v1.5.16</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -67,54 +67,53 @@
       </div>
     </header>
 
-    <section class="quick-strip" id="quickStrip">
-      <button type="button" class="stat-card quick-card quick-view" data-view="all">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">All programs</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="active">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Active</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">New to 13.1</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">New to 13.3</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Michigan programming</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Evergreens</div>
-      </button>
-      <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
-        <div class="stat-label">Quick filter</div>
-        <div class="stat-value small">Missing info</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
-        <div class="stat-label">APT check</div>
-        <div id="statApt" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="ending_soon">
-        <div class="stat-label">Ending in 90 days</div>
-        <div id="statEnding" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="missing_rights">
-        <div class="stat-label">Missing rights</div>
-        <div id="statMissingRights" class="stat-value">0</div>
-      </button>
-      <button type="button" class="stat-card quick-card" data-view="archived">
-        <div class="stat-label">Archived</div>
-        <div id="statArchived" class="stat-value">0</div>
-      </button>
-    </section>
-
     <section class="controls compact-controls">
+      <div class="quick-strip" id="quickStrip">
+        <button type="button" class="stat-card quick-card quick-view" data-view="all">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">All programs</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="active">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Active</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">New to 13.1</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">New to 13.3</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Michigan programming</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Evergreens</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Missing info</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
+          <div class="stat-label">APT check</div>
+          <div id="statApt" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="ending_soon">
+          <div class="stat-label">Ending in 90 days</div>
+          <div id="statEnding" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="missing_rights">
+          <div class="stat-label">Missing rights</div>
+          <div id="statMissingRights" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="archived">
+          <div class="stat-label">Archived</div>
+          <div id="statArchived" class="stat-value">0</div>
+        </button>
+      </div>
       <div class="search-grid">
         <div class="search-mode-wrap">
           <label class="filter-label" for="searchFieldSelect">Search in</label>

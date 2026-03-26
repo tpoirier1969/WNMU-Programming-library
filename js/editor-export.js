@@ -9,36 +9,58 @@ function openEditor(id = null, duplicate = false) {
     item = { ...item, id: null, title: `${item.title} (copy)` };
   }
 
+  const openToken = ++state.editorOpenToken;
+  const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
+
   state.selectedId = item?.id || null;
   els.drawer.classList.remove('hidden');
+  els.drawer.classList.add('drawer-loading');
   els.drawerBackdrop.classList.remove('hidden');
   document.body.classList.add('modal-open');
   els.drawerTitle.textContent = item ? (duplicate ? 'Duplicate program' : (canEdit() ? item.title : `View: ${item.title}`)) : 'New program';
   form.dataset.programId = item?.id || '';
-
-  const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
-  for (const field of fields) {
-    const value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
-    form.elements[field].value = value;
-  }
+  form.reset();
+  fields.forEach((field) => {
+    if (!form.elements[field]) return;
+    form.elements[field].value = '';
+  });
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
-  if (!item?.id) renderTemplateSourceList();
-
-  updateVoteVisibility();
-  setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
-  updateLookupButtonState();
-  renderFormFlags(item);
-  renderDuplicateCheck();
-  renderTable();
+  els.duplicateCheck.innerHTML = '';
+  els.duplicateCheck.classList.add('hidden');
+  els.formFlags.innerHTML = '<span class="badge info">Loading…</span>';
   applyEditorMode();
+  if (els.lookupBtn) els.lookupBtn.disabled = true;
+  setLookupMessage('Loading program window…', 'info');
+  setSelectedRowHighlight(state.selectedId);
 
-  if (canEdit() && !state.lookupsLoaded) {
-    ensureLookupsLoaded(true).catch((error) => console.warn('Lookup warm load skipped:', error));
-  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (state.editorOpenToken !== openToken || els.drawer.classList.contains('hidden')) return;
 
-  requestAnimationFrame(() => form.elements.title.focus());
+      for (const field of fields) {
+        const value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
+        form.elements[field].value = value;
+      }
+
+      if (!item?.id) renderTemplateSourceList();
+
+      updateVoteVisibility();
+      setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
+      updateLookupButtonState();
+      renderFormFlags(item);
+      renderDuplicateCheck();
+      applyEditorMode();
+      els.drawer.classList.remove('drawer-loading');
+
+      if (canEdit() && !state.lookupsLoaded) {
+        ensureLookupsLoaded(true).catch((error) => console.warn('Lookup warm load skipped:', error));
+      }
+
+      requestAnimationFrame(() => form.elements.title.focus());
+    });
+  });
 }
 
 function renderFormFlags(item) {
@@ -57,7 +79,9 @@ function updateVoteVisibility() {
 }
 
 function closeEditor() {
+  state.editorOpenToken += 1;
   els.drawer.classList.add('hidden');
+  els.drawer.classList.remove('drawer-loading');
   els.drawerBackdrop.classList.add('hidden');
   document.body.classList.remove('modal-open');
   state.selectedId = null;
@@ -66,7 +90,7 @@ function closeEditor() {
   state.lookupBusy = false;
   setLookupMessage('');
   updateLookupButtonState();
-  renderTable();
+  setSelectedRowHighlight(null);
 }
 
 async function saveProgram(event) {
