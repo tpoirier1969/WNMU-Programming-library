@@ -1,2 +1,0 @@
-window.CAMPING_STATE_DATA = window.CAMPING_STATE_DATA || {};
-window.CAMPING_STATE_DATA['OH'] = [{"id": "s957", "name": "Van Buren State Park Campground", "lat": 41.1374209, "lng": -83.6191305, "stateCode": "OH", "stateName": "Ohio", "layer": "state", "subtype": "modern", "description": "", "website": "", "rawCategory": "public", "categoryLabel": "State / County / Town", "sourceFolder": "State, county, and town Campgrounds", "owner": "", "layerLabel": "State campgrounds", "cost": "", "showers": ""}];

@@ -1,2 +1,0 @@
-window.CAMPING_STATE_DATA = window.CAMPING_STATE_DATA || {};
-window.CAMPING_STATE_DATA['NH'] = [{"id": "s616", "name": "Moose Alley", "lat": 45.1207188, "lng": -71.2481822, "stateCode": "NH", "stateName": "New Hampshire", "layer": "boondocking", "subtype": "rustic", "description": "Free Camping supposed to be here", "website": "", "rawCategory": "boondocking", "categoryLabel": "Boondocking", "sourceFolder": "places from others", "owner": "", "layerLabel": "Boondocking / dispersed", "cost": "", "showers": ""}];
