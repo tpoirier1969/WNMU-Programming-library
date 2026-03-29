@@ -120,6 +120,10 @@ function bindEvents() {
     button.addEventListener('click', () => setSort(button.dataset.sortField));
   });
 
+  els.showFiltersBtn?.addEventListener('click', () => setMobileSection('filters'));
+  els.showProgramsBtn?.addEventListener('click', () => setMobileSection('programs'));
+  MOBILE_SECTION_MEDIA.addEventListener?.('change', handleMobileLayoutChange);
+
   els.quickStrip.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-view]');
     if (!btn) return;

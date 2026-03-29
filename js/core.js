@@ -27,7 +27,8 @@ const state = {
   lookupsLoaded: false,
   lookupsPromise: null,
   templateSourceDirty: true,
-  editorOpenToken: 0
+  editorOpenToken: 0,
+  mobileSection: 'programs'
 };
 
 const els = {
@@ -88,7 +89,12 @@ const els = {
   secondaryTopicList: $('#secondaryTopicList'),
   distributorList: $('#distributorList'),
   lookupBtn: $('#lookupBtn'),
-  lookupMessage: $('#lookupMessage')
+  lookupMessage: $('#lookupMessage'),
+  mobileSectionNav: $('#mobileSectionNav'),
+  showFiltersBtn: $('#showFiltersBtn'),
+  showProgramsBtn: $('#showProgramsBtn'),
+  controlsPanel: $('#controlsPanel'),
+  listPanel: $('#listPanel')
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
@@ -498,4 +504,33 @@ function renderSortHeaders() {
     if (headerCell) headerCell.setAttribute('aria-sort', ariaValue);
     if (indicator) indicator.textContent = sortIndicator(field);
   });
+}
+
+
+const MOBILE_SECTION_MEDIA = window.matchMedia('(max-width: 760px)');
+
+function isPhoneLayout() {
+  return MOBILE_SECTION_MEDIA.matches;
+}
+
+function syncMobileSectionUI() {
+  if (!els.appShell) return;
+  const section = state.mobileSection === 'filters' ? 'filters' : 'programs';
+  els.appShell.dataset.mobileSection = section;
+  els.showFiltersBtn?.classList.toggle('active', section === 'filters');
+  els.showProgramsBtn?.classList.toggle('active', section === 'programs');
+  els.showFiltersBtn?.setAttribute('aria-pressed', section === 'filters' ? 'true' : 'false');
+  els.showProgramsBtn?.setAttribute('aria-pressed', section === 'programs' ? 'true' : 'false');
+}
+
+function setMobileSection(section) {
+  state.mobileSection = section === 'filters' ? 'filters' : 'programs';
+  syncMobileSectionUI();
+}
+
+function handleMobileLayoutChange() {
+  if (!isPhoneLayout()) {
+    state.mobileSection = 'programs';
+  }
+  syncMobileSectionUI();
 }

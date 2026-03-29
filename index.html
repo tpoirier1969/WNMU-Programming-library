@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WNMU TV Programming Library</title>
-  <link rel="stylesheet" href="styles.css?v=1.5.17" />
+  <link rel="stylesheet" href="styles.css?v=1.5.18" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.17"></script>
-  <script defer src="js/auth-init.js?v=1.5.17"></script>
-  <script defer src="js/data-store.js?v=1.5.17"></script>
-  <script defer src="js/filters-list.js?v=1.5.17"></script>
-  <script defer src="js/editor-export.js?v=1.5.17"></script>
-  <script defer src="js/lookup.js?v=1.5.17"></script>
-  <script defer src="js/events.js?v=1.5.17"></script>
+  <script defer src="js/core.js?v=1.5.18"></script>
+  <script defer src="js/auth-init.js?v=1.5.18"></script>
+  <script defer src="js/data-store.js?v=1.5.18"></script>
+  <script defer src="js/filters-list.js?v=1.5.18"></script>
+  <script defer src="js/editor-export.js?v=1.5.18"></script>
+  <script defer src="js/lookup.js?v=1.5.18"></script>
+  <script defer src="js/events.js?v=1.5.18"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -52,7 +52,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.17</span>
+            <span id="appVersion" class="version-pill">v1.5.19</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -67,7 +67,12 @@
       </div>
     </header>
 
-    <section class="controls compact-controls">
+    <nav class="mobile-section-nav" id="mobileSectionNav" aria-label="Phone sections">
+      <button type="button" id="showFiltersBtn" class="mobile-section-btn active" data-mobile-section="filters">Filters</button>
+      <button type="button" id="showProgramsBtn" class="mobile-section-btn" data-mobile-section="programs">Programs</button>
+    </nav>
+
+    <section id="controlsPanel" class="controls compact-controls">
       <div class="quick-strip" id="quickStrip">
         <button type="button" class="stat-card quick-card quick-view" data-view="all">
           <div class="stat-label">Quick filter</div>
@@ -181,7 +186,7 @@
       </div>
     </section>
 
-    <section class="list-panel">
+    <section id="listPanel" class="list-panel">
       <div class="list-meta">
         <div>
           <div class="list-title">Program list</div>

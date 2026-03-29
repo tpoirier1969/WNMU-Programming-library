@@ -18,6 +18,7 @@ async function init() {
     global: { fetch: noStoreFetch }
   });
   bindEvents();
+  handleMobileLayoutChange();
 
   const authHashError = parseAuthErrorFromHash();
   if (authHashError) {
