@@ -47,7 +47,9 @@ button { cursor: pointer; }
 .topbar::before { content:''; position:absolute; left:0; right:0; top:0; height:5px; background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 52%, #7ee7df 78%, var(--pbs-blue) 100%); }
 .brand-wrap { display: flex; align-items: center; gap: 14px; }
 .brand-logo { width: 88px; height: auto; border-radius: 8px; flex: 0 0 auto; }
+.program-brand-mark { width: 148px; max-width: 100%; border-radius: 14px; box-shadow: 0 8px 18px rgba(9,29,48,.14); }
 .auth-logo { width: 120px; }
+.auth-logo.program-brand-mark { width: 210px; }
 .brand-name { font-size: 1.1rem; font-weight: 800; color: var(--teal-dark); letter-spacing: .03em; }
 .brand-subtitle { font-size: .8rem; font-weight: 800; letter-spacing: .16em; color: var(--teal-dark); }
 .title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -318,6 +320,7 @@ input:focus, select:focus, textarea:focus, button:focus {
   .topbar { flex-direction: column; align-items: stretch; }
   .brand-wrap { align-items: flex-start; }
   .brand-logo { width: 76px; }
+  .program-brand-mark { width: 126px; }
   .topbar-actions { width: 100%; }
   .topbar-actions button { flex: 1 1 calc(50% - 8px); }
   .controls { padding: 10px; }
