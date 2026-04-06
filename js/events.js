@@ -44,6 +44,7 @@ function bindEvents() {
   els.drawerBackdrop.addEventListener('click', closeEditor);
   els.programForm.addEventListener('submit', saveProgram);
   els.deleteBtn.addEventListener('click', deleteProgram);
+  els.restoreBtn?.addEventListener('click', restoreArchivedProgram);
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
   ['title', 'nola_eidr'].forEach((field) => {
     els.programForm.elements[field].addEventListener('input', () => {

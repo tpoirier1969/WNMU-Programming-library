@@ -75,6 +75,7 @@ const els = {
   programForm: $('#programForm'),
   saveBtn: $('#saveBtn'),
   duplicateBtn: $('#duplicateBtn'),
+  restoreBtn: $('#restoreBtn'),
   deleteBtn: $('#deleteBtn'),
   readOnlyNote: $('#readOnlyNote'),
   drawerModeBadge: $('#drawerModeBadge'),
@@ -106,6 +107,39 @@ const AUTO_ARCHIVE_LAST_RUN_KEY = 'program-library-auto-archive-last-run';
 const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
 const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
 const CURATED_SOURCE_OPTIONS = Object.freeze(['sIX', 'Server', 'Tape', 'FTP', 'Feed', 'Unavailable', "Don't Have", 'Other']);
+
+function isoTodayValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function programCanAutoRestore(program) {
+  if (!program?.is_archived) return false;
+  const rightsEnd = normalizeIsoDate(program.rights_end);
+  return Boolean(rightsEnd && rightsEnd >= isoTodayValue());
+}
+
+function duplicateSummary(matches) {
+  const archivedCount = matches.filter((item) => item.is_archived).length;
+  const activeCount = matches.length - archivedCount;
+  const parts = [];
+  if (activeCount) parts.push(`${activeCount} active`);
+  if (archivedCount) parts.push(`${archivedCount} archived`);
+  return { archivedCount, activeCount, summaryText: parts.join(', ') };
+}
+
+function updateRestoreButtonVisibility() {
+  const button = els.restoreBtn;
+  if (!button || !els.programForm) return;
+  const programId = els.programForm.dataset.programId || null;
+  const item = programId ? state.programs.find((program) => String(program.id) === String(programId)) : null;
+  const show = canEdit() && Boolean(item?.is_archived);
+  button.classList.toggle('hidden', !show);
+  if (!show) return;
+  button.textContent = programCanAutoRestore(item) ? 'Restore to active now' : 'Restore to active';
+  button.title = programCanAutoRestore(item)
+    ? 'This archived program has current rights and can be moved back to the active library.'
+    : 'Move this archived program back to the active library.';
+}
 
 
 function hasValidConfig() {
@@ -298,16 +332,22 @@ function renderDuplicateCheck() {
   const titleValue = normalizeLower(form.elements.title.value);
   const nolaValue = normalizeLower(form.elements.nola_eidr.value);
   const meaningfulNola = nolaValue && !isPlaceholderNola(nolaValue) ? nolaValue : '';
+  const summary = duplicateSummary(matches);
+  const archiveNote = summary.archivedCount
+    ? `<div class="dup-archived-note">${summary.archivedCount} matching program${summary.archivedCount === 1 ? ' is' : 's are'} currently archived.</div>`
+    : '';
   const items = matches.slice(0, 6).map((item) => {
     const reasons = [];
     if (titleValue && normalizeLower(item.title) === titleValue) reasons.push('same title');
     if (meaningfulNola && normalizeLower(item.nola_eidr) === meaningfulNola) reasons.push('same NOLA');
+    if (item.is_archived) reasons.push('archived');
     return `<li><button type="button" class="linkish" data-open-program="${item.id}">${escapeHtml(item.title || '(untitled)')}</button>${item.nola_eidr ? ` <span class="dup-meta">· ${escapeHtml(item.nola_eidr)}</span>` : ''}${reasons.length ? ` <span class="dup-reason">(${reasons.join(', ')})</span>` : ''}</li>`;
   }).join('');
   const more = matches.length > 6 ? `<div class="dup-more">+${matches.length - 6} more match${matches.length - 6 === 1 ? '' : 'es'}</div>` : '';
   els.duplicateCheck.innerHTML = `
     <div class="duplicate-card warn">
-      <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found</div>
+      <div class="duplicate-title">Possible duplicate${matches.length === 1 ? '' : 's'} found${summary.summaryText ? ` <span class="dup-meta">· ${escapeHtml(summary.summaryText)}</span>` : ''}</div>
+      ${archiveNote}
       <ul class="duplicate-list">${items}</ul>
       ${more}
     </div>
@@ -426,6 +466,7 @@ function applyEditorMode() {
   if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
   if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
   if (els.lookupBtn) els.lookupBtn.classList.toggle('hidden', !editing);
+  updateRestoreButtonVisibility();
   updateLookupButtonState();
 }
 

@@ -31,6 +31,7 @@ function openEditor(id = null, duplicate = false) {
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
+  updateRestoreButtonVisibility();
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
   els.formFlags.innerHTML = '<span class="badge info">Loading…</span>';
@@ -62,6 +63,7 @@ function openEditor(id = null, duplicate = false) {
       updateLookupButtonState();
       renderFormFlags(item);
       renderDuplicateCheck();
+      updateRestoreButtonVisibility();
       applyEditorMode();
       els.drawer.classList.remove('drawer-loading');
 
@@ -80,6 +82,37 @@ function renderFormFlags(item) {
     return;
   }
   els.formFlags.innerHTML = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+}
+
+async function restoreArchivedProgram() {
+  if (!canEdit()) return;
+  const id = els.programForm?.dataset?.programId;
+  if (!id) return;
+  const item = state.programs.find((program) => String(program.id) === String(id));
+  if (!item?.is_archived) return;
+
+  const proceed = confirm(`Restore ${item.title || 'this program'} to active programming?`);
+  if (!proceed) return;
+
+  setLoading('Restoring program to active…');
+  try {
+    const { error } = await state.supabase
+      .from('programs')
+      .update({ is_archived: false })
+      .eq('id', id);
+    if (error) throw error;
+
+    const refreshedProgram = await fetchProgramById(id);
+    mergeProgramIntoState(refreshedProgram);
+    refreshUiAfterProgramMutation('Program restored to active.');
+    setLoading('');
+    openEditor(id);
+  } catch (error) {
+    console.error(error);
+    setLoading('');
+    alert(error.message);
+    setStatus(error.message);
+  }
 }
 
 function updateVoteVisibility() {
@@ -136,6 +169,10 @@ async function saveProgram(event) {
     is_archived: Boolean(existingItem?.is_archived)
   };
 
+  if (existingItem?.is_archived && payload.rights_end && payload.rights_end >= isoTodayValue()) {
+    payload.is_archived = false;
+  }
+
   if (!payload.title) {
     alert('Title is required.');
     return;
@@ -155,11 +192,18 @@ async function saveProgram(event) {
 
   const dupes = duplicateMatches(payload.title, payload.nola_eidr, programId);
   if (dupes.length) {
-    const proceed = confirm(`Possible duplicate found (${dupes.length}). Save anyway?`);
+    const summary = duplicateSummary(dupes);
+    const archivedLine = summary.archivedCount
+      ? `\n${summary.archivedCount} matching archived program${summary.archivedCount === 1 ? ' is' : 's are'} already in the archive.`
+      : '';
+    const proceed = confirm(`Possible duplicate found (${dupes.length}).${archivedLine}\nSave anyway?`);
     if (!proceed) return;
   }
 
-  setLoading(programId ? 'Saving changes…' : 'Creating program…');
+  const saveMessage = !programId
+    ? 'Creating program…'
+    : (existingItem?.is_archived && payload.is_archived === false ? 'Saving changes and restoring to active…' : 'Saving changes…');
+  setLoading(saveMessage);
 
   try {
     let response;
@@ -173,7 +217,10 @@ async function saveProgram(event) {
     const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
     mergeProgramIntoState(refreshedProgram);
     syncLookupsFromProgram(refreshedProgram);
-    refreshUiAfterProgramMutation(programId ? 'Saved changes.' : 'Created program.');
+    const savedMessage = !programId
+      ? 'Created program.'
+      : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.');
+    refreshUiAfterProgramMutation(savedMessage);
     setLoading('');
     closeEditor();
   } catch (error) {
