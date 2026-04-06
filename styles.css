@@ -128,7 +128,17 @@ button:hover { transform: translateY(-1px); }
 .filter-help { font-size: .82rem; color: var(--muted); margin-top: -4px; }
 
 .list-panel {
+  position: relative;
   background: var(--panel); border: 1px solid rgba(18,134,127,.22); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden;
+}
+.window-reactivate-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: transparent;
+}
+.window-reactivate-shield.hidden {
+  display: none;
 }
 .list-meta { display:flex; align-items:center; justify-content:space-between; padding: 10px 14px; border-bottom:1px solid var(--border); background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(233,251,248,.82)); }
 .list-title { font-weight: 800; color: var(--teal-dark); font-size: 1rem; }

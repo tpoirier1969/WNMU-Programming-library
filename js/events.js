@@ -62,10 +62,38 @@ function bindEvents() {
     openEditor(id, true);
   });
 
+  els.windowReactivateShield?.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearProgramActivationGuard();
+  });
+  els.windowReactivateShield?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearProgramActivationGuard();
+  });
+
+  window.addEventListener('blur', () => {
+    armProgramActivationGuard();
+  });
+  window.addEventListener('focus', () => {
+    scheduleProgramActivationGuardRelease();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      armProgramActivationGuard();
+      return;
+    }
+    if (document.visibilityState === 'visible' && document.hasFocus()) {
+      scheduleProgramActivationGuardRelease();
+    }
+  });
+
   els.tableBody?.addEventListener('click', async (event) => {
     const openBtn = event.target.closest('[data-open-program]');
     if (openBtn) {
       event.stopPropagation();
+      if (shouldSuppressProgramActivation()) return;
       openEditor(openBtn.dataset.openProgram);
       return;
     }
@@ -77,6 +105,7 @@ function bindEvents() {
     }
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
+    if (shouldSuppressProgramActivation()) return;
     openEditor(row.dataset.id);
   });
 

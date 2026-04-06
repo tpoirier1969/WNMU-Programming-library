@@ -28,7 +28,9 @@ const state = {
   lookupsPromise: null,
   templateSourceDirty: true,
   editorOpenToken: 0,
-  mobileSection: 'programs'
+  mobileSection: 'programs',
+  programActivationGuardArmed: false,
+  programActivationGuardTimer: null
 };
 
 const els = {
@@ -94,7 +96,8 @@ const els = {
   showFiltersBtn: $('#showFiltersBtn'),
   showProgramsBtn: $('#showProgramsBtn'),
   controlsPanel: $('#controlsPanel'),
-  listPanel: $('#listPanel')
+  listPanel: $('#listPanel'),
+  windowReactivateShield: $('#windowReactivateShield')
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
@@ -172,6 +175,51 @@ function normalizeText(value) {
 
 function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
+}
+
+function showProgramActivationShield() {
+  if (!els.windowReactivateShield) return;
+  els.windowReactivateShield.classList.remove('hidden');
+  els.windowReactivateShield.setAttribute('aria-hidden', 'false');
+}
+
+function hideProgramActivationShield() {
+  if (!els.windowReactivateShield) return;
+  els.windowReactivateShield.classList.add('hidden');
+  els.windowReactivateShield.setAttribute('aria-hidden', 'true');
+}
+
+function clearProgramActivationGuard() {
+  if (state.programActivationGuardTimer) {
+    clearTimeout(state.programActivationGuardTimer);
+    state.programActivationGuardTimer = null;
+  }
+  state.programActivationGuardArmed = false;
+  hideProgramActivationShield();
+}
+
+function armProgramActivationGuard() {
+  if (!els.listPanel) return;
+  if (state.programActivationGuardTimer) {
+    clearTimeout(state.programActivationGuardTimer);
+    state.programActivationGuardTimer = null;
+  }
+  state.programActivationGuardArmed = true;
+  showProgramActivationShield();
+}
+
+function scheduleProgramActivationGuardRelease(delayMs = 420) {
+  if (!state.programActivationGuardArmed) return;
+  if (state.programActivationGuardTimer) clearTimeout(state.programActivationGuardTimer);
+  state.programActivationGuardTimer = setTimeout(() => {
+    clearProgramActivationGuard();
+  }, delayMs);
+}
+
+function shouldSuppressProgramActivation() {
+  if (!state.programActivationGuardArmed) return false;
+  clearProgramActivationGuard();
+  return true;
 }
 
 const NOLA_PLACEHOLDERS = new Set(['nonola', 'no nola', 'no-nola', 'n/a', 'na', 'none', 'unknown']);
