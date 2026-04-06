@@ -89,11 +89,30 @@ function bindEvents() {
     }
   });
 
+  const swallowWakeActivationClick = (event) => {
+    if (!handleWakeActivationInteraction(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+  };
+
+  document.addEventListener('pointerdown', swallowWakeActivationClick, true);
+  document.addEventListener('mousedown', swallowWakeActivationClick, true);
+  document.addEventListener('click', (event) => {
+    if (!state.suppressNextListWakeClick) return;
+    const hitListPanel = Boolean(event.target instanceof Element && event.target.closest('#listPanel'));
+    if (!hitListPanel) return;
+    state.suppressNextListWakeClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+  }, true);
+
   els.tableBody?.addEventListener('click', async (event) => {
     const openBtn = event.target.closest('[data-open-program]');
     if (openBtn) {
       event.stopPropagation();
-      if (shouldSuppressProgramActivation()) return;
+      if (shouldSuppressProgramActivation(event.target)) return;
       openEditor(openBtn.dataset.openProgram);
       return;
     }
@@ -105,7 +124,7 @@ function bindEvents() {
     }
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
-    if (shouldSuppressProgramActivation()) return;
+    if (shouldSuppressProgramActivation(event.target)) return;
     openEditor(row.dataset.id);
   });
 

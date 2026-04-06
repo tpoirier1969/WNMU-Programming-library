@@ -30,7 +30,8 @@ const state = {
   editorOpenToken: 0,
   mobileSection: 'programs',
   programActivationGuardArmed: false,
-  programActivationGuardTimer: null
+  programActivationGuardTimer: null,
+  suppressNextListWakeClick: false
 };
 
 const els = {
@@ -195,6 +196,7 @@ function clearProgramActivationGuard() {
     state.programActivationGuardTimer = null;
   }
   state.programActivationGuardArmed = false;
+  state.suppressNextListWakeClick = false;
   hideProgramActivationShield();
 }
 
@@ -216,7 +218,31 @@ function scheduleProgramActivationGuardRelease(delayMs = 420) {
   }, delayMs);
 }
 
-function shouldSuppressProgramActivation() {
+function handleWakeActivationInteraction(target) {
+  if (!state.programActivationGuardArmed) return false;
+  const element = target instanceof Element ? target : null;
+  if (!element) {
+    clearProgramActivationGuard();
+    return false;
+  }
+  if (element.closest('.drawer')) return false;
+  const hitListPanel = Boolean(element.closest('#listPanel'));
+  clearProgramActivationGuard();
+  if (!hitListPanel) return false;
+  state.suppressNextListWakeClick = true;
+  return true;
+}
+
+function consumeSuppressedWakeClick(target) {
+  if (!state.suppressNextListWakeClick) return false;
+  const element = target instanceof Element ? target : null;
+  const hitListPanel = Boolean(element && element.closest('#listPanel'));
+  state.suppressNextListWakeClick = false;
+  return hitListPanel;
+}
+
+function shouldSuppressProgramActivation(target = null) {
+  if (consumeSuppressedWakeClick(target)) return true;
   if (!state.programActivationGuardArmed) return false;
   clearProgramActivationGuard();
   return true;

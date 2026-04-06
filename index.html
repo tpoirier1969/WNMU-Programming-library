@@ -6,16 +6,16 @@
   <title>WNMU TV Programming Library</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.21" />
+  <link rel="stylesheet" href="styles.css?v=1.5.26" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.21"></script>
-  <script defer src="js/auth-init.js?v=1.5.21"></script>
-  <script defer src="js/data-store.js?v=1.5.21"></script>
-  <script defer src="js/filters-list.js?v=1.5.21"></script>
-  <script defer src="js/editor-export.js?v=1.5.21"></script>
-  <script defer src="js/lookup.js?v=1.5.21"></script>
-  <script defer src="js/events.js?v=1.5.21"></script>
+  <script defer src="js/core.js?v=1.5.26"></script>
+  <script defer src="js/auth-init.js?v=1.5.26"></script>
+  <script defer src="js/data-store.js?v=1.5.26"></script>
+  <script defer src="js/filters-list.js?v=1.5.26"></script>
+  <script defer src="js/editor-export.js?v=1.5.26"></script>
+  <script defer src="js/lookup.js?v=1.5.26"></script>
+  <script defer src="js/events.js?v=1.5.26"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -54,7 +54,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.24</span>
+            <span id="appVersion" class="version-pill">v1.5.26</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -266,12 +266,28 @@
           <textarea name="notes" rows="4"></textarea>
         </label>
 
-        <label>Program or series
-          <select name="program_type"></select>
-        </label>
-        <label>Season / Episode
-          <input name="episode_season" type="text" placeholder="100's / 8" />
-        </label>
+        <div class="program-rights-row span-full">
+          <label>Program or series
+            <select name="program_type"></select>
+          </label>
+          <label>Season / Episode
+            <input name="episode_season" type="text" placeholder="100's / 8" />
+          </label>
+          <label class="compact-rights">Rights begin
+            <div class="date-entry-wrap">
+              <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+              <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
+              <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+            </div>
+          </label>
+          <label class="compact-rights">Rights end
+            <div class="date-entry-wrap">
+              <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+              <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
+              <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+            </div>
+          </label>
+        </div>
         <label>Topic
           <select name="topic"></select>
         </label>
@@ -280,20 +296,9 @@
           <datalist id="secondaryTopicList"></datalist>
         </label>
 
-        <div class="compact-form-row span-full">
-          <label class="compact-field compact-rights">Rights begin
-            <div class="date-entry-wrap">
-              <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
-              <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
-              <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
-            </div>
-          </label>
-          <label class="compact-field compact-rights">Rights end
-            <div class="date-entry-wrap">
-              <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
-              <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
-              <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
-            </div>
+        <div class="compact-form-row span-full compact-form-row-rights">
+          <label class="compact-field rights-notes-field">Rights notes
+            <textarea name="rights_notes" rows="2"></textarea>
           </label>
           <label class="compact-field distributor-field">Distributor
             <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
@@ -320,10 +325,6 @@
             <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
           </label>
         </div>
-
-        <label class="span-full">Rights notes
-          <textarea name="rights_notes" rows="2"></textarea>
-        </label>
       </div>
 
       <div id="formFlags" class="form-flags"></div>
