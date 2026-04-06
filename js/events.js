@@ -99,13 +99,35 @@ function bindEvents() {
 
   ['rights_begin', 'rights_end'].forEach((field) => {
     const input = els.programForm.elements[field];
+    const proxy = els.programForm.elements[`${field}_picker`];
+    const pickerBtn = els.programForm.querySelector(`[data-date-picker="${field}"]`);
     if (!input) return;
     const normalizeDateField = () => {
       const normalized = normalizeIsoDate(input.value);
       if (normalized) input.value = formatShortDateInput(normalized);
+      syncDateProxyField(field);
     };
     input.addEventListener('blur', normalizeDateField);
     input.addEventListener('change', normalizeDateField);
+    if (proxy) {
+      proxy.addEventListener('change', () => {
+        if (proxy.value) input.value = formatShortDateInput(proxy.value);
+        syncDateProxyField(field);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        requestAnimationFrame(() => input.focus());
+      });
+    }
+    if (pickerBtn && proxy) {
+      pickerBtn.addEventListener('click', () => {
+        syncDateProxyField(field);
+        if (typeof proxy.showPicker === 'function') {
+          proxy.showPicker();
+          return;
+        }
+        proxy.focus();
+        proxy.click();
+      });
+    }
   });
 
   els.clearCodeFilter?.addEventListener('click', () => {

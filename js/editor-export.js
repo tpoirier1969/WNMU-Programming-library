@@ -24,6 +24,10 @@ function openEditor(id = null, duplicate = false) {
     if (!form.elements[field]) return;
     form.elements[field].value = '';
   });
+  Object.entries(DEFAULT_NEW_PROGRAM_VALUES).forEach(([field, value]) => {
+    if (!item?.id && form.elements[field]) form.elements[field].value = value;
+  });
+  ['rights_begin', 'rights_end'].forEach(syncDateProxyField);
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
@@ -44,6 +48,12 @@ function openEditor(id = null, duplicate = false) {
         if (field === 'rights_begin' || field === 'rights_end') value = formatShortDateInput(value);
         form.elements[field].value = value;
       }
+      if (!item?.id) {
+        Object.entries(DEFAULT_NEW_PROGRAM_VALUES).forEach(([field, value]) => {
+          if (form.elements[field] && !normalizeText(form.elements[field].value)) form.elements[field].value = value;
+        });
+      }
+      ['rights_begin', 'rights_end'].forEach(syncDateProxyField);
 
       if (!item?.id) renderTemplateSourceList();
 

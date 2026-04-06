@@ -54,7 +54,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.21</span>
+            <span id="appVersion" class="version-pill">v1.5.22</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -280,10 +280,18 @@
         </label>
 
         <label>Rights begin
-          <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+          <div class="date-entry-wrap">
+            <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+            <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
+            <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+          </div>
         </label>
         <label>Rights end
-          <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+          <div class="date-entry-wrap">
+            <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+            <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
+            <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+          </div>
         </label>
         <label>Aired on 13.1
           <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
@@ -307,7 +315,7 @@
         <label>Package type
           <select name="package_type"></select>
         </label>
-        <label>sIX/Server/Tape/FTP
+        <label>Source
           <select name="server_tape"></select>
         </label>
 

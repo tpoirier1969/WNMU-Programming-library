@@ -100,6 +100,9 @@ const els = {
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const AUTO_ARCHIVE_LAST_RUN_KEY = 'program-library-auto-archive-last-run';
 const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
+const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
+const CURATED_SOURCE_OPTIONS = Object.freeze(['sIX', 'Server', 'Tape', 'FTP', 'Feed', 'Unavailable', "Don't Have", 'Other']);
+
 
 function hasValidConfig() {
   return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
@@ -123,6 +126,15 @@ function formatShortDateInput(value) {
   if (!iso) return normalizeText(value);
   const [year, month, day] = iso.split('-');
   return `${Number(month)}/${Number(day)}/${year.slice(-2)}`;
+}
+
+function syncDateProxyField(fieldName) {
+  const textInput = els.programForm?.elements?.[fieldName];
+  const proxyInput = els.programForm?.elements?.[`${fieldName}_picker`];
+  if (!textInput || !proxyInput) return '';
+  const normalized = normalizeIsoDate(textInput.value);
+  proxyInput.value = normalized || '';
+  return normalized;
 }
 
 function normalizeIsoDate(value) {

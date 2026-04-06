@@ -85,6 +85,20 @@ function fillSelect(selectEl, items, includeBlank = true) {
   }
 }
 
+function mergeOptionLabels(preferredValues, items) {
+  const merged = [];
+  const seen = new Set();
+  [...preferredValues, ...items.map((item) => (typeof item === 'string' ? item : item.name))].forEach((label) => {
+    const value = normalizeText(label);
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(value);
+  });
+  return merged;
+}
+
 function renderFilters() {
   fillSelect(els.topicFilter, lookupItemsOrFallback('topics', 'topic'), false);
   fillSelect(els.secondaryTopicFilter, lookupItemsOrFallback('secondary_topics', 'secondary_topic'), false);
@@ -98,8 +112,8 @@ function renderFilters() {
   fillSelect(form.elements.topic, lookupItemsOrFallback('topics', 'topic'));
   fillDatalist(els.secondaryTopicList, lookupItemsOrFallback('secondary_topics', 'secondary_topic'));
   fillDatalist(els.distributorList, lookupItemsOrFallback('distributors', 'distributor'));
-  fillSelect(form.elements.package_type, lookupItemsOrFallback('package_types', 'package_type'));
-  fillSelect(form.elements.server_tape, lookupItemsOrFallback('server_locations', 'server_tape'));
+  fillSelect(form.elements.package_type, mergeOptionLabels([DEFAULT_NEW_PROGRAM_VALUES.package_type], lookupItemsOrFallback('package_types', 'package_type')));
+  fillSelect(form.elements.server_tape, mergeOptionLabels(CURATED_SOURCE_OPTIONS, lookupItemsOrFallback('server_locations', 'server_tape')));
 }
 
 function snapshotViewState() {

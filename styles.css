@@ -255,6 +255,34 @@ button:hover { transform: translateY(-1px); }
 .row-use { grid-column: 4; }
 .row-length, .row-use { max-width: 180px; }
 .secondary-topic-field input, .distributor-field input { min-height: 40px; }
+.date-entry-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  position: relative;
+}
+.date-picker-btn {
+  min-width: 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.date-picker-proxy {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0;
+  pointer-events: none;
+  inset: auto 0 0 auto;
+  border: 0 !important;
+  padding: 0 !important;
+}
 
 .lookup-tools {
   display: grid;
