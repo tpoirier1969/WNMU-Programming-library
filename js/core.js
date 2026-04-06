@@ -118,6 +118,42 @@ function formatDate(value) {
   }
 }
 
+function formatShortDateInput(value) {
+  const iso = normalizeIsoDate(value);
+  if (!iso) return normalizeText(value);
+  const [year, month, day] = iso.split('-');
+  return `${Number(month)}/${Number(day)}/${year.slice(-2)}`;
+}
+
+function normalizeIsoDate(value) {
+  const raw = normalizeText(value);
+  if (!raw) return '';
+  const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    if (isValidDateParts(year, month, day)) return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return '';
+  }
+
+  const slashMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2}|\d{4})$/);
+  if (!slashMatch) return '';
+  const month = Number(slashMatch[1]);
+  const day = Number(slashMatch[2]);
+  const yearValue = slashMatch[3];
+  const year = yearValue.length === 2 ? Number(`20${yearValue}`) : Number(yearValue);
+  if (!isValidDateParts(year, month, day)) return '';
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function isValidDateParts(year, month, day) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const candidate = new Date(year, month - 1, day);
+  return candidate.getFullYear() === year && candidate.getMonth() === month - 1 && candidate.getDate() === day;
+}
+
 function normalizeText(value) {
   return (value ?? '').toString().trim();
 }

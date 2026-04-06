@@ -97,6 +97,17 @@ function bindEvents() {
   els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);
   els.programForm.elements.distributor.addEventListener('input', updateVoteVisibility);
 
+  ['rights_begin', 'rights_end'].forEach((field) => {
+    const input = els.programForm.elements[field];
+    if (!input) return;
+    const normalizeDateField = () => {
+      const normalized = normalizeIsoDate(input.value);
+      if (normalized) input.value = formatShortDateInput(normalized);
+    };
+    input.addEventListener('blur', normalizeDateField);
+    input.addEventListener('change', normalizeDateField);
+  });
+
   els.clearCodeFilter?.addEventListener('click', () => {
     clearMultiSelect(els.codeFilter);
     updateQueryStatus();

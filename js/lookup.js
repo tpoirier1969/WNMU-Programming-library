@@ -249,7 +249,7 @@ function humanFieldName(fieldName) {
     topic: 'Topic',
     secondary_topic: 'Secondary topic',
     rights_end: 'Rights end',
-    episode_season: 'Episode / Season',
+    episode_season: 'Season / Episode',
     distributor: 'Distributor'
   };
   return labels[fieldName] || fieldName;

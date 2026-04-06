@@ -40,7 +40,8 @@ function openEditor(id = null, duplicate = false) {
       if (state.editorOpenToken !== openToken || els.drawer.classList.contains('hidden')) return;
 
       for (const field of fields) {
-        const value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
+        let value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
+        if (field === 'rights_begin' || field === 'rights_end') value = formatShortDateInput(value);
         form.elements[field].value = value;
       }
 
@@ -115,8 +116,8 @@ async function saveProgram(event) {
     aired_13_1: form.elements.aired_13_1.value || null,
     aired_13_3: form.elements.aired_13_3.value || null,
     vote: normalizeLower(form.elements.distributor.value) === 'apt' ? (form.elements.vote.value || null) : null,
-    rights_begin: form.elements.rights_begin.value || null,
-    rights_end: form.elements.rights_end.value || null,
+    rights_begin: normalizeIsoDate(form.elements.rights_begin.value) || null,
+    rights_end: normalizeIsoDate(form.elements.rights_end.value) || null,
     rights_notes: form.elements.rights_notes.value || null,
     package_type: form.elements.package_type.value || null,
     server_tape: form.elements.server_tape.value || null,
@@ -127,6 +128,18 @@ async function saveProgram(event) {
 
   if (!payload.title) {
     alert('Title is required.');
+    return;
+  }
+
+  if (normalizeText(form.elements.rights_begin.value) && !payload.rights_begin) {
+    alert('Rights begin must be a valid date. Use m/d/yy, m/d/yyyy, or yyyy-mm-dd. Two-digit years are saved as 20xx.');
+    form.elements.rights_begin.focus();
+    return;
+  }
+
+  if (normalizeText(form.elements.rights_end.value) && !payload.rights_end) {
+    alert('Rights end must be a valid date. Use m/d/yy, m/d/yyyy, or yyyy-mm-dd. Two-digit years are saved as 20xx.');
+    form.elements.rights_end.focus();
     return;
   }
 
