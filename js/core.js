@@ -33,7 +33,10 @@ const state = {
   programActivationGuardTimer: null,
   suppressNextListWakeClick: false,
   ratingOverrides: {},
-  ratingDbSupport: null
+  ratingDbSupport: null,
+  ratingWarmupPromise: null,
+  programsExposeRating: false,
+  inlineAiringEditorId: null
 };
 
 const els = {

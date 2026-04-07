@@ -127,6 +127,16 @@ function bindEvents() {
       return;
     }
 
+    const inlineAiringToggleBtn = event.target.closest('[data-inline-airing-toggle]');
+    if (inlineAiringToggleBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextId = inlineAiringToggleBtn.dataset.inlineAiringToggle;
+      state.inlineAiringEditorId = String(state.inlineAiringEditorId || '') === String(nextId) ? null : nextId;
+      renderTable();
+      return;
+    }
+
     const inlineRatingBtn = event.target.closest('[data-inline-rating-value]');
     if (inlineRatingBtn) {
       event.preventDefault();
@@ -140,8 +150,11 @@ function bindEvents() {
       const editor = inlineRatingBtn.closest('[data-inline-rating-editor]');
 
       setProgramRatingLocal(programId, nextRating);
+      if (editor) {
+        renderInlineRatingEditorState(editor, nextRating);
+        editor.classList.add('saving');
+      }
       syncInlineRatingEditors(programId);
-      if (editor) editor.classList.add('saving');
       setStatus('Saving rating…');
 
       try {

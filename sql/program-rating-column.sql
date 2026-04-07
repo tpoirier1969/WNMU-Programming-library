@@ -1,6 +1,3 @@
--- WNMU Program Library rating support
--- Safe to run more than once.
-
 alter table public.programs
   add column if not exists rating smallint;
 
@@ -23,7 +20,3 @@ create index if not exists programs_rating_idx on public.programs (rating);
 
 comment on column public.programs.rating is
   'Program review rating from 1 to 5 stars.';
-
--- Note:
--- This build reads ratings directly from public.programs, so updating
--- programs_enriched is optional unless you want the view itself to expose rating.

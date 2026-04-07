@@ -27,13 +27,25 @@ async function loadEverything(options = {}) {
     else setStatus('Refreshing library from server…');
 
     await loadPrograms({ background: renderedFromCache });
-    await loadProgramRatingsFromDatabase({ background: renderedFromCache });
     persistProgramsCache();
     renderTable();
     renderStats();
     renderFilters();
     state.lastAppliedViewState = snapshotViewState();
     setLoading('');
+
+    const ratingFilterActive = Boolean(els.ratingFilter?.value);
+    if (!state.programsExposeRating) {
+      if (ratingFilterActive) {
+        await loadProgramRatingsFromDatabase({ background: true });
+        persistProgramsCache();
+        renderTable();
+        renderStats();
+        state.lastAppliedViewState = snapshotViewState();
+      } else {
+        scheduleBackgroundRatingWarmup();
+      }
+    }
 
     const activeCount = state.programs.filter((item) => !item.is_archived).length;
     const archivedCount = state.programs.filter((item) => item.is_archived).length;
@@ -65,6 +77,35 @@ function hydrateProgramsFromCache() {
   sortProgramsInPlace();
   state.templateSourceDirty = true;
   return true;
+}
+
+function scheduleBackgroundRatingWarmup() {
+  if (state.programsExposeRating || state.ratingDbSupport === false || state.ratingWarmupPromise) return;
+
+  const kickOff = async () => {
+    if (state.programsExposeRating || state.ratingDbSupport === false || state.ratingWarmupPromise) return;
+    state.ratingWarmupPromise = (async () => {
+      try {
+        const loaded = await loadProgramRatingsFromDatabase({ background: true });
+        if (!loaded) return;
+        persistProgramsCache();
+        renderTable();
+        renderStats();
+        state.lastAppliedViewState = snapshotViewState();
+      } catch (error) {
+        console.warn('Background ratings refresh skipped:', error);
+      } finally {
+        state.ratingWarmupPromise = null;
+      }
+    })();
+    return state.ratingWarmupPromise;
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => { void kickOff(); }, { timeout: 900 });
+  } else {
+    window.setTimeout(() => { void kickOff(); }, 180);
+  }
 }
 
 function persistProgramsCache() {
@@ -144,6 +185,7 @@ async function fetchAllRows(tableName, options = {}) {
 async function loadPrograms(options = {}) {
   const showOverlay = !options.background;
   state.programs = (await fetchAllRows('programs_enriched', { showOverlay })).map((program) => applyRatingOverlayToProgram(program));
+  state.programsExposeRating = state.programs.some((program) => Object.prototype.hasOwnProperty.call(program, 'rating'));
   sortProgramsInPlace();
   state.templateSourceDirty = true;
 }

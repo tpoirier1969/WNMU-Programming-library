@@ -436,37 +436,44 @@ function renderRatingStarsMarkup(program, options = {}) {
     if (!editable) return `<span class="star-rating-btn static${filled ? ' filled' : ''}" aria-hidden="true">★</span>`;
     return `<button type="button" class="star-rating-btn${filled ? ' filled' : ''}${current === value ? ' anchor' : ''}" data-inline-rating-value="${value}" data-inline-rating-program="${programId}" aria-label="${value} star${value === 1 ? '' : 's'}" aria-pressed="${current === value ? 'true' : 'false'}">★</button>`;
   }).join('');
-  return `<div class="program-rating-row${editable ? ' editable' : ' readonly'}" data-inline-rating-editor="${programId}" aria-label="${escapeHtml(label)}"><span class="rating-caption">Rating</span><div class="star-rating inline-star-rating">${stars}</div><span class="rating-text">${current ? `${current}/5` : '—'}</span></div>`;
+  return `<div class="program-rating-row${editable ? ' editable' : ' readonly'}" data-inline-rating-editor="${programId}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><div class="star-rating inline-star-rating">${stars}</div>${current ? `<span class="rating-text">${current}/5</span>` : ''}</div>`;
 }
 
 function renderInlineAiringEditor(program) {
   if (!canEdit()) return '';
+  const isOpen = String(state.inlineAiringEditorId || '') === String(program.id);
+  const toggleLabel = isOpen ? 'Hide air dates' : 'Quick air dates';
   return `
-    <div class="inline-airing-editor" data-inline-airing-editor="${program.id}">
-      <label class="inline-airing-field">
-        <span class="inline-airing-label">Aired on 13.1</span>
-        <input
-          type="text"
-          class="inline-airing-input"
-          data-inline-airing-field="aired_13_1"
-          value="${escapeHtml(normalizeText(program.aired_13_1))}"
-          placeholder="Add 13.1 date(s)"
-          aria-label="Aired on 13.1"
-        />
-      </label>
-      <label class="inline-airing-field">
-        <span class="inline-airing-label">Aired on 13.3</span>
-        <input
-          type="text"
-          class="inline-airing-input"
-          data-inline-airing-field="aired_13_3"
-          value="${escapeHtml(normalizeText(program.aired_13_3))}"
-          placeholder="Add 13.3 date(s)"
-          aria-label="Aired on 13.3"
-        />
-      </label>
-      <button type="button" class="inline-airing-save-btn" data-inline-airing-save="${program.id}">Save</button>
+    <div class="program-inline-tools">
+      <button type="button" class="inline-airing-toggle-btn" data-inline-airing-toggle="${program.id}" aria-expanded="${isOpen ? 'true' : 'false'}">${toggleLabel}</button>
     </div>
+    ${isOpen ? `
+      <div class="inline-airing-editor" data-inline-airing-editor="${program.id}">
+        <label class="inline-airing-field">
+          <span class="inline-airing-label">Aired on 13.1</span>
+          <input
+            type="text"
+            class="inline-airing-input"
+            data-inline-airing-field="aired_13_1"
+            value="${escapeHtml(normalizeText(program.aired_13_1))}"
+            placeholder="Add 13.1 date(s)"
+            aria-label="Aired on 13.1"
+          />
+        </label>
+        <label class="inline-airing-field">
+          <span class="inline-airing-label">Aired on 13.3</span>
+          <input
+            type="text"
+            class="inline-airing-input"
+            data-inline-airing-field="aired_13_3"
+            value="${escapeHtml(normalizeText(program.aired_13_3))}"
+            placeholder="Add 13.3 date(s)"
+            aria-label="Aired on 13.3"
+          />
+        </label>
+        <button type="button" class="inline-airing-save-btn" data-inline-airing-save="${program.id}">Save</button>
+      </div>
+    ` : ''}
   `;
 }
 
