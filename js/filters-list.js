@@ -369,6 +369,33 @@ function formatRightsWindow(program) {
   `;
 }
 
+function isSeriesProgram(program) {
+  const value = normalizeLower(program?.program_type);
+  return value.includes('series');
+}
+
+function extractEpisodeCount(program) {
+  const raw = normalizeText(program?.episode_season);
+  if (!raw) return null;
+
+  const slashMatch = raw.match(/\/\s*(\d{1,4})\b/);
+  if (slashMatch) return Number(slashMatch[1]);
+
+  const epsMatch = raw.match(/\b(\d{1,4})\s*(?:eps?|episodes?)\b/i);
+  if (epsMatch) return Number(epsMatch[1]);
+
+  if (isSeriesProgram(program) && /^\d{1,4}$/.test(raw)) return Number(raw);
+
+  return null;
+}
+
+function formatSeriesCountBadge(program) {
+  if (!isSeriesProgram(program)) return '';
+  const count = extractEpisodeCount(program);
+  if (!Number.isFinite(count) || count <= 0) return '';
+  return `<span class="series-count-pill" title="${count} episode${count === 1 ? '' : 's'}">${count} ep${count === 1 ? '' : 's'}</span>`;
+}
+
 function formatDetailsCell(program) {
   const topicMarkup = program.topic ? `<span class="topic-chip" style="background:${topicColor(program.topic)}">${escapeHtml(program.topic)}</span>` : '<span class="meta-muted">No topic</span>';
   const secondaryMarkup = program.secondary_topic ? `<div class="secondary-topic">${escapeHtml(program.secondary_topic)}</div>` : '';
@@ -425,7 +452,7 @@ function renderTable() {
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
         <td>
           <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
-          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}</div>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatSeriesCountBadge(item)}</div>
         </td>
         <td>
           <div class="notes-cell">

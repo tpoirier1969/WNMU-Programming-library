@@ -167,6 +167,7 @@ button:hover { transform: translateY(-1px); }
 .programs-table tbody tr.archived-row td { border-bottom-color: #d7dde1; }
 .programs-table tbody tr.archived-row .program-title { color: #60717c; }
 .programs-table tbody tr.archived-row .program-sub { color: #7f8f99; }
+.programs-table tbody tr.archived-row .series-count-pill { background:#e4eaee; color:#60717c; }
 .programs-table tbody tr.archived-row .notes-text { color: #667781; }
 .programs-table tbody tr.archived-row .topic-chip { filter: grayscale(.3) saturate(.6); }
 .program-title { font-size: 1rem; font-weight: 800; color: var(--heading); line-height: 1.15; }
@@ -192,6 +193,7 @@ button:hover { transform: translateY(-1px); }
 .program-sub { margin-top: 5px; font-size: .78rem; color: var(--muted); word-break: break-word; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .code-pill { display:inline-flex; align-items:center; padding: 2px 7px; border-radius: 999px; background:#e6eef8; color: var(--pbs-blue-dark); font-weight:800; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .program-meta { color: var(--muted); }
+.series-count-pill { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:#eef7ff; color: var(--pbs-blue-dark); font-weight:800; white-space:nowrap; }
 .notes-cell { display: grid; gap: 6px; }
 .notes-text { font-size: .82rem; color: #334b5c; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .copy-note-btn { font-size: .72rem; padding: 5px 8px; border-radius: 8px; justify-self: start; }
