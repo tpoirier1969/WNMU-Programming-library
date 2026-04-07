@@ -10,7 +10,7 @@ function openEditor(id = null, duplicate = false) {
   }
 
   const openToken = ++state.editorOpenToken;
-  const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape'];
+  const fields = ['title','legacy_code','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','distributor','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','rating'];
 
   state.selectedId = item?.id || null;
   els.drawer.classList.remove('hidden');
@@ -59,6 +59,7 @@ function openEditor(id = null, duplicate = false) {
       if (!item?.id) renderTemplateSourceList();
 
       updateVoteVisibility();
+      renderEditorRatingControl();
       setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
       updateLookupButtonState();
       renderFormFlags(item);
@@ -169,6 +170,8 @@ async function saveProgram(event) {
     is_archived: Boolean(existingItem?.is_archived)
   };
 
+  const selectedRating = normalizeRating(form.elements.rating?.value);
+
   if (existingItem?.is_archived && payload.rights_end && payload.rights_end >= isoTodayValue()) {
     payload.is_archived = false;
   }
@@ -217,9 +220,18 @@ async function saveProgram(event) {
     const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
     mergeProgramIntoState(refreshedProgram);
     syncLookupsFromProgram(refreshedProgram);
-    const savedMessage = !programId
+
+    let ratingWarning = '';
+    try {
+      await persistProgramRating(refreshedProgram.id, selectedRating, { refreshUi: false, silentLocalFallback: true });
+    } catch (ratingError) {
+      console.error(ratingError);
+      ratingWarning = ' Rating saved locally only; database sync failed.';
+    }
+
+    const savedMessage = (!programId
       ? 'Created program.'
-      : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.');
+      : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.')) + ratingWarning;
     refreshUiAfterProgramMutation(savedMessage);
     setLoading('');
     closeEditor();
@@ -258,7 +270,7 @@ async function deleteProgram() {
 
 function exportCurrentView() {
   const items = activePrograms();
-  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','is_archived','exclude_from_auto_archive'];
+  const columns = ['legacy_code','title','notes','episode_season','nola_eidr','program_type','length_minutes','topic','secondary_topic','aired_13_1','aired_13_3','vote','rights_begin','rights_end','rights_notes','package_type','server_tape','distributor','rating','is_archived','exclude_from_auto_archive'];
   const lines = [columns.join(',')];
   for (const item of items) {
     lines.push(columns.map((col) => csvEscape(item[col])).join(','));

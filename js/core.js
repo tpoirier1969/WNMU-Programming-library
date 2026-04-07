@@ -31,7 +31,9 @@ const state = {
   mobileSection: 'programs',
   programActivationGuardArmed: false,
   programActivationGuardTimer: null,
-  suppressNextListWakeClick: false
+  suppressNextListWakeClick: false,
+  ratingOverrides: {},
+  ratingDbSupport: null
 };
 
 const els = {
@@ -61,6 +63,7 @@ const els = {
   codeFilter: $('#codeFilter'),
   clearCodeFilter: $('#clearCodeFilter'),
   statusFilter: $('#statusFilter'),
+  ratingFilter: $('#ratingFilter'),
   clearTopicFilter: $('#clearTopicFilter'),
   clearSecondaryTopicFilter: $('#clearSecondaryTopicFilter'),
   clearLengthFilter: $('#clearLengthFilter'),
@@ -99,14 +102,123 @@ const els = {
   showProgramsBtn: $('#showProgramsBtn'),
   controlsPanel: $('#controlsPanel'),
   listPanel: $('#listPanel'),
-  windowReactivateShield: $('#windowReactivateShield')
+  windowReactivateShield: $('#windowReactivateShield'),
+  editorRating: $('#editorRating')
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const AUTO_ARCHIVE_LAST_RUN_KEY = 'program-library-auto-archive-last-run';
 const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
+const RATING_OVERLAY_KEY = 'program-library-rating-overrides-v1';
 const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
 const CURATED_SOURCE_OPTIONS = Object.freeze(['sIX', 'Server', 'Tape', 'FTP', 'Feed', 'Unavailable', "Don't Have", 'Other']);
+
+function normalizeRating(value) {
+  if (value == null || value === '') return null;
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric) || numeric < 1 || numeric > 5) return null;
+  return numeric;
+}
+
+function readRatingOverrides() {
+  try {
+    const raw = window.localStorage?.getItem(RATING_OVERLAY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.fromEntries(Object.entries(parsed)
+      .map(([id, value]) => [String(id), normalizeRating(value)])
+      .filter(([, value]) => value != null));
+  } catch {
+    return {};
+  }
+}
+
+function persistRatingOverrides() {
+  try {
+    const keys = Object.keys(state.ratingOverrides || {});
+    if (!keys.length) {
+      window.localStorage?.removeItem(RATING_OVERLAY_KEY);
+      return;
+    }
+    window.localStorage?.setItem(RATING_OVERLAY_KEY, JSON.stringify(state.ratingOverrides));
+  } catch (error) {
+    console.warn('Rating overlay cache skipped:', error);
+  }
+}
+
+function getProgramRating(program) {
+  const id = program?.id == null ? '' : String(program.id);
+  if (id && Object.prototype.hasOwnProperty.call(state.ratingOverrides, id)) {
+    return normalizeRating(state.ratingOverrides[id]);
+  }
+  return normalizeRating(program?.rating);
+}
+
+function applyRatingOverlayToProgram(program) {
+  if (!program || typeof program !== 'object') return program;
+  program.rating = getProgramRating(program);
+  return program;
+}
+
+function mergeDatabaseRatings(rows = []) {
+  const byId = new Map(rows.map((row) => [String(row.id), normalizeRating(row.rating)]));
+  state.programs.forEach((program) => {
+    const id = String(program.id);
+    if (byId.has(id)) program.rating = byId.get(id);
+    else program.rating = normalizeRating(program.rating);
+    applyRatingOverlayToProgram(program);
+  });
+}
+
+function setProgramRatingLocal(programId, rating) {
+  const id = String(programId || '');
+  if (!id) return;
+  const normalized = normalizeRating(rating);
+  if (normalized == null) delete state.ratingOverrides[id];
+  else state.ratingOverrides[id] = normalized;
+  const item = state.programs.find((program) => String(program.id) === id);
+  if (item) item.rating = normalized;
+  persistRatingOverrides();
+  try { persistProgramsCache(); } catch {}
+}
+
+function isMissingRatingColumnError(error) {
+  const haystack = normalizeLower(error?.message || error?.details || error?.hint || String(error || ''));
+  return haystack.includes('rating') && (haystack.includes('column') || haystack.includes('schema cache') || haystack.includes('does not exist') || haystack.includes('could not find'));
+}
+
+function renderEditorRatingControl() {
+  const container = els.editorRating;
+  const input = els.programForm?.elements?.rating;
+  if (!container || !input) return;
+  const current = normalizeRating(input.value);
+  container.dataset.rating = current || '';
+  container.querySelectorAll('[data-editor-rating]').forEach((button) => {
+    const value = normalizeRating(button.dataset.editorRating);
+    const filled = current != null && value != null && value <= current;
+    button.classList.toggle('filled', filled);
+    button.classList.toggle('anchor', current != null && value === current);
+    button.setAttribute('aria-checked', current != null && value === current ? 'true' : 'false');
+    button.disabled = !canEdit();
+    button.title = canEdit()
+      ? `${value} star${value === 1 ? '' : 's'}${current != null && value === current ? ' (click again to clear)' : ''}`
+      : (current ? `${current} of 5` : 'Not rated');
+  });
+  const label = container.querySelector('.rating-value-label');
+  if (label) label.textContent = current ? `${current}/5` : 'Not rated';
+}
+
+function setEditorRating(value) {
+  const input = els.programForm?.elements?.rating;
+  if (!input) return;
+  const current = normalizeRating(input.value);
+  const normalized = normalizeRating(value);
+  input.value = current != null && current === normalized ? '' : (normalized ?? '');
+  renderEditorRatingControl();
+}
+
+state.ratingOverrides = readRatingOverrides();
 
 function isoTodayValue() {
   return new Date().toISOString().slice(0, 10);
@@ -468,6 +580,7 @@ function applyEditorMode() {
   if (els.lookupBtn) els.lookupBtn.classList.toggle('hidden', !editing);
   updateRestoreButtonVisibility();
   updateLookupButtonState();
+  renderEditorRatingControl();
 }
 
 function ensureEditorSelectOption(fieldName, value) {

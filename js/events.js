@@ -62,6 +62,15 @@ function bindEvents() {
     if (!id) return;
     openEditor(id, true);
   });
+  els.editorRating?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-editor-rating]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canEdit()) return;
+    setEditorRating(button.dataset.editorRating);
+  });
+
 
   els.windowReactivateShield?.addEventListener('pointerdown', (event) => {
     event.preventDefault();
@@ -115,6 +124,30 @@ function bindEvents() {
       event.stopPropagation();
       if (shouldSuppressProgramActivation(event.target)) return;
       openEditor(openBtn.dataset.openProgram);
+      return;
+    }
+
+    const inlineRatingBtn = event.target.closest('[data-inline-rating-value]');
+    if (inlineRatingBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!canEdit()) return;
+      const programId = inlineRatingBtn.dataset.inlineRatingProgram;
+      const program = state.programs.find((item) => String(item.id) === String(programId));
+      const current = getProgramRating(program);
+      const chosen = normalizeRating(inlineRatingBtn.dataset.inlineRatingValue);
+      const nextRating = current != null && current === chosen ? null : chosen;
+      const editor = inlineRatingBtn.closest('[data-inline-rating-editor]');
+      if (editor) editor.classList.add('saving');
+      try {
+        await persistProgramRating(programId, nextRating, { refreshUi: true, statusMessage: 'Saved rating.' });
+      } catch (error) {
+        console.error(error);
+        alert(`${error.message}\n\nThe rating is still shown locally in this browser, but it may not have synced to the database.`);
+        setStatus(error.message);
+      } finally {
+        if (editor) editor.classList.remove('saving');
+      }
       return;
     }
 
@@ -187,9 +220,11 @@ function bindEvents() {
     }
   });
 
-  [els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter]
+  [els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.ratingFilter]
+    .filter(Boolean)
     .forEach((el) => el.addEventListener('input', updateQueryStatus));
-  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect]
+  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect, els.ratingFilter]
+    .filter(Boolean)
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
   els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);

@@ -27,6 +27,7 @@ async function loadEverything(options = {}) {
     else setStatus('Refreshing library from server…');
 
     await loadPrograms({ background: renderedFromCache });
+    await loadProgramRatingsFromDatabase({ background: renderedFromCache });
     persistProgramsCache();
     renderTable();
     renderStats();
@@ -60,7 +61,7 @@ function readProgramsCache() {
 function hydrateProgramsFromCache() {
   const cached = readProgramsCache();
   if (!cached?.length) return false;
-  state.programs = cached;
+  state.programs = cached.map((program) => applyRatingOverlayToProgram(program));
   sortProgramsInPlace();
   state.templateSourceDirty = true;
   return true;
@@ -142,7 +143,7 @@ async function fetchAllRows(tableName, options = {}) {
 
 async function loadPrograms(options = {}) {
   const showOverlay = !options.background;
-  state.programs = await fetchAllRows('programs_enriched', { showOverlay });
+  state.programs = (await fetchAllRows('programs_enriched', { showOverlay })).map((program) => applyRatingOverlayToProgram(program));
   sortProgramsInPlace();
   state.templateSourceDirty = true;
 }
@@ -158,7 +159,7 @@ async function fetchProgramById(id) {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return data;
+  return applyRatingOverlayToProgram(data);
 }
 
 async function fetchInsertedProgram(payload) {
@@ -174,7 +175,66 @@ async function fetchInsertedProgram(payload) {
   const { data, error } = await query;
   if (error) throw error;
   if (!data || !data.length) throw new Error('Program saved, but the refreshed row could not be found.');
-  return data[0];
+  return applyRatingOverlayToProgram(data[0]);
+}
+
+async function loadProgramRatingsFromDatabase(options = {}) {
+  if (state.ratingDbSupport === false) return false;
+  const pageSize = 1000;
+  let from = 0;
+  let rows = [];
+
+  while (true) {
+    const { data, error } = await state.supabase
+      .from('programs')
+      .select('id,rating')
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      if (isMissingRatingColumnError(error)) {
+        state.ratingDbSupport = false;
+        return false;
+      }
+      console.warn('Program ratings preload skipped:', error);
+      return false;
+    }
+
+    const batch = (data || []).map((row) => ({ id: row.id, rating: normalizeRating(row.rating) }));
+    rows = rows.concat(batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  state.ratingDbSupport = true;
+  mergeDatabaseRatings(rows);
+  return true;
+}
+
+async function persistProgramRating(programId, rating, options = {}) {
+  const normalized = normalizeRating(rating);
+  setProgramRatingLocal(programId, normalized);
+
+  if (!canEdit()) return { persisted: false, storage: 'local' };
+  if (state.ratingDbSupport === false) {
+    if (!options.silentLocalFallback) setStatus('Saved rating in this browser. Database rating column is not available yet.');
+    return { persisted: false, storage: 'local' };
+  }
+
+  const { error } = await state.supabase.from('programs').update({ rating: normalized }).eq('id', programId);
+  if (error) {
+    if (isMissingRatingColumnError(error)) {
+      state.ratingDbSupport = false;
+      if (!options.silentLocalFallback) setStatus('Saved rating in this browser. Database rating column is not available yet.');
+      return { persisted: false, storage: 'local' };
+    }
+    throw error;
+  }
+
+  state.ratingDbSupport = true;
+  if (options.refreshUi !== false) refreshUiAfterProgramMutation(options.statusMessage || 'Saved rating.');
+  else persistProgramsCache();
+  return { persisted: true, storage: 'database' };
 }
 
 async function saveInlineAirings(programId, values = {}) {

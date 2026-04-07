@@ -127,6 +127,7 @@ function snapshotViewState() {
     distributorFilter: els.distributorFilter.value,
     programTypeFilter: els.programTypeFilter.value,
     statusFilter: els.statusFilter.value,
+    ratingFilter: els.ratingFilter?.value || '',
     currentView: state.currentView
   };
 }
@@ -155,6 +156,7 @@ function applySnapshot(snapshot) {
   els.distributorFilter.value = snapshot.distributorFilter || '';
   els.programTypeFilter.value = snapshot.programTypeFilter || '';
   els.statusFilter.value = snapshot.statusFilter === 'expired' ? '' : (snapshot.statusFilter || '');
+  if (els.ratingFilter) els.ratingFilter.value = snapshot.ratingFilter || '';
   state.currentView = snapshot.currentView === 'expired' ? 'archived' : (snapshot.currentView || 'all');
   syncQuickViewState();
   renderTable();
@@ -214,6 +216,7 @@ function resetFilters() {
   els.distributorFilter.value = '';
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
+  if (els.ratingFilter) els.ratingFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
   renderTable();
@@ -233,6 +236,7 @@ function activePrograms() {
   const distributor = els.distributorFilter.value;
   const programType = els.programTypeFilter.value;
   const status = els.statusFilter.value;
+  const ratingFilter = els.ratingFilter?.value || '';
 
   if (search) {
     items = items.filter((item) => {
@@ -256,6 +260,23 @@ function activePrograms() {
   if (distributor) items = items.filter((item) => item.distributor === distributor);
   if (programType) items = items.filter((item) => item.program_type === programType);
   if (status && status !== 'expired') items = items.filter((item) => matchesView(item, status));
+  if (ratingFilter) {
+    items = items.filter((item) => {
+      const rating = getProgramRating(item);
+      switch (ratingFilter) {
+        case 'unrated':
+          return rating == null;
+        case '4plus':
+          return rating != null && rating >= 4;
+        case '3plus':
+          return rating != null && rating >= 3;
+        default: {
+          const exact = normalizeRating(ratingFilter);
+          return exact != null && rating === exact;
+        }
+      }
+    });
+  }
 
   return items;
 }
@@ -404,6 +425,20 @@ function formatEpisodeTagBadge(program) {
   return `<span class="episode-tag-pill" title="Season / episode">${escapeHtml(cleaned)}</span>`;
 }
 
+function renderRatingStarsMarkup(program, options = {}) {
+  const current = getProgramRating(program);
+  const editable = Boolean(options.editable);
+  const programId = program?.id ?? '';
+  const label = current ? `${current} out of 5 stars` : 'Not rated';
+  const stars = Array.from({ length: 5 }, (_, index) => {
+    const value = index + 1;
+    const filled = current != null && value <= current;
+    if (!editable) return `<span class="star-rating-btn static${filled ? ' filled' : ''}" aria-hidden="true">★</span>`;
+    return `<button type="button" class="star-rating-btn${filled ? ' filled' : ''}${current === value ? ' anchor' : ''}" data-inline-rating-value="${value}" data-inline-rating-program="${programId}" aria-label="${value} star${value === 1 ? '' : 's'}" aria-pressed="${current === value ? 'true' : 'false'}">★</button>`;
+  }).join('');
+  return `<div class="program-rating-row${editable ? ' editable' : ' readonly'}" data-inline-rating-editor="${programId}" aria-label="${escapeHtml(label)}"><span class="rating-caption">Rating</span><div class="star-rating inline-star-rating">${stars}</div><span class="rating-text">${current ? `${current}/5` : '—'}</span></div>`;
+}
+
 function renderInlineAiringEditor(program) {
   if (!canEdit()) return '';
   return `
@@ -492,6 +527,7 @@ function renderTable() {
         <td>
           <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
           <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
+          ${renderRatingStarsMarkup(item, { editable: canEdit() })}
           ${renderInlineAiringEditor(item)}
         </td>
         <td>

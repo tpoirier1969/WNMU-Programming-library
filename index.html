@@ -6,16 +6,16 @@
   <title>WNMU TV Programming Library</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.31" />
+  <link rel="stylesheet" href="styles.css?v=1.5.33" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.31"></script>
-  <script defer src="js/auth-init.js?v=1.5.31"></script>
-  <script defer src="js/data-store.js?v=1.5.31"></script>
-  <script defer src="js/filters-list.js?v=1.5.31"></script>
-  <script defer src="js/editor-export.js?v=1.5.31"></script>
-  <script defer src="js/lookup.js?v=1.5.31"></script>
-  <script defer src="js/events.js?v=1.5.31"></script>
+  <script defer src="js/core.js?v=1.5.33"></script>
+  <script defer src="js/auth-init.js?v=1.5.33"></script>
+  <script defer src="js/data-store.js?v=1.5.33"></script>
+  <script defer src="js/filters-list.js?v=1.5.33"></script>
+  <script defer src="js/editor-export.js?v=1.5.33"></script>
+  <script defer src="js/lookup.js?v=1.5.33"></script>
+  <script defer src="js/events.js?v=1.5.33"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -54,7 +54,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.31</span>
+            <span id="appVersion" class="version-pill">v1.5.33</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -180,6 +180,20 @@
               <option value="missing_info">Missing info</option>
             </select>
           </div>
+          <div class="filter-box cluster-rating">
+            <label class="filter-label" for="ratingFilter">Rating</label>
+            <select id="ratingFilter">
+              <option value="">All ratings</option>
+              <option value="unrated">Unrated</option>
+              <option value="1">1 star</option>
+              <option value="2">2 stars</option>
+              <option value="3">3 stars</option>
+              <option value="4">4 stars</option>
+              <option value="5">5 stars</option>
+              <option value="4plus">4+ stars</option>
+              <option value="3plus">3+ stars</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="filter-foot">
@@ -264,6 +278,21 @@
         <label class="span-full">Description
           <textarea name="notes" rows="4"></textarea>
         </label>
+
+        <div class="editor-rating-row span-full">
+          <label class="rating-field">Rating
+            <input name="rating" type="hidden" />
+            <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
+              <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
+              <span class="rating-value-label">Not rated</span>
+            </div>
+            <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
+          </label>
+        </div>
 
         <div class="program-rights-row span-full">
           <label>Program or series
