@@ -138,12 +138,25 @@ function bindEvents() {
       const chosen = normalizeRating(inlineRatingBtn.dataset.inlineRatingValue);
       const nextRating = current != null && current === chosen ? null : chosen;
       const editor = inlineRatingBtn.closest('[data-inline-rating-editor]');
+
+      setProgramRatingLocal(programId, nextRating);
+      syncInlineRatingEditors(programId);
       if (editor) editor.classList.add('saving');
+      setStatus('Saving rating…');
+
       try {
-        await persistProgramRating(programId, nextRating, { refreshUi: true, statusMessage: 'Saved rating.' });
+        await persistProgramRating(programId, nextRating, { refreshUi: false, statusMessage: 'Saved rating.' });
+        if (els.ratingFilter?.value) renderTable();
+        persistProgramsCache();
+        state.lastAppliedViewState = snapshotViewState();
+        syncUndoButton();
+        setStatus('Saved rating.');
       } catch (error) {
         console.error(error);
-        alert(`${error.message}\n\nThe rating is still shown locally in this browser, but it may not have synced to the database.`);
+        syncInlineRatingEditors(programId);
+        alert(`${error.message}
+
+The rating is still shown locally in this browser, but it may not have synced to the database.`);
         setStatus(error.message);
       } finally {
         if (editor) editor.classList.remove('saving');

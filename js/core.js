@@ -218,6 +218,42 @@ function setEditorRating(value) {
   renderEditorRatingControl();
 }
 
+function renderInlineRatingEditorState(container, rating) {
+  if (!container) return;
+  const current = normalizeRating(rating);
+  container.classList.remove('saving');
+  container.dataset.rating = current || '';
+  container.querySelectorAll('[data-inline-rating-value]').forEach((button) => {
+    const value = normalizeRating(button.dataset.inlineRatingValue);
+    const filled = current != null && value != null && value <= current;
+    button.classList.toggle('filled', filled);
+    button.classList.toggle('anchor', current != null && value === current);
+    button.setAttribute('aria-pressed', current != null && value === current ? 'true' : 'false');
+    button.title = current != null && value === current
+      ? `${value} star${value === 1 ? '' : 's'} (click again to clear)`
+      : `${value} star${value === 1 ? '' : 's'}`;
+  });
+  const text = container.querySelector('.rating-text');
+  if (text) text.textContent = current ? `${current}/5` : '—';
+  const ariaLabel = current ? `${current} out of 5 stars` : 'Not rated';
+  container.setAttribute('aria-label', ariaLabel);
+}
+
+function syncInlineRatingEditors(programId) {
+  const program = state.programs.find((item) => String(item.id) === String(programId));
+  const rating = getProgramRating(program);
+  document.querySelectorAll(`[data-inline-rating-editor="${CSS.escape(String(programId))}"]`).forEach((container) => {
+    renderInlineRatingEditorState(container, rating);
+  });
+  if (String(state.selectedId) === String(programId)) {
+    const input = els.programForm?.elements?.rating;
+    if (input) {
+      input.value = rating ?? '';
+      renderEditorRatingControl();
+    }
+  }
+}
+
 state.ratingOverrides = readRatingOverrides();
 
 function isoTodayValue() {
