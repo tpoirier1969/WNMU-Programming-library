@@ -6,16 +6,16 @@
   <title>WNMU TV Programming Library</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.28" />
+  <link rel="stylesheet" href="styles.css?v=1.5.29" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.28"></script>
-  <script defer src="js/auth-init.js?v=1.5.28"></script>
-  <script defer src="js/data-store.js?v=1.5.28"></script>
-  <script defer src="js/filters-list.js?v=1.5.28"></script>
-  <script defer src="js/editor-export.js?v=1.5.28"></script>
-  <script defer src="js/lookup.js?v=1.5.28"></script>
-  <script defer src="js/events.js?v=1.5.28"></script>
+  <script defer src="js/core.js?v=1.5.29"></script>
+  <script defer src="js/auth-init.js?v=1.5.29"></script>
+  <script defer src="js/data-store.js?v=1.5.29"></script>
+  <script defer src="js/filters-list.js?v=1.5.29"></script>
+  <script defer src="js/editor-export.js?v=1.5.29"></script>
+  <script defer src="js/lookup.js?v=1.5.29"></script>
+  <script defer src="js/events.js?v=1.5.29"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -54,7 +54,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.28</span>
+            <span id="appVersion" class="version-pill">v1.5.29</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -121,28 +121,6 @@
           <div id="statArchived" class="stat-value">0</div>
         </button>
       </div>
-      <div class="search-grid">
-        <div class="search-mode-wrap">
-          <label class="filter-label" for="searchFieldSelect">Search in</label>
-          <select id="searchFieldSelect">
-            <option value="">All fields</option>
-            <option value="title">Title</option>
-            <option value="notes">Description</option>
-            <option value="legacy_code">Code / bucket</option>
-            <option value="nola_eidr">NOLA</option>
-            <option value="topic">Topic</option>
-            <option value="secondary_topic">Secondary topic</option>
-            <option value="aired_13_1">Aired on 13.1</option>
-            <option value="aired_13_3">Aired on 13.3</option>
-            <option value="distributor">Distributor</option>
-            <option value="rights_notes">Rights notes</option>
-          </select>
-        </div>
-        <div class="search-block">
-          <label class="filter-label" for="searchInput">Search text</label>
-          <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
-        </div>
-      </div>
       <div class="filters filters-grid">
         <div class="filter-box wide">
           <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></div>
@@ -159,6 +137,24 @@
         <div class="filter-box">
           <div class="filter-label-row"><label class="filter-label" for="codeFilter">Code / bucket</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
           <select id="codeFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box search-stack-box">
+          <label class="filter-label" for="searchFieldSelect">Search in</label>
+          <select id="searchFieldSelect">
+            <option value="">All fields</option>
+            <option value="title">Title</option>
+            <option value="notes">Description</option>
+            <option value="legacy_code">Code / bucket</option>
+            <option value="nola_eidr">NOLA</option>
+            <option value="topic">Topic</option>
+            <option value="secondary_topic">Secondary topic</option>
+            <option value="aired_13_1">Aired on 13.1</option>
+            <option value="aired_13_3">Aired on 13.3</option>
+            <option value="distributor">Distributor</option>
+            <option value="rights_notes">Rights notes</option>
+          </select>
+          <label class="filter-label search-text-label" for="searchInput">Search text</label>
+          <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
         </div>
         <div class="filter-box">
           <label class="filter-label" for="distributorFilter">Distributor</label>

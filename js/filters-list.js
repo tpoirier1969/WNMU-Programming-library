@@ -396,6 +396,14 @@ function formatSeriesCountBadge(program) {
   return `<span class="series-count-pill" title="${count} episode${count === 1 ? '' : 's'}">${count} ep${count === 1 ? '' : 's'}</span>`;
 }
 
+function formatEpisodeTagBadge(program) {
+  if (isSeriesProgram(program)) return '';
+  const raw = normalizeText(program?.episode_season);
+  if (!raw) return '';
+  const cleaned = raw.replace(/\s+/g, ' ').trim();
+  return `<span class="episode-tag-pill" title="Season / episode">${escapeHtml(cleaned)}</span>`;
+}
+
 function formatDetailsCell(program) {
   const topicMarkup = program.topic ? `<span class="topic-chip" style="background:${topicColor(program.topic)}">${escapeHtml(program.topic)}</span>` : '<span class="meta-muted">No topic</span>';
   const secondaryMarkup = program.secondary_topic ? `<div class="secondary-topic">${escapeHtml(program.secondary_topic)}</div>` : '';
@@ -452,7 +460,7 @@ function renderTable() {
       <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
         <td>
           <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
-          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatSeriesCountBadge(item)}</div>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
         </td>
         <td>
           <div class="notes-cell">
