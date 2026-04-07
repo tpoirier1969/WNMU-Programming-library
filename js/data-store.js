@@ -177,6 +177,20 @@ async function fetchInsertedProgram(payload) {
   return data[0];
 }
 
+async function saveInlineAirings(programId, values = {}) {
+  if (!canEdit()) throw new Error('Read-only mode. Use Admin sign in with GitHub to make changes.');
+  const payload = {
+    aired_13_1: normalizeText(values.aired_13_1) || null,
+    aired_13_3: normalizeText(values.aired_13_3) || null
+  };
+  const { error } = await state.supabase.from('programs').update(payload).eq('id', programId);
+  if (error) throw error;
+  const refreshedProgram = await fetchProgramById(programId);
+  mergeProgramIntoState(refreshedProgram);
+  refreshUiAfterProgramMutation('Saved airing fields.');
+  return refreshedProgram;
+}
+
 function mergeProgramIntoState(program) {
   const index = state.programs.findIndex((item) => String(item.id) === String(program.id));
   if (index >= 0) state.programs[index] = program;

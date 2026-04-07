@@ -404,6 +404,37 @@ function formatEpisodeTagBadge(program) {
   return `<span class="episode-tag-pill" title="Season / episode">${escapeHtml(cleaned)}</span>`;
 }
 
+function renderInlineAiringEditor(program) {
+  if (!canEdit()) return '';
+  return `
+    <div class="inline-airing-editor" data-inline-airing-editor="${program.id}">
+      <label class="inline-airing-field">
+        <span class="inline-airing-label">Aired on 13.1</span>
+        <input
+          type="text"
+          class="inline-airing-input"
+          data-inline-airing-field="aired_13_1"
+          value="${escapeHtml(normalizeText(program.aired_13_1))}"
+          placeholder="Add 13.1 date(s)"
+          aria-label="Aired on 13.1"
+        />
+      </label>
+      <label class="inline-airing-field">
+        <span class="inline-airing-label">Aired on 13.3</span>
+        <input
+          type="text"
+          class="inline-airing-input"
+          data-inline-airing-field="aired_13_3"
+          value="${escapeHtml(normalizeText(program.aired_13_3))}"
+          placeholder="Add 13.3 date(s)"
+          aria-label="Aired on 13.3"
+        />
+      </label>
+      <button type="button" class="inline-airing-save-btn" data-inline-airing-save="${program.id}">Save</button>
+    </div>
+  `;
+}
+
 function formatDetailsCell(program) {
   const topicMarkup = program.topic ? `<span class="topic-chip" style="background:${topicColor(program.topic)}">${escapeHtml(program.topic)}</span>` : '<span class="meta-muted">No topic</span>';
   const secondaryMarkup = program.secondary_topic ? `<div class="secondary-topic">${escapeHtml(program.secondary_topic)}</div>` : '';
@@ -461,6 +492,7 @@ function renderTable() {
         <td>
           <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
           <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
+          ${renderInlineAiringEditor(item)}
         </td>
         <td>
           <div class="notes-cell">

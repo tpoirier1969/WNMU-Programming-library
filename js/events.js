@@ -117,16 +117,65 @@ function bindEvents() {
       openEditor(openBtn.dataset.openProgram);
       return;
     }
+
+    const inlineSaveBtn = event.target.closest('[data-inline-airing-save]');
+    if (inlineSaveBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!canEdit()) {
+        alert('Read-only mode. Use Admin sign in with GitHub to make changes.');
+        return;
+      }
+      const editor = inlineSaveBtn.closest('[data-inline-airing-editor]');
+      if (!editor) return;
+      const programId = inlineSaveBtn.dataset.inlineAiringSave;
+      const aired131 = editor.querySelector('[data-inline-airing-field="aired_13_1"]')?.value || '';
+      const aired133 = editor.querySelector('[data-inline-airing-field="aired_13_3"]')?.value || '';
+      const originalLabel = inlineSaveBtn.textContent;
+      inlineSaveBtn.disabled = true;
+      inlineSaveBtn.textContent = 'Saving…';
+      try {
+        await saveInlineAirings(programId, { aired_13_1: aired131, aired_13_3: aired133 });
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
+        setStatus(error.message);
+      } finally {
+        inlineSaveBtn.disabled = false;
+        inlineSaveBtn.textContent = originalLabel;
+      }
+      return;
+    }
+
     const copyBtn = event.target.closest('[data-copy-note]');
     if (copyBtn) {
       event.stopPropagation();
       await handleCopyNote(copyBtn.dataset.copyNote, copyBtn);
       return;
     }
+    if (event.target.closest('.inline-airing-editor') || isInteractiveElement(event.target)) return;
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
     if (shouldSuppressProgramActivation(event.target)) return;
     openEditor(row.dataset.id);
+  });
+
+  els.tableBody?.addEventListener('keydown', async (event) => {
+    if (event.key !== 'Enter') return;
+    const input = event.target.closest('[data-inline-airing-field]');
+    if (!input) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const editor = input.closest('[data-inline-airing-editor]');
+    const saveBtn = editor?.querySelector('[data-inline-airing-save]');
+    if (saveBtn) saveBtn.click();
+  });
+
+  ['focusin', 'pointerdown', 'mousedown'].forEach((eventName) => {
+    els.tableBody?.addEventListener(eventName, (event) => {
+      if (!event.target.closest('.inline-airing-editor')) return;
+      event.stopPropagation();
+    }, true);
   });
 
   els.searchInput?.addEventListener('input', scheduleSearchUpdate);
