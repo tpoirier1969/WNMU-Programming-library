@@ -6,16 +6,16 @@
   <title>WNMU TV Programming Library</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.30" />
+  <link rel="stylesheet" href="styles.css?v=1.5.31" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.30"></script>
-  <script defer src="js/auth-init.js?v=1.5.30"></script>
-  <script defer src="js/data-store.js?v=1.5.30"></script>
-  <script defer src="js/filters-list.js?v=1.5.30"></script>
-  <script defer src="js/editor-export.js?v=1.5.30"></script>
-  <script defer src="js/lookup.js?v=1.5.30"></script>
-  <script defer src="js/events.js?v=1.5.30"></script>
+  <script defer src="js/core.js?v=1.5.31"></script>
+  <script defer src="js/auth-init.js?v=1.5.31"></script>
+  <script defer src="js/data-store.js?v=1.5.31"></script>
+  <script defer src="js/filters-list.js?v=1.5.31"></script>
+  <script defer src="js/editor-export.js?v=1.5.31"></script>
+  <script defer src="js/lookup.js?v=1.5.31"></script>
+  <script defer src="js/events.js?v=1.5.31"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -54,7 +54,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.30</span>
+            <span id="appVersion" class="version-pill">v1.5.31</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -138,48 +138,51 @@
           <div class="filter-label-row"><label class="filter-label" for="codeFilter">Code / bucket</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
           <select id="codeFilter" multiple size="5"></select>
         </div>
-        <div class="filter-box search-stack-box">
-          <label class="filter-label" for="searchFieldSelect">Search in</label>
-          <select id="searchFieldSelect">
-            <option value="">All fields</option>
-            <option value="title">Title</option>
-            <option value="notes">Description</option>
-            <option value="legacy_code">Code / bucket</option>
-            <option value="nola_eidr">NOLA</option>
-            <option value="topic">Topic</option>
-            <option value="secondary_topic">Secondary topic</option>
-            <option value="aired_13_1">Aired on 13.1</option>
-            <option value="aired_13_3">Aired on 13.3</option>
-            <option value="distributor">Distributor</option>
-            <option value="rights_notes">Rights notes</option>
-          </select>
-          <label class="filter-label search-text-label" for="searchInput">Search text</label>
-          <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="distributorFilter">Distributor</label>
-          <select id="distributorFilter"><option value="">All distributors</option></select>
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="programTypeFilter">Type</label>
-          <select id="programTypeFilter"><option value="">All types</option></select>
-        </div>
-        <div class="filter-box">
-          <label class="filter-label" for="statusFilter">Status</label>
-          <select id="statusFilter">
-            <option value="">All statuses</option>
-            <option value="needs_apt_check">Needs APT check</option>
-            <option value="ending_soon">Ending within 90 days</option>
-            <option value="new_to_13_1">New to 13.1</option>
-            <option value="new_to_13_3">New to 13.3</option>
-            <option value="archive_candidate">Archive candidate</option>
-            <option value="missing_rights">Missing rights begin or end</option>
-            <option value="missing_info">Missing info</option>
-          </select>
+        <div class="filters-cluster compact-search-cluster">
+          <div class="filter-box cluster-search-text">
+            <label class="filter-label" for="searchInput">Search text</label>
+            <input id="searchInput" type="search" placeholder="Leave search-in on All fields to search everything." />
+          </div>
+          <div class="filter-box cluster-distributor">
+            <label class="filter-label" for="distributorFilter">Distributor</label>
+            <select id="distributorFilter"><option value="">All distributors</option></select>
+          </div>
+          <div class="filter-box cluster-type">
+            <label class="filter-label" for="programTypeFilter">Type</label>
+            <select id="programTypeFilter"><option value="">All types</option></select>
+          </div>
+          <div class="filter-box cluster-search-in">
+            <label class="filter-label" for="searchFieldSelect">Search in</label>
+            <select id="searchFieldSelect">
+              <option value="">All fields</option>
+              <option value="title">Title</option>
+              <option value="notes">Description</option>
+              <option value="legacy_code">Code / bucket</option>
+              <option value="nola_eidr">NOLA</option>
+              <option value="topic">Topic</option>
+              <option value="secondary_topic">Secondary topic</option>
+              <option value="aired_13_1">Aired on 13.1</option>
+              <option value="aired_13_3">Aired on 13.3</option>
+              <option value="distributor">Distributor</option>
+              <option value="rights_notes">Rights notes</option>
+            </select>
+          </div>
+          <div class="filter-box cluster-status">
+            <label class="filter-label" for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="">All statuses</option>
+              <option value="needs_apt_check">Needs APT check</option>
+              <option value="ending_soon">Ending within 90 days</option>
+              <option value="new_to_13_1">New to 13.1</option>
+              <option value="new_to_13_3">New to 13.3</option>
+              <option value="archive_candidate">Archive candidate</option>
+              <option value="missing_rights">Missing rights begin or end</option>
+              <option value="missing_info">Missing info</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="filter-foot">
-        <div class="filter-help">Tip: hold Ctrl/⌘ to choose multiple topics, secondary topics, lengths, or code values.</div>
         <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
       </div>
     </section>
