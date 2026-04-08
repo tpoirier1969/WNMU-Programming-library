@@ -318,9 +318,49 @@ function matchesView(program, view) {
   }
 }
 
-function topicColor(topicName) {
-  const topic = state.lookups.topics.find((item) => item.name === topicName);
-  return topic?.color_hex || '#dbeafe';
+function hashTopicName(topicName) {
+  const text = normalizeText(topicName);
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function fallbackTopicPalette(topicName) {
+  const palette = [
+    { bg: '#dbeafe', fg: '#163b6d', border: '#9ec5fe' },
+    { bg: '#dcfce7', fg: '#166534', border: '#86efac' },
+    { bg: '#fef3c7', fg: '#92400e', border: '#fcd34d' },
+    { bg: '#fae8ff', fg: '#7e22ce', border: '#d8b4fe' },
+    { bg: '#fee2e2', fg: '#991b1b', border: '#fca5a5' },
+    { bg: '#e0f2fe', fg: '#075985', border: '#7dd3fc' },
+    { bg: '#ede9fe', fg: '#5b21b6', border: '#c4b5fd' },
+    { bg: '#fce7f3', fg: '#9d174d', border: '#f9a8d4' },
+    { bg: '#ecfccb', fg: '#3f6212', border: '#bef264' },
+    { bg: '#ffe4e6', fg: '#9f1239', border: '#fda4af' },
+    { bg: '#e0f7fa', fg: '#155e75', border: '#67e8f9' },
+    { bg: '#fef9c3', fg: '#854d0e', border: '#fde047' }
+  ];
+  return palette[hashTopicName(topicName) % palette.length];
+}
+
+function topicColorInfo(topicName) {
+  const requested = normalizeText(topicName);
+  const topic = state.lookups.topics.find((item) => item.name === requested);
+  const colorHex = normalizeText(topic?.color_hex || '');
+  if (/^#[0-9a-f]{6}$/i.test(colorHex)) {
+    return { bg: colorHex, fg: '#1f2e39', border: 'rgba(31, 46, 57, .12)' };
+  }
+  return fallbackTopicPalette(requested);
+}
+
+function topicChipMarkup(topicName, extraClass = '') {
+  const topic = normalizeText(topicName);
+  if (!topic) return '';
+  const colors = topicColorInfo(topic);
+  return `<span class="topic-chip${extraClass ? ` ${extraClass}` : ''}" style="background:${colors.bg}; color:${colors.fg}; border-color:${colors.border}">${escapeHtml(topic)}</span>`;
 }
 
 function badgesFor(program) {
@@ -478,8 +518,14 @@ function renderInlineAiringEditor(program) {
 }
 
 function formatDetailsCell(program) {
-  const topicMarkup = program.topic ? `<span class="topic-chip" style="background:${topicColor(program.topic)}">${escapeHtml(program.topic)}</span>` : '<span class="meta-muted">No topic</span>';
-  const secondaryMarkup = program.secondary_topic ? `<div class="secondary-topic">${escapeHtml(program.secondary_topic)}</div>` : '';
+  const topics = splitMultiValues(program.topic);
+  const secondaryTopics = splitMultiValues(program.secondary_topic);
+  const topicMarkup = topics.length
+    ? `<div class="topic-chip-wrap">${topics.map((topic) => topicChipMarkup(topic)).join('')}</div>`
+    : '<span class="meta-muted">No topic</span>';
+  const secondaryMarkup = secondaryTopics.length
+    ? `<div class="secondary-topic-wrap">${secondaryTopics.map((topic) => topicChipMarkup(topic, 'secondary')).join('')}</div>`
+    : '';
   const metaBits = [program.length_minutes, program.program_type].filter(Boolean).map(escapeHtml);
   const metaMarkup = metaBits.length ? `<div class="details-meta">${metaBits.join(' · ')}</div>` : '<div class="details-meta meta-muted">—</div>';
   return `<div class="details-stack">${topicMarkup}${secondaryMarkup}${metaMarkup}</div>`;

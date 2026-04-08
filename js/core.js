@@ -723,7 +723,7 @@ function restoreDrawerDraft(draft) {
 
 
 
-const SORTABLE_FIELDS = new Set(['title','notes','details','aired_13_1','aired_13_3','package_type','rights_end','distributor']);
+const SORTABLE_FIELDS = new Set(['title','notes','topic','details','aired_13_1','aired_13_3','package_type','rights_end','distributor']);
 
 function firstAiringSortKey(value) {
   const text = normalizeText(value);
@@ -757,6 +757,7 @@ function sortValueForProgram(program, field) {
   switch (field) {
     case 'title': return normalizeLower(program.title);
     case 'notes': return normalizeLower(program.notes);
+    case 'topic': return normalizeLower([program.topic, program.secondary_topic].filter(Boolean).join(' | '));
     case 'details': return normalizeLower([program.topic, program.secondary_topic, program.length_minutes, program.program_type].filter(Boolean).join(' | '));
     case 'aired_13_1': return firstAiringSortKey(program.aired_13_1);
     case 'aired_13_3': return firstAiringSortKey(program.aired_13_3);

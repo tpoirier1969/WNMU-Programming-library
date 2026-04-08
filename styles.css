@@ -249,12 +249,16 @@ button:hover { transform: translateY(-1px); }
 .notes-text { font-size: .82rem; color: #334b5c; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .copy-note-btn { font-size: .72rem; padding: 5px 8px; border-radius: 8px; justify-self: start; }
 .details-stack { display:grid; gap:6px; }
-.secondary-topic { font-size:.8rem; color: var(--muted); line-height:1.15; }
+.topic-chip-wrap, .secondary-topic-wrap { display:flex; flex-wrap:wrap; gap:6px; }
 .details-meta { font-size: .8rem; font-weight: 700; color: var(--pbs-blue-dark); line-height:1.15; }
 .meta-muted { color: var(--muted); }
 .topic-chip {
-  display: inline-flex; align-items: center; justify-content:center; padding: 4px 10px; border-radius: 999px; font-size: .8rem; font-weight: 800; color: #1f2e39;
-  max-width: 100%; white-space: normal; overflow-wrap:anywhere; line-height:1.05; text-align:center;
+  display: inline-flex; align-items: center; justify-content:center; padding: 4px 10px; border-radius: 999px; font-size: .8rem; font-weight: 800;
+  max-width: 100%; white-space: normal; overflow-wrap:anywhere; line-height:1.05; text-align:center; border:1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.topic-chip.secondary {
+  padding: 3px 8px; font-size: .72rem; font-weight: 700; opacity: .92;
 }
 .airing-stack { display:grid; gap:6px; }
 .airing-item { font-size: .78rem; line-height: 1.24; padding-bottom:4px; border-bottom:1px solid #e3edf2; word-break: break-word; }
