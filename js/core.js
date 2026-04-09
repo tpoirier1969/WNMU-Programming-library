@@ -36,7 +36,9 @@ const state = {
   ratingDbSupport: null,
   ratingWarmupPromise: null,
   programsExposeRating: false,
-  inlineAiringEditorId: null
+  inlineAiringEditorId: null,
+  pbsImportData: null,
+  pbsImportPanelOpen: false
 };
 
 const els = {
@@ -106,7 +108,15 @@ const els = {
   controlsPanel: $('#controlsPanel'),
   listPanel: $('#listPanel'),
   windowReactivateShield: $('#windowReactivateShield'),
-  editorRating: $('#editorRating')
+  editorRating: $('#editorRating'),
+  pbsImportTools: $('#pbsImportTools'),
+  togglePbsImportBtn: $('#togglePbsImportBtn'),
+  pbsImportPanel: $('#pbsImportPanel'),
+  pbsOfferInput: $('#pbsOfferInput'),
+  pbsImportMode: $('#pbsImportMode'),
+  parsePbsOfferBtn: $('#parsePbsOfferBtn'),
+  clearPbsOfferBtn: $('#clearPbsOfferBtn'),
+  pbsImportPreview: $('#pbsImportPreview')
 };
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
@@ -585,6 +595,24 @@ function setLoading(message = '') {
   if (message) setStatus(message);
 }
 
+function updatePbsImportVisibility() {
+  if (!els.pbsImportTools) return;
+  const form = els.programForm;
+  const isNewRecord = !normalizeText(form?.dataset?.programId);
+  const allowImport = canEdit() && isNewRecord;
+  els.pbsImportTools.classList.toggle('hidden', !allowImport);
+  if (!allowImport) {
+    state.pbsImportPanelOpen = false;
+    state.pbsImportData = null;
+    els.pbsImportPanel?.classList.add('hidden');
+    els.pbsImportPreview?.classList.add('hidden');
+    if (els.togglePbsImportBtn) els.togglePbsImportBtn.textContent = 'Paste PBS offer';
+    return;
+  }
+  if (els.pbsImportPanel) els.pbsImportPanel.classList.toggle('hidden', !state.pbsImportPanelOpen);
+  if (els.togglePbsImportBtn) els.togglePbsImportBtn.textContent = state.pbsImportPanelOpen ? 'Hide PBS import' : 'Paste PBS offer';
+}
+
 function updateModeUI() {
   const editing = canEdit();
   els.appShell.classList.remove('hidden');
@@ -620,6 +648,7 @@ function applyEditorMode() {
   updateRestoreButtonVisibility();
   updateLookupButtonState();
   renderEditorRatingControl();
+  updatePbsImportVisibility();
 }
 
 function ensureEditorSelectOption(fieldName, value) {

@@ -31,6 +31,8 @@ function openEditor(id = null, duplicate = false) {
 
   if (els.templateTools) els.templateTools.classList.toggle('hidden', Boolean(item?.id));
   if (els.templateSourceInput) els.templateSourceInput.value = '';
+  state.pbsImportPanelOpen = false;
+  resetPbsImportUi({ clearText: true });
   updateRestoreButtonVisibility();
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
@@ -133,6 +135,8 @@ function closeEditor() {
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
   state.lookupBusy = false;
+  state.pbsImportPanelOpen = false;
+  resetPbsImportUi({ clearText: false });
   setLookupMessage('');
   updateLookupButtonState();
   setSelectedRowHighlight(null);

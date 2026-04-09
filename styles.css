@@ -496,6 +496,25 @@ input:focus, select:focus, textarea:focus, button:focus {
   align-items: end;
   margin-bottom: 12px;
 }
+.pbs-import-tools { margin: 0 0 12px; border: 1px solid var(--border); border-radius: 14px; background: linear-gradient(180deg, #f9fcff 0%, #eff8fd 100%); padding: 12px; display: grid; gap: 12px; }
+.pbs-import-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.pbs-import-title { font-weight: 900; color: var(--pbs-blue-dark); font-size: .97rem; }
+.pbs-import-note { color: var(--muted); font-size: .82rem; line-height: 1.35; max-width: 66ch; }
+.pbs-import-panel { display: grid; gap: 12px; }
+.pbs-import-field { display: grid; gap: 6px; }
+.pbs-import-field textarea { min-height: 220px; resize: vertical; font-family: inherit; }
+.pbs-import-controls { display: grid; grid-template-columns: minmax(240px, 1fr) auto auto; gap: 10px; align-items: end; }
+.pbs-import-mode-field { display: grid; gap: 6px; max-width: 360px; }
+.pbs-import-preview { display: grid; }
+.pbs-preview-card { border: 1px solid #cfe4ef; border-radius: 12px; background: #fff; padding: 12px; display: grid; gap: 12px; }
+.pbs-preview-title { font-weight: 900; color: var(--pbs-blue-dark); }
+.pbs-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.pbs-preview-line { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid #e3edf4; border-radius: 10px; background: #fbfdff; }
+.pbs-preview-label { font-size: .74rem; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.pbs-preview-value { font-size: .87rem; color: var(--pbs-blue-dark); word-break: break-word; }
+.pbs-preview-episodes { font-size: .84rem; color: #2b4958; line-height: 1.4; }
+.pbs-preview-warnings { border: 1px solid #ecd9a1; background: #fff7df; border-radius: 10px; padding: 10px 12px; color: #704f00; font-size: .83rem; display: grid; gap: 5px; }
+.pbs-preview-actions { display: flex; justify-content: flex-end; }
 .template-field {
   display: grid;
   gap: 5px;
@@ -527,6 +546,8 @@ input:focus, select:focus, textarea:focus, button:focus {
 .dup-reason, .dup-more { color: #6b7280; font-size: .8rem; }
 @media (max-width: 760px) {
   .template-tools { grid-template-columns: 1fr; }
+  .pbs-import-controls { grid-template-columns: 1fr; }
+  .pbs-preview-grid { grid-template-columns: 1fr; }
 }
 
 .program-form input[readonly], .program-form textarea[readonly] { background:#f8fbfd; color:#425766; }

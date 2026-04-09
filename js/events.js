@@ -46,6 +46,48 @@ function bindEvents() {
   els.deleteBtn.addEventListener('click', deleteProgram);
   els.restoreBtn?.addEventListener('click', restoreArchivedProgram);
   els.loadTemplateBtn?.addEventListener('click', loadTemplateIntoForm);
+  els.togglePbsImportBtn?.addEventListener('click', () => {
+    if (!canEdit()) return;
+    togglePbsImportPanel();
+  });
+  els.parsePbsOfferBtn?.addEventListener('click', () => {
+    try {
+      const parsed = parsePbsOffer(els.pbsOfferInput?.value || '', els.pbsImportMode?.value || 'series');
+      state.pbsImportData = parsed;
+      renderPbsImportPreview(parsed);
+      setStatus('PBS offer parsed. Review the preview, then fill the draft if it looks right.');
+    } catch (error) {
+      console.error(error);
+      state.pbsImportData = null;
+      renderPbsImportPreview(null);
+      alert(error.message);
+      setStatus(error.message);
+    }
+  });
+  els.clearPbsOfferBtn?.addEventListener('click', () => {
+    resetPbsImportUi({ clearText: true });
+    setStatus('PBS import box cleared.');
+    els.pbsOfferInput?.focus();
+  });
+  els.pbsOfferInput?.addEventListener('input', () => {
+    if (!state.pbsImportData) return;
+    state.pbsImportData = null;
+    renderPbsImportPreview(null);
+  });
+  els.pbsImportMode?.addEventListener('change', () => {
+    if (!state.pbsImportData) return;
+    state.pbsImportData = null;
+    renderPbsImportPreview(null);
+  });
+  els.pbsImportPreview?.addEventListener('click', (event) => {
+    const applyBtn = event.target.closest('#applyPbsImportBtn');
+    if (!applyBtn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!state.pbsImportData) return;
+    applyPbsImportToForm(state.pbsImportData);
+  });
+
   ['title', 'nola_eidr'].forEach((field) => {
     els.programForm.elements[field].addEventListener('input', () => {
       renderDuplicateCheck();

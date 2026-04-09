@@ -6,16 +6,17 @@
   <title>WNMU TV Programming Library</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.36" />
+  <link rel="stylesheet" href="styles.css?v=1.5.37" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.36"></script>
-  <script defer src="js/auth-init.js?v=1.5.36"></script>
-  <script defer src="js/data-store.js?v=1.5.36"></script>
-  <script defer src="js/filters-list.js?v=1.5.36"></script>
-  <script defer src="js/editor-export.js?v=1.5.36"></script>
-  <script defer src="js/lookup.js?v=1.5.36"></script>
-  <script defer src="js/events.js?v=1.5.36"></script>
+  <script defer src="js/core.js?v=1.5.37"></script>
+  <script defer src="js/auth-init.js?v=1.5.37"></script>
+  <script defer src="js/data-store.js?v=1.5.37"></script>
+  <script defer src="js/filters-list.js?v=1.5.37"></script>
+  <script defer src="js/editor-export.js?v=1.5.37"></script>
+  <script defer src="js/import-pbs.js?v=1.5.37"></script>
+  <script defer src="js/lookup.js?v=1.5.37"></script>
+  <script defer src="js/events.js?v=1.5.37"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -54,7 +55,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.36</span>
+            <span id="appVersion" class="version-pill">v1.5.37</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -252,6 +253,32 @@
           <datalist id="templateSourceList"></datalist>
         </label>
         <button type="button" id="loadTemplateBtn">Load</button>
+      </div>
+
+      <div class="pbs-import-tools span-2 hidden" id="pbsImportTools">
+        <div class="pbs-import-head">
+          <div>
+            <div class="pbs-import-title">Import PBS offer</div>
+            <div class="pbs-import-note">Paste a PBS offer, preview what will map, then fill a new draft for review.</div>
+          </div>
+          <button type="button" id="togglePbsImportBtn" class="secondary">Paste PBS offer</button>
+        </div>
+        <div id="pbsImportPanel" class="pbs-import-panel hidden">
+          <label class="pbs-import-field">PBS offer text
+            <textarea id="pbsOfferInput" rows="12" placeholder="Paste the PBS program offer here."></textarea>
+          </label>
+          <div class="pbs-import-controls">
+            <label class="pbs-import-mode-field">Draft style
+              <select id="pbsImportMode">
+                <option value="series">Series record from release title</option>
+                <option value="program">Program draft from first listed episode</option>
+              </select>
+            </label>
+            <button type="button" id="parsePbsOfferBtn" class="primary">Parse PBS offer</button>
+            <button type="button" id="clearPbsOfferBtn" class="ghost">Clear</button>
+          </div>
+          <div id="pbsImportPreview" class="pbs-import-preview hidden"></div>
+        </div>
       </div>
 
       <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
