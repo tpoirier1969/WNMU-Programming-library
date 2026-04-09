@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.39 · Add Program</title>
+  <title>WNMU TV Programming Library v1.5.40 · Add Program</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.38" />
+  <link rel="stylesheet" href="styles.css?v=1.5.40" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
@@ -54,7 +54,8 @@
       .standalone-brand img { width: 52px; height: 52px; }
     }
   </style>
-  <script defer src="js/program-new.js?v=1.5.39"></script>
+  <script defer src="js/program-new.js?v=1.5.40"></script>
+  <script defer src="js/import-pbs.js?v=1.5.40"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -72,7 +73,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Add New Program</h1>
-            <span class="version-pill">v1.5.39</span>
+            <span class="version-pill">v1.5.40</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -112,6 +113,32 @@
         </div>
         <div id="templateFeedback" class="standalone-feedback info"></div>
         <div id="templateResults" class="standalone-results"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="pbs-import-head">
+          <div>
+            <div class="pbs-import-title">PBS Paste / Import</div>
+            <div class="pbs-import-note">Paste a PBS offer, preview the mapping, then fill the new draft without hauling the full main page along for the ride.</div>
+          </div>
+          <button type="button" id="togglePbsImportBtn" class="secondary">Paste PBS offer</button>
+        </div>
+        <div id="pbsImportPanel" class="pbs-import-panel hidden">
+          <label class="pbs-import-field">PBS offer text
+            <textarea id="pbsOfferInput" rows="12" placeholder="Paste the PBS program offer here."></textarea>
+          </label>
+          <div class="pbs-import-controls">
+            <label class="pbs-import-mode-field">Draft style
+              <select id="pbsImportMode">
+                <option value="series">Series record from release title</option>
+                <option value="program">Program draft from first listed episode</option>
+              </select>
+            </label>
+            <button type="button" id="parsePbsOfferBtn" class="primary">Parse PBS offer</button>
+            <button type="button" id="clearPbsOfferBtn" class="ghost">Clear</button>
+          </div>
+          <div id="pbsImportPreview" class="pbs-import-preview hidden"></div>
+        </div>
       </section>
 
       <section class="standalone-card">

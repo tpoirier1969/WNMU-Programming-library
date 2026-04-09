@@ -186,14 +186,19 @@ function viewIncludesArchived(view) {
 }
 
 function programsInCurrentViewPool() {
-  let items = [...state.programs];
+  const cacheKey = `${state.currentView}|${state.programs.length}`;
+  if (state.poolCacheKey === cacheKey && Array.isArray(state.poolProgramIds)) return state.poolProgramIds;
+
+  let items = state.programs;
   if (state.currentView === 'archived') {
-    return items.filter((item) => item.is_archived);
+    items = items.filter((item) => item.is_archived);
+  } else {
+    items = items.filter((item) => !item.is_archived);
+    if (state.currentView && state.currentView !== 'all') items = items.filter((item) => matchesView(item, state.currentView));
   }
-  items = items.filter((item) => !item.is_archived);
-  if (state.currentView && state.currentView !== 'all') {
-    items = items.filter((item) => matchesView(item, state.currentView));
-  }
+
+  state.poolCacheKey = cacheKey;
+  state.poolProgramIds = items;
   return items;
 }
 
@@ -226,64 +231,80 @@ function resetFilters() {
 }
 
 function activePrograms() {
-  let items = programsInCurrentViewPool();
   const search = normalizeLower(els.searchInput.value);
   const searchField = els.searchFieldSelect.value;
-  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase());
-  const topics = selectedValues(els.topicFilter);
-  const secondaryTopics = selectedValues(els.secondaryTopicFilter);
-  const lengths = selectedValues(els.lengthFilter);
+  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase()).sort().join('|');
+  const topics = selectedValues(els.topicFilter).sort().join('|');
+  const secondaryTopics = selectedValues(els.secondaryTopicFilter).sort().join('|');
+  const lengths = selectedValues(els.lengthFilter).sort().join('|');
   const distributor = els.distributorFilter.value;
   const programType = els.programTypeFilter.value;
   const status = els.statusFilter.value;
   const ratingFilter = els.ratingFilter?.value || '';
+  const cacheKey = [
+    state.currentView,
+    state.programs.length,
+    search,
+    searchField,
+    codes,
+    topics,
+    secondaryTopics,
+    lengths,
+    distributor,
+    programType,
+    status,
+    ratingFilter
+  ].join('||');
 
-  if (search) {
-    items = items.filter((item) => {
-      if (searchField) return normalizeLower(item[searchField]).includes(search);
-      return [
-        item.title, item.notes, item.legacy_code, item.nola_eidr, item.secondary_topic, item.topic,
-        item.aired_13_1, item.aired_13_3, item.distributor, item.rights_notes, item.package_type, item.program_type
-      ].some((value) => normalizeLower(value).includes(search));
-    });
-  }
-  if (codes.length) items = items.filter((item) => codes.includes(normalizeText(item.legacy_code).toUpperCase()));
-  if (topics.length) items = items.filter((item) => {
-    const itemTopics = splitMultiValues(item.topic);
-    return topics.some((topic) => itemTopics.includes(topic));
-  });
-  if (secondaryTopics.length) items = items.filter((item) => {
-    const itemTopics = splitMultiValues(item.secondary_topic);
-    return secondaryTopics.some((topic) => itemTopics.includes(topic));
-  });
-  if (lengths.length) items = items.filter((item) => lengths.includes(String(item.length_minutes ?? '')));
-  if (distributor) items = items.filter((item) => item.distributor === distributor);
-  if (programType) items = items.filter((item) => item.program_type === programType);
-  if (status && status !== 'expired') items = items.filter((item) => matchesView(item, status));
-  if (ratingFilter) {
-    items = items.filter((item) => {
+  if (state.filteredCacheKey === cacheKey && Array.isArray(state.filteredProgramIds)) return state.filteredProgramIds;
+
+  const codeSet = new Set(codes ? codes.split('|') : []);
+  const topicSet = new Set(topics ? topics.split('|') : []);
+  const secondarySet = new Set(secondaryTopics ? secondaryTopics.split('|') : []);
+  const lengthSet = new Set(lengths ? lengths.split('|') : []);
+
+  const items = programsInCurrentViewPool().filter((item) => {
+    const derived = getProgramDerived(item);
+    if (search) {
+      const haystack = searchField ? (derived.searchByField[searchField] ?? normalizeLower(item?.[searchField])) : derived.searchAll;
+      if (!haystack.includes(search)) return false;
+    }
+    if (codeSet.size && !codeSet.has(derived.legacyCode)) return false;
+    if (topicSet.size && !derived.topicValues.some((topic) => topicSet.has(topic))) return false;
+    if (secondarySet.size && !derived.secondaryTopicValues.some((topic) => secondarySet.has(topic))) return false;
+    if (lengthSet.size && !lengthSet.has(derived.lengthValue)) return false;
+    if (distributor && item.distributor !== distributor) return false;
+    if (programType && item.program_type !== programType) return false;
+    if (status && status !== 'expired' && !matchesView(item, status)) return false;
+    if (ratingFilter) {
       const rating = getProgramRating(item);
       switch (ratingFilter) {
         case 'unrated':
-          return rating == null;
+          if (rating != null) return false;
+          break;
         case '4plus':
-          return rating != null && rating >= 4;
+          if (!(rating != null && rating >= 4)) return false;
+          break;
         case '3plus':
-          return rating != null && rating >= 3;
+          if (!(rating != null && rating >= 3)) return false;
+          break;
         default: {
           const exact = normalizeRating(ratingFilter);
-          return exact != null && rating === exact;
+          if (!(exact != null && rating === exact)) return false;
         }
       }
-    });
-  }
+    }
+    return true;
+  });
 
+  state.filteredCacheKey = cacheKey;
+  state.filteredProgramIds = items;
   return items;
 }
 
 function matchesView(program, view) {
   const flags = computeFlags(program);
-  const michiganText = [program.title, program.notes, program.topic, program.secondary_topic].map(normalizeLower).join(' | ');
+  const derived = getProgramDerived(program);
   switch (view) {
     case 'all':
       return true;
@@ -308,11 +329,11 @@ function matchesView(program, view) {
     case 'missing_rights':
       return flags.missingRights;
     case 'missing_info':
-      return !normalizeText(program.notes) || !normalizeText(program.topic) || !normalizeText(program.length_minutes) || !normalizeText(program.program_type) || !normalizeText(program.aired_13_1) || !normalizeText(program.aired_13_3) || !normalizeText(program.distributor);
+      return !derived.notesLower || !derived.searchByField.topic || !derived.lengthValue || !derived.programType || !derived.searchByField.aired_13_1 || !derived.searchByField.aired_13_3 || !derived.searchByField.distributor;
     case 'michigan':
-      return michiganText.includes('michigan');
+      return derived.searchAll.includes('michigan');
     case 'evergreens':
-      return normalizeLower(program.package_type) === 'hdever';
+      return derived.searchByField.package_type === 'hdever';
     default:
       return true;
   }

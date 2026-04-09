@@ -10,7 +10,9 @@ const state = {
   duplicateRequestToken: 0,
   templateRequestToken: 0,
   lastSavedId: null,
-  ratingDbSupport: null
+  ratingDbSupport: null,
+  pbsImportData: null,
+  pbsImportPanelOpen: false
 };
 
 const els = {
@@ -33,7 +35,15 @@ const els = {
   saveBtn: $('#saveBtn'),
   saveAnotherBtn: $('#saveAnotherBtn'),
   editorRating: $('#editorRating'),
-  voteFieldWrap: $('#voteFieldWrap')
+  voteFieldWrap: $('#voteFieldWrap'),
+  pbsImportTools: true,
+  togglePbsImportBtn: $('#togglePbsImportBtn'),
+  pbsImportPanel: $('#pbsImportPanel'),
+  pbsOfferInput: $('#pbsOfferInput'),
+  pbsImportMode: $('#pbsImportMode'),
+  parsePbsOfferBtn: $('#parsePbsOfferBtn'),
+  clearPbsOfferBtn: $('#clearPbsOfferBtn'),
+  pbsImportPreview: $('#pbsImportPreview')
 };
 
 const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
@@ -103,6 +113,43 @@ function escapeHtml(text) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
+}
+
+
+function ensureEditorSelectOption(fieldName, value) {
+  const field = els.programForm?.elements?.[fieldName];
+  const normalized = normalizeText(value);
+  if (!field || !normalized || field.tagName !== 'SELECT') return;
+  const exists = Array.from(field.options).some((option) => normalizeLower(option.value) === normalizeLower(normalized));
+  if (exists) return;
+  const option = document.createElement('option');
+  option.value = normalized;
+  option.textContent = normalized;
+  field.appendChild(option);
+}
+
+function renderDuplicateCheck() {
+  void refreshDuplicateMatches();
+}
+
+function renderFormFlags() {}
+function updateLookupButtonState() {}
+
+function updatePbsImportVisibility() {
+  if (!els.togglePbsImportBtn || !els.pbsImportPanel) return;
+  const allowImport = canEdit();
+  els.togglePbsImportBtn.disabled = !allowImport;
+  els.togglePbsImportBtn.classList.toggle('hidden', !allowImport);
+  if (!allowImport) {
+    state.pbsImportPanelOpen = false;
+    state.pbsImportData = null;
+    els.pbsImportPanel.classList.add('hidden');
+    els.pbsImportPreview?.classList.add('hidden');
+    els.togglePbsImportBtn.textContent = 'Paste PBS offer';
+    return;
+  }
+  els.pbsImportPanel.classList.toggle('hidden', !state.pbsImportPanelOpen);
+  els.togglePbsImportBtn.textContent = state.pbsImportPanelOpen ? 'Hide PBS import' : 'Paste PBS offer';
 }
 
 function isValidDateParts(year, month, day) {
@@ -277,6 +324,10 @@ function resetFormForNewEntry() {
   setFeedback(els.formFeedback, '', '');
   showSuccess('');
   applyDefaultValues();
+  state.pbsImportData = null;
+  state.pbsImportPanelOpen = false;
+  if (typeof resetPbsImportUi === 'function') resetPbsImportUi({ clearText: true });
+  updatePbsImportVisibility();
   requestAnimationFrame(() => els.programForm.elements.title?.focus());
 }
 
@@ -594,6 +645,7 @@ function updateAuthUi() {
   }
   renderEditorRatingControl();
   updateVoteVisibility();
+  updatePbsImportVisibility();
 }
 
 function bindDatePickers() {
@@ -670,6 +722,48 @@ function bindEvents() {
     applyTemplateToForm(button.dataset.templateId);
   });
   els.clearFormBtn?.addEventListener('click', () => resetFormForNewEntry());
+
+
+  els.togglePbsImportBtn?.addEventListener('click', () => {
+    if (!canEdit()) return;
+    togglePbsImportPanel();
+  });
+  els.parsePbsOfferBtn?.addEventListener('click', () => {
+    try {
+      const parsed = parsePbsOffer(els.pbsOfferInput?.value || '', els.pbsImportMode?.value || 'series');
+      state.pbsImportData = parsed;
+      renderPbsImportPreview(parsed);
+      setStatus('PBS offer parsed. Review the preview, then fill the draft if it looks right.');
+    } catch (error) {
+      console.error(error);
+      state.pbsImportData = null;
+      renderPbsImportPreview(null);
+      alert(error.message);
+      setStatus(error.message);
+    }
+  });
+  els.clearPbsOfferBtn?.addEventListener('click', () => {
+    resetPbsImportUi({ clearText: true });
+    setStatus('PBS import box cleared.');
+    els.pbsOfferInput?.focus();
+  });
+  els.pbsOfferInput?.addEventListener('input', () => {
+    if (!state.pbsImportData) return;
+    state.pbsImportData = null;
+    renderPbsImportPreview(null);
+  });
+  els.pbsImportMode?.addEventListener('change', () => {
+    if (!state.pbsImportData) return;
+    state.pbsImportData = null;
+    renderPbsImportPreview(null);
+  });
+  els.pbsImportPreview?.addEventListener('click', (event) => {
+    const applyBtn = event.target.closest('#applyPbsImportBtn');
+    if (!applyBtn) return;
+    event.preventDefault();
+    if (!state.pbsImportData) return;
+    applyPbsImportToForm(state.pbsImportData);
+  });
 
   bindDatePickers();
 }

@@ -75,6 +75,7 @@ function hydrateProgramsFromCache() {
   if (!cached?.length) return false;
   state.programs = cached.map((program) => applyRatingOverlayToProgram(program));
   sortProgramsInPlace();
+  recacheProgramDerived();
   state.templateSourceDirty = true;
   return true;
 }
@@ -102,9 +103,9 @@ function scheduleBackgroundRatingWarmup() {
   };
 
   if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(() => { void kickOff(); }, { timeout: 900 });
+    window.requestIdleCallback(() => { window.setTimeout(() => { void kickOff(); }, 2200); }, { timeout: 3000 });
   } else {
-    window.setTimeout(() => { void kickOff(); }, 180);
+    window.setTimeout(() => { void kickOff(); }, 2200);
   }
 }
 
@@ -187,6 +188,7 @@ async function loadPrograms(options = {}) {
   state.programs = (await fetchAllRows('programs_enriched', { showOverlay })).map((program) => applyRatingOverlayToProgram(program));
   state.programsExposeRating = state.programs.some((program) => Object.prototype.hasOwnProperty.call(program, 'rating'));
   sortProgramsInPlace();
+  recacheProgramDerived();
   state.templateSourceDirty = true;
 }
 
@@ -298,6 +300,7 @@ function mergeProgramIntoState(program) {
   if (index >= 0) state.programs[index] = program;
   else state.programs.push(program);
   sortProgramsInPlace();
+  updateProgramDerived(program);
   state.templateSourceDirty = true;
 }
 

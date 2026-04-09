@@ -38,7 +38,12 @@ const state = {
   programsExposeRating: false,
   inlineAiringEditorId: null,
   pbsImportData: null,
-  pbsImportPanelOpen: false
+  pbsImportPanelOpen: false,
+  programDerived: new Map(),
+  filteredCacheKey: '',
+  filteredProgramIds: [],
+  poolCacheKey: '',
+  poolProgramIds: []
 };
 
 const els = {
@@ -182,6 +187,7 @@ function mergeDatabaseRatings(rows = []) {
     else program.rating = normalizeRating(program.rating);
     applyRatingOverlayToProgram(program);
   });
+  invalidateProgramViewCaches();
 }
 
 function setProgramRatingLocal(programId, rating) {
@@ -192,6 +198,7 @@ function setProgramRatingLocal(programId, rating) {
   else state.ratingOverrides[id] = normalized;
   const item = state.programs.find((program) => String(program.id) === id);
   if (item) item.rating = normalized;
+  invalidateProgramViewCaches();
   persistRatingOverrides();
   try { persistProgramsCache(); } catch {}
 }
@@ -564,21 +571,123 @@ function loadTemplateIntoForm() {
   requestAnimationFrame(() => form.elements.title.focus());
 }
 
-function computeFlags(program) {
-  const rightsEnd = program.rights_end ? new Date(`${program.rights_end}T00:00:00`) : null;
+
+function invalidateProgramViewCaches() {
+  state.filteredCacheKey = '';
+  state.filteredProgramIds = [];
+  state.poolCacheKey = '';
+  state.poolProgramIds = [];
+}
+
+function buildProgramDerived(program) {
+  const title = normalizeText(program?.title);
+  const notes = normalizeText(program?.notes);
+  const legacyCode = normalizeText(program?.legacy_code).toUpperCase();
+  const nola = normalizeText(program?.nola_eidr);
+  const topic = normalizeText(program?.topic);
+  const secondaryTopic = normalizeText(program?.secondary_topic);
+  const rightsNotes = normalizeText(program?.rights_notes);
+  const packageType = normalizeText(program?.package_type);
+  const programType = normalizeText(program?.program_type);
+  const distributor = normalizeText(program?.distributor);
+  const aired131 = normalizeText(program?.aired_13_1);
+  const aired133 = normalizeText(program?.aired_13_3);
+  const rightsBegin = normalizeText(program?.rights_begin);
+  const rightsEnd = normalizeText(program?.rights_end);
+  const rightsEndDate = rightsEnd ? new Date(`${rightsEnd}T00:00:00`) : null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const msPerDay = 86400000;
-  const daysLeft = rightsEnd ? Math.floor((rightsEnd - today) / msPerDay) : null;
+  const daysLeft = rightsEndDate ? Math.floor((rightsEndDate - today) / msPerDay) : null;
   const threshold = Number(config.AUTO_ARCHIVE_DAYS || 90);
-  const rightsStatus = !rightsEnd ? 'No end date' : (daysLeft < 0 ? 'Expired' : (daysLeft < threshold ? 'Ending soon' : 'Active'));
-  const needsAptCheck = normalizeLower(program.distributor) === 'apt' && normalizeText(program.vote).toUpperCase() !== 'Y';
-  const newTo131 = ['', 'no'].includes(normalizeLower(program.aired_13_1));
-  const newTo133 = ['', 'no'].includes(normalizeLower(program.aired_13_3));
-  const archiveCandidate = rightsEnd ? daysLeft < threshold : false;
-  const missingRights = !normalizeText(program.rights_begin) || !normalizeText(program.rights_end);
+  const rightsStatus = !rightsEndDate ? 'No end date' : (daysLeft < 0 ? 'Expired' : (daysLeft < threshold ? 'Ending soon' : 'Active'));
+  const flags = {
+    daysLeft,
+    rightsStatus,
+    needsAptCheck: normalizeLower(distributor) === 'apt' && normalizeText(program?.vote).toUpperCase() !== 'Y',
+    newTo131: ['', 'no'].includes(normalizeLower(aired131)),
+    newTo133: ['', 'no'].includes(normalizeLower(aired133)),
+    archiveCandidate: rightsEndDate ? daysLeft < threshold : false,
+    missingRights: !rightsBegin || !rightsEnd
+  };
+  return {
+    titleLower: normalizeLower(title),
+    notesLower: normalizeLower(notes),
+    legacyCode,
+    nolaLower: normalizeLower(nola),
+    topicValues: splitMultiValues(program?.topic),
+    secondaryTopicValues: splitMultiValues(program?.secondary_topic),
+    lengthValue: String(program?.length_minutes ?? ''),
+    distributor,
+    programType,
+    searchAll: normalizeLower([
+      title, notes, legacyCode, nola, topic, secondaryTopic,
+      aired131, aired133, distributor, rightsNotes, packageType, programType
+    ].filter(Boolean).join(' | ')),
+    searchByField: {
+      title: normalizeLower(title),
+      notes: normalizeLower(notes),
+      legacy_code: normalizeLower(legacyCode),
+      nola_eidr: normalizeLower(nola),
+      topic: normalizeLower(topic),
+      secondary_topic: normalizeLower(secondaryTopic),
+      aired_13_1: normalizeLower(aired131),
+      aired_13_3: normalizeLower(aired133),
+      distributor: normalizeLower(distributor),
+      rights_notes: normalizeLower(rightsNotes),
+      package_type: normalizeLower(packageType),
+      program_type: normalizeLower(programType)
+    },
+    sortKeys: {
+      title: normalizeLower(title),
+      notes: normalizeLower(notes),
+      topic: normalizeLower([topic, secondaryTopic].filter(Boolean).join(' | ')),
+      details: normalizeLower([topic, secondaryTopic, String(program?.length_minutes ?? ''), programType].filter(Boolean).join(' | ')),
+      aired_13_1: firstAiringSortKey(aired131),
+      aired_13_3: firstAiringSortKey(aired133),
+      package_type: normalizeLower(packageType),
+      rights_end: rightsEnd || '9999-99-99',
+      distributor: normalizeLower(distributor)
+    },
+    flags
+  };
+}
 
-  return { daysLeft, rightsStatus, needsAptCheck, newTo131, newTo133, archiveCandidate, missingRights };
+function recacheProgramDerived(programs = state.programs) {
+  const next = new Map();
+  (programs || []).forEach((program) => {
+    if (!program) return;
+    next.set(String(program.id), buildProgramDerived(program));
+  });
+  state.programDerived = next;
+  invalidateProgramViewCaches();
+}
+
+function getProgramDerived(program) {
+  if (!program) return buildProgramDerived(program);
+  const key = String(program.id);
+  if (!state.programDerived?.has(key)) {
+    if (!state.programDerived) state.programDerived = new Map();
+    state.programDerived.set(key, buildProgramDerived(program));
+  }
+  return state.programDerived.get(key);
+}
+
+function updateProgramDerived(program) {
+  if (!program) return;
+  if (!state.programDerived) state.programDerived = new Map();
+  state.programDerived.set(String(program.id), buildProgramDerived(program));
+  invalidateProgramViewCaches();
+}
+
+function removeProgramDerived(programId) {
+  if (!state.programDerived) return;
+  state.programDerived.delete(String(programId));
+  invalidateProgramViewCaches();
+}
+
+function computeFlags(program) {
+  return getProgramDerived(program).flags;
 }
 
 function setStatus(message) {
@@ -783,18 +892,9 @@ function firstAiringSortKey(value) {
 }
 
 function sortValueForProgram(program, field) {
-  switch (field) {
-    case 'title': return normalizeLower(program.title);
-    case 'notes': return normalizeLower(program.notes);
-    case 'topic': return normalizeLower([program.topic, program.secondary_topic].filter(Boolean).join(' | '));
-    case 'details': return normalizeLower([program.topic, program.secondary_topic, program.length_minutes, program.program_type].filter(Boolean).join(' | '));
-    case 'aired_13_1': return firstAiringSortKey(program.aired_13_1);
-    case 'aired_13_3': return firstAiringSortKey(program.aired_13_3);
-    case 'package_type': return normalizeLower(program.package_type);
-    case 'rights_end': return normalizeText(program.rights_end) || '9999-99-99';
-    case 'distributor': return normalizeLower(program.distributor);
-    default: return normalizeLower(program[field]);
-  }
+  const derived = getProgramDerived(program);
+  if (Object.prototype.hasOwnProperty.call(derived.sortKeys, field)) return derived.sortKeys[field];
+  return normalizeLower(program?.[field]);
 }
 
 function comparePrograms(left, right, field, direction) {

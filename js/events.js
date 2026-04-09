@@ -1,18 +1,3 @@
-function consumeStandaloneFlashNotice() {
-  try {
-    const payload = window.sessionStorage?.getItem('program-library-new-page-flash');
-    if (!payload) return;
-    window.sessionStorage?.removeItem('program-library-new-page-flash');
-    const parsed = JSON.parse(payload);
-    if (!parsed?.message) return;
-    window.setTimeout(() => {
-      if (typeof setStatus === 'function') setStatus(parsed.message);
-    }, 900);
-  } catch (error) {
-    console.warn('New-page flash notice skipped:', error);
-  }
-}
-
 // Event wiring and keyboard shortcuts
 // Extracted from the former monolithic app.js during the v1.5.10 structural refactor.
 
@@ -303,17 +288,12 @@ The rating is still shown locally in this browser, but it may not have synced to
     }
   });
 
-  [els.searchFieldSelect, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.ratingFilter]
-    .filter(Boolean)
-    .forEach((el) => el.addEventListener('input', updateQueryStatus));
   [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect, els.ratingFilter]
     .filter(Boolean)
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
   els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);
   els.programForm.elements.distributor.addEventListener('input', updateVoteVisibility);
-
-  consumeStandaloneFlashNotice();
 
   ['rights_begin', 'rights_end'].forEach((field) => {
     const input = els.programForm.elements[field];
