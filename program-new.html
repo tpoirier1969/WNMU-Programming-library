@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library v1.5.39 · Add Program</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
+  <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.38" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    body.standalone-page { overflow-y: auto; background: #eef3f7; }
+    .standalone-shell { max-width: 1180px; margin: 0 auto; padding: 18px; }
+    .standalone-topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: #fff; border-radius: 18px; padding: 16px 18px; box-shadow: 0 10px 30px rgba(12,39,68,.08);
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .standalone-brand { display:flex; align-items:center; gap:14px; min-width: 280px; }
+    .standalone-brand img { width: 62px; height: 62px; object-fit: contain; }
+    .standalone-subtitle { color:#4a647a; font-size:.92rem; }
+    .standalone-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .standalone-grid { display:grid; grid-template-columns: minmax(0, 1fr); gap:16px; }
+    .standalone-card {
+      background:#fff; border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(12,39,68,.08);
+    }
+    .standalone-note { margin: 0; color:#30485f; }
+    .standalone-mini { margin:6px 0 0; color:#567086; font-size:.92rem; }
+    .standalone-auth-row { display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
+    .standalone-auth-message { min-height: 1.25rem; color:#7c1d1d; font-weight:700; }
+    .standalone-inline-grid { display:grid; grid-template-columns: 1.45fr auto; gap:10px; align-items:end; }
+    .standalone-results { margin-top: 10px; display:grid; gap:8px; }
+    .template-result-btn {
+      width:100%; text-align:left; border:1px solid #d3dee8; border-radius:12px; padding:10px 12px; background:#f8fbfd; cursor:pointer;
+    }
+    .template-result-btn:hover, .template-result-btn:focus-visible { background:#eef6fc; border-color:#8eb4d4; }
+    .template-result-title { font-weight:800; color:#0f3554; }
+    .template-result-meta { color:#5f7386; font-size:.88rem; }
+    .standalone-feedback { min-height: 1.2rem; margin-top: 8px; font-weight:700; }
+    .standalone-feedback.info { color:#325d85; }
+    .standalone-feedback.success { color:#0f6b3d; }
+    .standalone-feedback.warn { color:#8a5a11; }
+    .standalone-feedback.error { color:#8a1e1e; }
+    .standalone-success { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background:#edf9f1; border:1px solid #b9e1c4; color:#145a31; }
+    .standalone-success.hidden { display:none; }
+    .standalone-actions-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .muted-block { color:#5f7386; font-size:.92rem; }
+    .hidden { display:none !important; }
+    @media (max-width: 760px) {
+      .standalone-shell { padding: 12px; }
+      .standalone-inline-grid { grid-template-columns: 1fr; }
+      .standalone-topbar { padding: 14px; }
+      .standalone-brand img { width: 52px; height: 52px; }
+    }
+  </style>
+  <script defer src="js/program-new.js?v=1.5.39"></script>
+</head>
+<body class="standalone-page">
+  <div id="setupNotice" class="standalone-shell hidden">
+    <div class="standalone-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+    </div>
+  </div>
+
+  <div id="pageShell" class="standalone-shell hidden">
+    <header class="standalone-topbar">
+      <div class="standalone-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1 style="margin:0;">Add New Program</h1>
+            <span class="version-pill">v1.5.39</span>
+          </div>
+          <div id="statusLine" class="status-line">Starting up…</div>
+        </div>
+      </div>
+      <div class="standalone-actions">
+        <a href="index.html" class="ghost" id="backToLibraryTop">Back to library</a>
+        <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
+        <button type="button" id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <div class="standalone-grid">
+      <section class="standalone-card">
+        <p class="standalone-note">This is the lean add page. It avoids hauling the whole program table, filters, and drawer state into the same room while you enter a new record.</p>
+        <p class="standalone-mini">Edit and browse still live in the main library. This page is for fast entry.</p>
+      </section>
+
+      <section class="standalone-card" id="authCard">
+        <div class="standalone-auth-row">
+          <div>
+            <div class="list-title">Admin access</div>
+            <div id="authStateText" class="muted-block">Checking sign-in status…</div>
+          </div>
+          <a href="index.html" class="secondary">Open main library</a>
+        </div>
+        <div id="authMessage" class="standalone-auth-message"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="list-title">Copy details from existing</div>
+        <p class="standalone-mini">Search by title, then load one result to prefill the form. It keeps the fast lane fast without loading the entire library into this page.</p>
+        <div class="standalone-inline-grid">
+          <label>Find existing title
+            <input id="templateSearchInput" type="search" placeholder="Type 3 or more characters" />
+          </label>
+          <button type="button" id="templateSearchBtn">Find</button>
+        </div>
+        <div id="templateFeedback" class="standalone-feedback info"></div>
+        <div id="templateResults" class="standalone-results"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div id="duplicateCheck" class="duplicate-check hidden"></div>
+        <form id="programForm" class="program-form">
+          <div class="form-grid">
+            <label class="row-title">Title
+              <input name="title" type="text" required />
+            </label>
+            <label class="row-nola">NOLA
+              <input name="nola_eidr" type="text" />
+            </label>
+            <label class="row-length">Length
+              <input name="length_minutes" type="text" />
+            </label>
+            <label class="row-use">Use?
+              <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
+            </label>
+
+            <label class="span-full">Description
+              <textarea name="notes" rows="4"></textarea>
+            </label>
+
+            <div class="editor-rating-row span-full">
+              <label class="rating-field">Rating
+                <input name="rating" type="hidden" />
+                <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
+                  <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
+                  <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
+                  <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
+                  <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
+                  <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
+                  <span class="rating-value-label">Not rated</span>
+                </div>
+                <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
+              </label>
+            </div>
+
+            <div class="program-rights-row span-full">
+              <label>Program or series
+                <select name="program_type"></select>
+              </label>
+              <label>Season / Episode
+                <input name="episode_season" type="text" placeholder="100's / 8" />
+              </label>
+              <label class="compact-rights">Rights begin
+                <div class="date-entry-wrap">
+                  <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+                  <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
+                  <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+                </div>
+              </label>
+              <label class="compact-rights">Rights end
+                <div class="date-entry-wrap">
+                  <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+                  <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
+                  <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+                </div>
+              </label>
+            </div>
+
+            <label>Topic
+              <select name="topic"></select>
+            </label>
+            <label class="secondary-topic-field">Secondary topic
+              <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
+              <datalist id="secondaryTopicList"></datalist>
+            </label>
+
+            <div class="compact-form-row span-full compact-form-row-rights">
+              <label class="compact-field rights-notes-field">Rights notes
+                <textarea name="rights_notes" rows="2"></textarea>
+              </label>
+              <label class="compact-field distributor-field">Distributor
+                <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
+                <datalist id="distributorList"></datalist>
+              </label>
+              <label class="compact-field" id="voteFieldWrap">Vote
+                <select name="vote">
+                  <option value=""></option>
+                  <option value="Y">Y</option>
+                  <option value="N">N</option>
+                  <option value="M">M</option>
+                </select>
+              </label>
+              <label class="compact-field">Package type
+                <select name="package_type"></select>
+              </label>
+              <label class="compact-field">Source
+                <select name="server_tape"></select>
+              </label>
+              <label class="compact-field compact-airing">Aired on 13.1
+                <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+              </label>
+              <label class="compact-field compact-airing">Aired on 13.3
+                <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+              </label>
+            </div>
+          </div>
+
+          <div id="formFeedback" class="standalone-feedback"></div>
+          <div id="successBox" class="standalone-success hidden"></div>
+
+          <div class="drawer-actions standalone-actions-row">
+            <button type="submit" id="saveBtn" class="primary" data-submit-action="save">Save program</button>
+            <button type="submit" id="saveAnotherBtn" class="secondary" data-submit-action="another">Save and start another</button>
+            <button type="button" id="clearFormBtn" class="ghost">Clear form</button>
+            <a href="index.html" class="ghost">Open library</a>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

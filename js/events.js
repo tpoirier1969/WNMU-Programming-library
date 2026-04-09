@@ -1,3 +1,18 @@
+function consumeStandaloneFlashNotice() {
+  try {
+    const payload = window.sessionStorage?.getItem('program-library-new-page-flash');
+    if (!payload) return;
+    window.sessionStorage?.removeItem('program-library-new-page-flash');
+    const parsed = JSON.parse(payload);
+    if (!parsed?.message) return;
+    window.setTimeout(() => {
+      if (typeof setStatus === 'function') setStatus(parsed.message);
+    }, 900);
+  } catch (error) {
+    console.warn('New-page flash notice skipped:', error);
+  }
+}
+
 // Event wiring and keyboard shortcuts
 // Extracted from the former monolithic app.js during the v1.5.10 structural refactor.
 
@@ -38,7 +53,7 @@ function bindEvents() {
     setStatus('Signed out. Read-only mode is active.');
   });
 
-  els.newProgramBtn.addEventListener('click', () => openEditor());
+  els.newProgramBtn.addEventListener('click', () => { window.location.href = 'program-new.html'; });
   els.undoViewBtn?.addEventListener('click', undoViewState);
   els.closeDrawerBtn.addEventListener('click', closeEditor);
   els.drawerBackdrop.addEventListener('click', closeEditor);
@@ -297,6 +312,8 @@ The rating is still shown locally in this browser, but it may not have synced to
 
   els.programForm.elements.distributor.addEventListener('change', updateVoteVisibility);
   els.programForm.elements.distributor.addEventListener('input', updateVoteVisibility);
+
+  consumeStandaloneFlashNotice();
 
   ['rights_begin', 'rights_end'].forEach((field) => {
     const input = els.programForm.elements[field];
