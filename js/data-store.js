@@ -304,25 +304,32 @@ function mergeProgramIntoState(program) {
 function ensureLookupValue(collectionName, value) {
   const collection = state.lookups[collectionName] || [];
   const values = collectionName === 'secondary_topics' ? splitMultiValues(value) : [normalizeText(value)];
+  let changed = false;
   values.filter(Boolean).forEach((name) => {
     if (collection.some((item) => normalizeLower(item.name) === normalizeLower(name))) return;
     collection.push({ name, sort_order: collection.length + 1 });
+    changed = true;
   });
-  collection.sort((a, b) => normalizeText(a.name).localeCompare(normalizeText(b.name), undefined, { sensitivity: 'base' }));
+  if (changed) {
+    collection.sort((a, b) => normalizeText(a.name).localeCompare(normalizeText(b.name), undefined, { sensitivity: 'base' }));
+  }
+  return changed;
 }
 
 function syncLookupsFromProgram(program) {
-  ensureLookupValue('topics', program.topic);
-  ensureLookupValue('secondary_topics', program.secondary_topic);
-  ensureLookupValue('distributors', program.distributor);
-  ensureLookupValue('package_types', program.package_type);
-  ensureLookupValue('server_locations', program.server_tape);
-  ensureLookupValue('program_types', program.program_type);
+  return [
+    ensureLookupValue('topics', program.topic),
+    ensureLookupValue('secondary_topics', program.secondary_topic),
+    ensureLookupValue('distributors', program.distributor),
+    ensureLookupValue('package_types', program.package_type),
+    ensureLookupValue('server_locations', program.server_tape),
+    ensureLookupValue('program_types', program.program_type)
+  ].some(Boolean);
 }
 
-function refreshUiAfterProgramMutation(statusMessage) {
+function refreshUiAfterProgramMutation(statusMessage, options = {}) {
   persistProgramsCache();
-  renderFilters();
+  if (options.renderFilters !== false) renderFilters();
   renderTable();
   renderStats();
   state.lastAppliedViewState = snapshotViewState();

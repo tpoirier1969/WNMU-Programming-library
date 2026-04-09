@@ -215,28 +215,33 @@ async function saveProgram(event) {
   try {
     let response;
     if (programId) {
-      response = await state.supabase.from('programs').update(payload).eq('id', programId);
+      response = await state.supabase.from('programs').update(payload).eq('id', programId).select('id').single();
     } else {
-      response = await state.supabase.from('programs').insert(payload);
+      response = await state.supabase.from('programs').insert(payload).select('id').single();
     }
     if (response.error) throw response.error;
 
-    const refreshedProgram = programId ? await fetchProgramById(programId) : await fetchInsertedProgram(payload);
+    const refreshedId = response.data?.id || programId;
+    const refreshedProgram = await fetchProgramById(refreshedId);
     mergeProgramIntoState(refreshedProgram);
-    syncLookupsFromProgram(refreshedProgram);
+    const lookupsChanged = syncLookupsFromProgram(refreshedProgram);
 
     let ratingWarning = '';
-    try {
-      await persistProgramRating(refreshedProgram.id, selectedRating, { refreshUi: false, silentLocalFallback: true });
-    } catch (ratingError) {
-      console.error(ratingError);
-      ratingWarning = ' Rating saved locally only; database sync failed.';
+    const existingRating = normalizeRating(existingItem?.rating);
+    const shouldPersistRating = selectedRating !== existingRating;
+    if (shouldPersistRating) {
+      try {
+        await persistProgramRating(refreshedProgram.id, selectedRating, { refreshUi: false, silentLocalFallback: true });
+      } catch (ratingError) {
+        console.error(ratingError);
+        ratingWarning = ' Rating saved locally only; database sync failed.';
+      }
     }
 
     const savedMessage = (!programId
       ? 'Created program.'
       : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.')) + ratingWarning;
-    refreshUiAfterProgramMutation(savedMessage);
+    refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
     setLoading('');
     closeEditor();
   } catch (error) {
