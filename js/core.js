@@ -43,7 +43,8 @@ const state = {
   filteredCacheKey: '',
   filteredProgramIds: [],
   poolCacheKey: '',
-  poolProgramIds: []
+  poolProgramIds: [],
+  visibleRowCount: 150
 };
 
 const els = {
@@ -79,6 +80,11 @@ const els = {
   clearLengthFilter: $('#clearLengthFilter'),
   resetFiltersBtn: $('#resetFiltersBtn'),
   listSummary: $('#listSummary'),
+  listPerfPanel: $('#listPerfPanel'),
+  listPerfText: $('#listPerfText'),
+  showMoreRowsBtn: $('#showMoreRowsBtn'),
+  showAllRowsBtn: $('#showAllRowsBtn'),
+  showFastRowsBtn: $('#showFastRowsBtn'),
   tableBody: $('#programTableBody'),
   quickStrip: $('#quickStrip'),
   drawer: $('#editorDrawer'),
@@ -130,6 +136,8 @@ const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
 const RATING_OVERLAY_KEY = 'program-library-rating-overrides-v1';
 const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
 const CURATED_SOURCE_OPTIONS = Object.freeze(['sIX', 'Server', 'Tape', 'FTP', 'Feed', 'Unavailable', "Don't Have", 'Other']);
+const DEFAULT_VISIBLE_ROWS = 150;
+const VISIBLE_ROW_STEP = 150;
 
 function normalizeRating(value) {
   if (value == null || value === '') return null;
@@ -798,9 +806,53 @@ function updateLookupButtonState() {
   }
 }
 
-function updateListSummary(count, totalPool) {
-  const noun = count === 1 ? 'program' : 'programs';
-  els.listSummary.textContent = `Showing ${count.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}.`;
+function resetVisibleRowWindow() {
+  state.visibleRowCount = DEFAULT_VISIBLE_ROWS;
+}
+
+function currentVisibleRowLimit(totalCount) {
+  if (!Number.isFinite(totalCount) || totalCount <= 0) return 0;
+  const requested = Number(state.visibleRowCount || DEFAULT_VISIBLE_ROWS);
+  return Math.min(totalCount, Math.max(DEFAULT_VISIBLE_ROWS, requested));
+}
+
+function updateRenderWindowControls(totalCount, renderedCount) {
+  if (!els.listPerfPanel || !els.listPerfText) return;
+  const hiddenCount = Math.max(0, Number(totalCount || 0) - Number(renderedCount || 0));
+  const isLimited = hiddenCount > 0;
+  els.listPerfPanel.classList.toggle('hidden', !isLimited && totalCount > 0 ? false : totalCount <= DEFAULT_VISIBLE_ROWS);
+  if (totalCount <= DEFAULT_VISIBLE_ROWS) {
+    els.listPerfText.textContent = 'Fast view is not trimming rows right now.';
+    if (els.showMoreRowsBtn) els.showMoreRowsBtn.classList.add('hidden');
+    if (els.showAllRowsBtn) els.showAllRowsBtn.classList.add('hidden');
+    if (els.showFastRowsBtn) els.showFastRowsBtn.classList.add('hidden');
+    return;
+  }
+  if (isLimited) {
+    els.listPerfText.textContent = `Fast view is showing ${renderedCount.toLocaleString()} of ${totalCount.toLocaleString()} rows to keep the page snappy.`;
+  } else {
+    els.listPerfText.textContent = `All ${totalCount.toLocaleString()} rows are showing. If it gets swampy, reset to the fast view.`;
+  }
+  if (els.showMoreRowsBtn) {
+    els.showMoreRowsBtn.classList.toggle('hidden', !isLimited);
+    const nextCount = Math.min(totalCount, renderedCount + VISIBLE_ROW_STEP);
+    els.showMoreRowsBtn.textContent = `Show ${Math.max(0, nextCount - renderedCount).toLocaleString()} more`;
+    els.showMoreRowsBtn.disabled = !isLimited;
+  }
+  if (els.showAllRowsBtn) {
+    els.showAllRowsBtn.classList.toggle('hidden', !isLimited);
+    els.showAllRowsBtn.disabled = !isLimited;
+  }
+  if (els.showFastRowsBtn) {
+    els.showFastRowsBtn.classList.toggle('hidden', isLimited);
+    els.showFastRowsBtn.disabled = isLimited;
+  }
+}
+
+function updateListSummary(renderedCount, totalPool, totalMatches = renderedCount) {
+  const noun = totalMatches === 1 ? 'program' : 'programs';
+  const visibleNote = totalMatches > renderedCount ? ` (showing ${renderedCount.toLocaleString()} right now)` : '';
+  els.listSummary.textContent = `Showing ${totalMatches.toLocaleString()} ${noun}${totalPool != null ? ` from ${totalPool.toLocaleString()} in view` : ''}${visibleNote}.`;
 }
 
 function setSelectedRowHighlight(selectedId = null) {

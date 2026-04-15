@@ -159,6 +159,7 @@ function applySnapshot(snapshot) {
   if (els.ratingFilter) els.ratingFilter.value = snapshot.ratingFilter || '';
   state.currentView = snapshot.currentView === 'expired' ? 'archived' : (snapshot.currentView || 'all');
   syncQuickViewState();
+  resetVisibleRowWindow();
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -224,6 +225,7 @@ function resetFilters() {
   if (els.ratingFilter) els.ratingFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
+  resetVisibleRowWindow();
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -584,11 +586,14 @@ function scheduleSearchUpdate() {
 }
 
 function renderTable() {
-  const items = sortProgramsForDisplay(activePrograms());
+  const allItems = sortProgramsForDisplay(activePrograms());
   const selectedId = state.selectedId;
   const poolCount = programsInCurrentViewPool().length;
+  const renderLimit = currentVisibleRowLimit(allItems.length);
+  const items = allItems.slice(0, renderLimit);
 
-  updateListSummary(items.length, poolCount);
+  updateListSummary(items.length, poolCount, allItems.length);
+  updateRenderWindowControls(allItems.length, items.length);
 
   renderSortHeaders();
 

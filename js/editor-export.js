@@ -309,6 +309,7 @@ function escapeHtml(text) {
 
 function updateQueryStatus() {
   rememberViewState();
+  resetVisibleRowWindow();
   const count = activePrograms().length;
   renderTable();
   state.lastAppliedViewState = snapshotViewState();

@@ -345,7 +345,21 @@ The rating is still shown locally in this browser, but it may not have synced to
     updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);
-
+  els.showMoreRowsBtn?.addEventListener('click', () => {
+    state.visibleRowCount = Math.max(DEFAULT_VISIBLE_ROWS, Number(state.visibleRowCount || DEFAULT_VISIBLE_ROWS)) + VISIBLE_ROW_STEP;
+    renderTable();
+    setStatus('Showing more rows.');
+  });
+  els.showAllRowsBtn?.addEventListener('click', () => {
+    state.visibleRowCount = Math.max(DEFAULT_VISIBLE_ROWS, activePrograms().length);
+    renderTable();
+    setStatus('Showing all matching rows.');
+  });
+  els.showFastRowsBtn?.addEventListener('click', () => {
+    resetVisibleRowWindow();
+    renderTable();
+    setStatus('Back to the fast row limit.');
+  });
 
   document.querySelectorAll('[data-sort-field]').forEach((button) => {
     button.addEventListener('click', () => setSort(button.dataset.sortField));
