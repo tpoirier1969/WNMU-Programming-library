@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library v1.5.42 · Monthly Media</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
+  <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.42" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    body.standalone-page { overflow-y: auto; background: #eef3f7; }
+    .standalone-shell { max-width: 1400px; margin: 0 auto; padding: 18px; }
+    .standalone-topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+      background:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 10px 30px rgba(12,39,68,.08); margin-bottom:16px;
+    }
+    .standalone-brand { display:flex; align-items:center; gap:14px; min-width:280px; }
+    .standalone-brand img { width:62px; height:62px; object-fit:contain; }
+    .standalone-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .standalone-grid { display:grid; gap:16px; }
+    .standalone-card { background:#fff; border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(12,39,68,.08); }
+    .page-subhead { margin:0; color:#30485f; }
+    .page-mini { margin:6px 0 0; color:#567086; font-size:.92rem; }
+    .inline-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    .inline-toolbar > label { min-width: 180px; flex: 1 1 180px; }
+    .feedback-line { min-height:1.2rem; margin-top:10px; font-weight:700; }
+    .feedback-line.info { color:#325d85; }
+    .feedback-line.success { color:#0f6b3d; }
+    .feedback-line.warn { color:#8a5a11; }
+    .feedback-line.error { color:#8a1e1e; }
+    .mini-note { color:#5f7386; font-size:.92rem; }
+    .media-form-grid { display:grid; gap:12px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .media-form-grid .span-2 { grid-column: span 2; }
+    .media-form-grid .span-3 { grid-column: span 3; }
+    .media-form-grid .span-6 { grid-column: 1 / -1; }
+    .media-table-wrap { overflow:auto; }
+    .media-table { width:100%; border-collapse: collapse; min-width: 1120px; }
+    .media-table th, .media-table td { border-bottom:1px solid #d9e5ef; padding:10px 8px; vertical-align:top; }
+    .media-table th { position:sticky; top:0; background:#f7fbfd; color:#254764; font-size:.86rem; text-transform:uppercase; letter-spacing:.04em; z-index:1; }
+    .media-table td input, .media-table td textarea, .media-table td select { width:100%; min-width:0; }
+    .media-table td textarea { min-height: 42px; resize: vertical; }
+    .row-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .row-status-pill { display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-size:.75rem; font-weight:800; background:#edf7f2; color:#0f6b3d; }
+    .row-status-pill.inactive { background:#f6ecec; color:#8a1e1e; }
+    .empty-state { padding:18px; border:1px dashed #cbd9e6; border-radius:14px; color:#5f7386; text-align:center; }
+    .hidden { display:none !important; }
+    @media (max-width: 920px) {
+      .standalone-shell { padding:12px; }
+      .media-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .media-form-grid .span-2,
+      .media-form-grid .span-3,
+      .media-form-grid .span-6 { grid-column: 1 / -1; }
+    }
+  </style>
+  <script defer src="js/monthly-media.js?v=1.5.42"></script>
+</head>
+<body class="standalone-page">
+  <div id="setupNotice" class="standalone-shell hidden">
+    <div class="standalone-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+    </div>
+  </div>
+
+  <div id="pageShell" class="standalone-shell hidden">
+    <header class="standalone-topbar">
+      <div class="standalone-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1 style="margin:0;">Monthly Media to Schedule</h1>
+            <span class="version-pill">v1.5.42</span>
+          </div>
+          <div id="statusLine" class="status-line">Starting up…</div>
+        </div>
+      </div>
+      <div class="standalone-actions">
+        <a href="index.html" class="ghost">Back to library</a>
+        <a href="program-new.html" class="ghost">Add program</a>
+        <a href="holidays-calendar.html" class="ghost">Holidays / events</a>
+        <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
+        <button type="button" id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <div class="standalone-grid">
+      <section class="standalone-card">
+        <p class="page-subhead">This page is for the stuff the scheduling system does not automatically attach media to.</p>
+        <p class="page-mini">Keep the recurring troublemakers here: record date, time, source, last episode number, and whether the series is still active. Admins can add, edit, and delete rows.</p>
+      </section>
+
+      <section class="standalone-card">
+        <div class="inline-toolbar">
+          <label>Search list
+            <input id="searchInput" type="search" placeholder="Filter by title, source, notes, or pattern" />
+          </label>
+          <label>Status
+            <select id="statusFilter">
+              <option value="active">Active only</option>
+              <option value="all">All rows</option>
+              <option value="inactive">Inactive only</option>
+            </select>
+          </label>
+          <div>
+            <button type="button" id="refreshBtn">Refresh</button>
+          </div>
+        </div>
+        <div id="pageFeedback" class="feedback-line"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="title-row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="list-title">Add series to the list</div>
+            <div id="authStateText" class="mini-note">Checking sign-in status…</div>
+          </div>
+        </div>
+        <form id="addForm" class="media-form-grid">
+          <label class="span-2">Series title
+            <input name="series_title" type="text" required />
+          </label>
+          <label>Last scheduled date
+            <input name="last_scheduled_date" type="date" />
+          </label>
+          <label>Time
+            <input name="record_time" type="text" placeholder="20:00 or 8:00 PM" />
+          </label>
+          <label>Source
+            <input name="record_source" type="text" placeholder="HD01 / Prod / Server" />
+          </label>
+          <label>Last episode #
+            <input name="last_episode_scheduled" type="number" step="1" />
+          </label>
+          <label class="span-2">Schedule pattern
+            <input name="schedule_pattern" type="text" placeholder="Weekly / M-F / Tue-Thu" />
+          </label>
+          <label class="span-3">Notes
+            <textarea name="notes" rows="2" placeholder="Anything odd you need to remember"></textarea>
+          </label>
+          <label style="align-self:end; display:flex; gap:8px; align-items:center;">
+            <input name="is_active" type="checkbox" checked />
+            <span>Active</span>
+          </label>
+          <div class="span-6" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="submit" id="addRowBtn" class="primary">Add series</button>
+            <button type="button" id="clearFormBtn">Clear form</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="standalone-card">
+        <div class="title-row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="list-title">Series list</div>
+            <div id="listSummary" class="mini-note">Loading…</div>
+          </div>
+        </div>
+        <div class="media-table-wrap">
+          <table class="media-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Last scheduled</th>
+                <th>Time</th>
+                <th>Source</th>
+                <th>Pattern</th>
+                <th>Last episode #</th>
+                <th>Notes</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mediaTableBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden">No rows match the current filter.</div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

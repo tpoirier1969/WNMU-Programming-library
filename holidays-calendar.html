@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library v1.5.42 · Holidays & Events</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
+  <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.42" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    body.standalone-page { overflow-y: auto; background: #eef3f7; }
+    .standalone-shell { max-width: 1500px; margin: 0 auto; padding: 18px; }
+    .standalone-topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+      background:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 10px 30px rgba(12,39,68,.08); margin-bottom:16px;
+    }
+    .standalone-brand { display:flex; align-items:center; gap:14px; min-width:280px; }
+    .standalone-brand img { width:62px; height:62px; object-fit:contain; }
+    .standalone-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .standalone-grid { display:grid; gap:16px; }
+    .standalone-card { background:#fff; border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(12,39,68,.08); }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    .toolbar > label { min-width:180px; }
+    .feedback-line { min-height:1.2rem; margin-top:10px; font-weight:700; }
+    .feedback-line.info { color:#325d85; }
+    .feedback-line.success { color:#0f6b3d; }
+    .feedback-line.warn { color:#8a5a11; }
+    .feedback-line.error { color:#8a1e1e; }
+    .mini-note { color:#5f7386; font-size:.92rem; }
+    .months-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px; }
+    .month-card { border:1px solid #d6e4ef; border-radius:18px; overflow:hidden; background:#fbfdff; }
+    .month-head { background:linear-gradient(135deg, #184e7b, #1d5f96); color:#fff; padding:12px 14px; }
+    .month-head h3 { margin:0; font-size:1.05rem; }
+    .month-body { padding:14px; display:grid; gap:14px; }
+    .section-label { font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#58728a; }
+    .chip-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .month-chip { display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px; background:#eef7fb; border:1px solid #cfe0ea; color:#254764; font-weight:700; font-size:.84rem; }
+    .month-event-list { display:grid; gap:10px; }
+    .month-event { display:grid; grid-template-columns: 90px minmax(0, 1fr); gap:10px; align-items:start; }
+    .event-date { font-weight:800; color:#103a66; }
+    .event-title { font-weight:700; color:#1e3140; }
+    .event-note { color:#5f7386; font-size:.88rem; margin-top:2px; }
+    .muted-empty { color:#7a8ea1; font-size:.9rem; }
+    .admin-form-grid { display:grid; gap:12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .admin-form-grid .span-2 { grid-column: span 2; }
+    .admin-form-grid .span-4 { grid-column: 1 / -1; }
+    .custom-list { display:grid; gap:10px; margin-top:14px; }
+    .custom-item { border:1px solid #d9e5ef; border-radius:14px; padding:12px 14px; display:grid; gap:8px; }
+    .custom-item-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+    .custom-item-title { font-weight:800; color:#103a66; }
+    .custom-item-meta { color:#5f7386; font-size:.9rem; }
+    .custom-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .hidden { display:none !important; }
+    @media (max-width: 1100px) { .months-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 820px) {
+      .standalone-shell { padding:12px; }
+      .months-grid { grid-template-columns: 1fr; }
+      .admin-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .admin-form-grid .span-2, .admin-form-grid .span-4 { grid-column: 1 / -1; }
+    }
+  </style>
+  <script defer src="js/holidays-calendar.js?v=1.5.42"></script>
+</head>
+<body class="standalone-page">
+  <div id="setupNotice" class="standalone-shell hidden">
+    <div class="standalone-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+    </div>
+  </div>
+
+  <div id="pageShell" class="standalone-shell hidden">
+    <header class="standalone-topbar">
+      <div class="standalone-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1 style="margin:0;">Holidays & Events Calendar</h1>
+            <span class="version-pill">v1.5.42</span>
+          </div>
+          <div id="statusLine" class="status-line">Starting up…</div>
+        </div>
+      </div>
+      <div class="standalone-actions">
+        <a href="index.html" class="ghost">Back to library</a>
+        <a href="program-new.html" class="ghost">Add program</a>
+        <a href="monthly-media.html" class="ghost">Monthly media</a>
+        <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
+        <button type="button" id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <div class="standalone-grid">
+      <section class="standalone-card">
+        <p style="margin:0; color:#30485f;">Rather than a 31-column spreadsheet wall, this page lays the year out in monthly cards. The built-in list handles the moveable dates automatically, and you can add your own recurring observances underneath.</p>
+      </section>
+
+      <section class="standalone-card">
+        <div class="toolbar">
+          <label>Year
+            <select id="yearSelect"></select>
+          </label>
+          <div>
+            <button type="button" id="refreshBtn">Refresh custom list</button>
+          </div>
+          <div class="mini-note" id="authStateText" style="align-self:center;">Checking sign-in status…</div>
+        </div>
+        <div id="pageFeedback" class="feedback-line"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="list-title">Year at a glance</div>
+        <div class="mini-note">Built-in holidays are included automatically. Anything custom you add below gets folded into the right month and year.</div>
+        <div id="monthsGrid" class="months-grid" style="margin-top:14px;"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="title-row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="list-title">Custom observances</div>
+            <div class="mini-note">Use this for your own month-long observances, fixed dates, or moveable yearly items from the spreadsheet.</div>
+          </div>
+        </div>
+        <form id="customForm" class="admin-form-grid">
+          <input type="hidden" name="id" />
+          <label class="span-2">Title
+            <input name="title" type="text" required />
+          </label>
+          <label>Rule type
+            <select name="rule_type" id="ruleTypeSelect">
+              <option value="fixed_date">Fixed date</option>
+              <option value="nth_weekday">Nth weekday</option>
+              <option value="last_weekday">Last weekday</option>
+              <option value="month_scope">Month-long observance</option>
+              <option value="date_range_fixed">Date range</option>
+              <option value="manual_text">Manual text</option>
+            </select>
+          </label>
+          <label data-rule="date_range_fixed manual_text">Display month
+            <select name="month" id="monthSelect"></select>
+          </label>
+
+          <label data-rule="fixed_date nth_weekday last_weekday month_scope">Rule month
+            <select name="rule_month" id="ruleMonthSelect"></select>
+          </label>
+          <label data-rule="fixed_date">Day
+            <input name="day" type="number" min="1" max="31" />
+          </label>
+          <label data-rule="nth_weekday">Nth
+            <select name="nth">
+              <option value="1">1st</option>
+              <option value="2">2nd</option>
+              <option value="3">3rd</option>
+              <option value="4">4th</option>
+              <option value="5">5th</option>
+            </select>
+          </label>
+          <label data-rule="nth_weekday last_weekday">Weekday
+            <select name="weekday" id="weekdaySelect"></select>
+          </label>
+
+          <label data-rule="date_range_fixed">Start month
+            <select name="start_month" id="startMonthSelect"></select>
+          </label>
+          <label data-rule="date_range_fixed">Start day
+            <input name="start_day" type="number" min="1" max="31" />
+          </label>
+          <label data-rule="date_range_fixed">End month
+            <select name="end_month" id="endMonthSelect"></select>
+          </label>
+          <label data-rule="date_range_fixed">End day
+            <input name="end_day" type="number" min="1" max="31" />
+          </label>
+
+          <label class="span-2" data-rule="manual_text">Manual date text
+            <input name="manual_date_text" type="text" placeholder="Example: week before Thanksgiving" />
+          </label>
+          <label class="span-2">Notes
+            <input name="notes" type="text" placeholder="Optional note" />
+          </label>
+          <label style="align-self:end; display:flex; gap:8px; align-items:center;">
+            <input name="is_active" type="checkbox" checked />
+            <span>Active</span>
+          </label>
+          <div class="span-4" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button type="submit" id="saveCustomBtn" class="primary">Save observance</button>
+            <button type="button" id="resetCustomBtn">Clear form</button>
+          </div>
+        </form>
+
+        <div id="customList" class="custom-list"></div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

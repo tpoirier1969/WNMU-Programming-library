@@ -62,6 +62,8 @@ const els = {
   logoutBtn: $('#logoutBtn'),
   cancelLoginBtn: $('#cancelLoginBtn'),
   newProgramBtn: $('#newProgramBtn'),
+  monthlyMediaBtn: $('#monthlyMediaBtn'),
+  holidayCalendarBtn: $('#holidayCalendarBtn'),
   exportBtn: $('#exportBtn'),
   refreshBtn: $('#refreshBtn'),
   searchInput: $('#searchInput'),

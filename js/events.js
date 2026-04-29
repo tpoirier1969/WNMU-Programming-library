@@ -39,6 +39,8 @@ function bindEvents() {
   });
 
   els.newProgramBtn.addEventListener('click', () => { window.location.href = 'program-new.html'; });
+  els.monthlyMediaBtn?.addEventListener('click', () => { window.location.href = 'monthly-media.html'; });
+  els.holidayCalendarBtn?.addEventListener('click', () => { window.location.href = 'holidays-calendar.html'; });
   els.undoViewBtn?.addEventListener('click', undoViewState);
   els.closeDrawerBtn.addEventListener('click', closeEditor);
   els.drawerBackdrop.addEventListener('click', closeEditor);
