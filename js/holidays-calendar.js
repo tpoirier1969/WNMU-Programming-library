@@ -483,30 +483,34 @@ function renderCategoryBadge(category) {
 
 function renderCalendar() {
   const buckets = buildMonthBuckets(state.selectedYear);
-  els.monthsGrid.innerHTML = buckets.map((bucket, idx) => `
+  els.monthsGrid.innerHTML = buckets.map((bucket, idx) => {
+    const combined = [
+      ...bucket.monthItems.map((item) => ({ ...item, displayDate: 'ALL', monthScope: true })),
+      ...bucket.datedItems.map((item) => ({ ...item, displayDate: item.dateText, monthScope: false }))
+    ].sort((a, b) => {
+      const dayDiff = (a.monthScope ? -1 : Number(a.sortDay || 0)) - (b.monthScope ? -1 : Number(b.sortDay || 0));
+      if (dayDiff !== 0) return dayDiff;
+      return normalizeLower(a.title).localeCompare(normalizeLower(b.title));
+    });
+
+    return `
     <section class="month-card">
       <div class="month-head"><h3>${MONTH_NAMES[idx]} ${state.selectedYear}</h3></div>
       <div class="month-body">
-        <div>
-          <div class="section-label">Month-long observances</div>
-          ${bucket.monthItems.length ? `<div class="chip-list">${bucket.monthItems.map((item) => `<span class="month-chip ${getCategoryMeta(item.category).className}">${escapeHtml(item.title)}</span>`).join('')}</div>` : '<div class="muted-empty">Nothing loaded for the whole month.</div>'}
-        </div>
-        <div>
-          <div class="section-label">Dated events</div>
-          ${bucket.datedItems.length ? `<div class="month-event-list">${bucket.datedItems.map((item) => `
-            <div class="month-event ${getCategoryMeta(item.category).className}">
-              <div class="event-date">${escapeHtml(item.dateText)}</div>
-              <div>
-                <div class="event-top">
-                  <div class="event-title">${escapeHtml(item.title)}</div>
-                  ${renderCategoryBadge(item.category)}
-                </div>
+        ${combined.length ? `<div class="month-event-list">${combined.map((item) => `
+          <div class="month-event ${getCategoryMeta(item.category).className}">
+            <div class="event-date">${escapeHtml(item.displayDate)}</div>
+            <div>
+              <div class="event-top">
+                <div class="event-title">${escapeHtml(item.title)}</div>
                 ${item.note ? `<div class="event-note">${escapeHtml(item.note)}</div>` : ''}
               </div>
-            </div>`).join('')}</div>` : '<div class="muted-empty">No dated entries for this month.</div>'}
-        </div>
+            </div>
+            ${renderCategoryBadge(item.category)}
+          </div>`).join('')}</div>` : '<div class="muted-empty">Nothing loaded.</div>'}
       </div>
-    </section>`).join('');
+    </section>`;
+  }).join('');
 }
 
 function updateAuthUi() {
