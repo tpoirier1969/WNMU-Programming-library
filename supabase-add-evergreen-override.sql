@@ -1,11 +1,245 @@
--- Add evergreen override support for the WNMU Program Library.
--- Run this once in the Supabase SQL editor.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library v1.5.51 · Monthly Media</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
+  <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.51" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    body.standalone-page { overflow-y: auto; background: #eef3f7; }
+    .standalone-shell { max-width: 1320px; margin: 0 auto; padding: 18px; }
+    .standalone-topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+      background:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 10px 30px rgba(12,39,68,.08); margin-bottom:16px;
+    }
+    .standalone-brand { display:flex; align-items:center; gap:14px; min-width:280px; }
+    .standalone-brand img { width:62px; height:62px; object-fit:contain; }
+    .standalone-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .standalone-grid { display:grid; gap:16px; }
+    .standalone-card { background:#fff; border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(12,39,68,.08); }
+    .page-subhead { margin:0; color:#30485f; }
+    .page-mini { margin:6px 0 0; color:#567086; font-size:.92rem; }
+    .feedback-line { min-height:1.2rem; margin-top:10px; font-weight:700; }
+    .feedback-line.info { color:#325d85; }
+    .feedback-line.success { color:#0f6b3d; }
+    .feedback-line.warn { color:#8a5a11; }
+    .feedback-line.error { color:#8a1e1e; }
+    .mini-note { color:#5f7386; font-size:.92rem; }
+    .hidden { display:none !important; }
 
-alter table if exists public.programs
-add column if not exists can_be_used_as_evergreen boolean not null default false;
+    .media-form-grid {
+      display:grid;
+      gap:10px;
+      align-items:end;
+      grid-template-columns: minmax(210px, 2.2fr) minmax(78px, .72fr) minmax(78px, .76fr) minmax(108px, .98fr) minmax(90px, .82fr) minmax(118px, 1fr) auto auto;
+    }
+    .media-form-grid label { min-width:0; }
+    .media-form-grid input[type="text"],
+    .media-form-grid input[type="number"] { width:100%; min-width:0; }
 
-comment on column public.programs.can_be_used_as_evergreen is
-'Allows a program to appear in the Evergreens quick filter even when package_type is not HDEVER.';
+    .series-list-head {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .media-list {
+      display:grid;
+      gap:4px;
+    }
+    .media-header,
+    .media-row {
+      display:grid;
+      grid-template-columns: minmax(210px, 2.15fr) 78px 78px 108px 90px minmax(118px, 1fr) 78px;
+      gap:7px;
+      align-items:center;
+    }
+    .media-header {
+      padding:0 6px 8px;
+      border-bottom:2px solid #d8e3ec;
+      color:#254764;
+      font-size:.78rem;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+    }
+    .media-row {
+      padding:6px 6px;
+      border-bottom:1px solid #d9e5ef;
+    }
+    .media-row:hover { background:#f7fbfd; }
+    .media-cell { min-width:0; }
+    .media-row input[type="text"],
+    .media-row input[type="number"] {
+      width:100%;
+      min-width:0;
+      padding:6px 8px;
+      border:1px solid #c7d7e4;
+      border-radius:10px;
+      background:#fff;
+    }
+    .media-row.is-saving input {
+      background:#f7fbff;
+      border-color:#8eb5d4;
+    }
+    .media-row.save-error input {
+      border-color:#b33a3a;
+      background:#fff7f7;
+    }
 
--- If your programs_enriched view does not expose this new column, either refresh or recreate that view.
--- This app reads the override directly from public.programs, so the checkbox will still work after the table column exists.
+    .media-row.progress-touch .media-cell,
+    .media-row.progress-touch .row-actions {
+      transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .media-row .progress-fill {
+      background:#e7f4ea;
+      box-shadow: inset 0 0 0 1px #b8dcbc;
+      border-radius:10px;
+    }
+    .media-row .progress-fill input {
+      border-color:#8fbe96;
+      background:#f7fcf7;
+    }
+    .row-actions {
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:7px;
+      white-space:nowrap;
+    }
+    .row-state {
+      min-width:44px;
+      text-align:right;
+      font-size:.75rem;
+      color:#5f7386;
+      font-weight:700;
+    }
+    .row-state.success { color:#0f6b3d; }
+    .row-state.error { color:#8a1e1e; }
+    .empty-state { padding:18px; border:1px dashed #cbd9e6; border-radius:14px; color:#5f7386; text-align:center; }
+
+    @media (max-width: 1200px) {
+      .media-form-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .media-form-grid button { width:100%; }
+      .media-header,
+      .media-row {
+        grid-template-columns: minmax(188px, 2fr) 76px 76px 104px 88px minmax(112px, .95fr) 76px;
+      }
+    }
+    @media (max-width: 920px) {
+      .standalone-shell { padding:12px; }
+      .media-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .media-list {
+        overflow-x:auto;
+      }
+      .media-header,
+      .media-row {
+        min-width: 820px;
+      }
+    }
+  </style>
+  <script defer src="js/monthly-media.js?v=1.5.51"></script>
+</head>
+<body class="standalone-page">
+  <div id="setupNotice" class="standalone-shell hidden">
+    <div class="standalone-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+    </div>
+  </div>
+
+  <div id="pageShell" class="standalone-shell hidden">
+    <header class="standalone-topbar">
+      <div class="standalone-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1 style="margin:0;">Monthly Media to Schedule</h1>
+            <span class="version-pill">v1.5.51</span>
+          </div>
+          <div id="statusLine" class="status-line">Starting up…</div>
+        </div>
+      </div>
+      <div class="standalone-actions">
+        <a href="index.html" class="ghost">Back to library</a>
+        <a href="program-new.html" class="ghost">Add program</a>
+        <a href="holidays-calendar.html" class="ghost">Holidays / events</a>
+        <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
+        <button type="button" id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <div class="standalone-grid">
+      <section class="standalone-card">
+        <p class="page-subhead">Fast manual record list: title, last scheduled date, time, source, last episode number, and a short note.</p>
+        <p class="page-mini">Edits in the list auto-save about 3 seconds after you stop typing. No extra save clicks needed.</p>
+      </section>
+
+      <section class="standalone-card">
+        <div class="title-row" style="justify-content:space-between; align-items:center; gap:12px;">
+          <div>
+            <div class="list-title">Add title</div>
+            <div id="authStateText" class="mini-note">Checking sign-in status…</div>
+          </div>
+        </div>
+        <form id="addForm" class="media-form-grid">
+          <label>Series title
+            <input name="series_title" type="text" required />
+          </label>
+          <label>Time
+            <input name="record_time" type="text" placeholder="2000" />
+          </label>
+          <label>Source
+            <input name="record_source" type="text" placeholder="HD01" />
+          </label>
+          <label>Last scheduled
+            <input name="last_scheduled_date" type="text" inputmode="numeric" placeholder="M/D/YYYY" />
+          </label>
+          <label>Ep #
+            <input name="last_episode_scheduled" type="number" step="1" />
+          </label>
+          <label>Notes
+            <input name="notes" type="text" placeholder="note" />
+          </label>
+          <button type="submit" id="addRowBtn" class="primary">Add</button>
+          <button type="button" id="clearFormBtn">Clear</button>
+        </form>
+        <div id="pageFeedback" class="feedback-line"></div>
+      </section>
+
+      <section class="standalone-card">
+        <div class="series-list-head">
+          <div>
+            <div class="list-title">Series list</div>
+            <div id="listSummary" class="mini-note">Loading…</div>
+          </div>
+        </div>
+        <div class="media-list" id="mediaListWrap">
+          <div class="media-header" id="mediaHeader">
+            <div>Title</div>
+            <div>Time</div>
+            <div>Source</div>
+            <div>Last sched.</div>
+            <div>Ep #</div>
+            <div>Notes</div>
+            <div style="text-align:right;">Delete</div>
+          </div>
+          <div id="mediaTableBody"></div>
+        </div>
+        <div id="emptyState" class="empty-state hidden">No rows yet.</div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
