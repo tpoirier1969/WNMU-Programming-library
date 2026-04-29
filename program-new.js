@@ -1,320 +1,385 @@
-// Online metadata lookup for the editor drawer.
-// Best-effort public lookup using PBS show pages and NETA's public program catalog.
+// PBS offer paste importer
+// Adds an admin-only pasted-text parser that prefills a new program draft.
 
-const LOOKUP_TIMEOUT_MS = 12000;
+const PBS_IMPORT_KNOWN_LABELS = [
+  'Release Title',
+  'Content Identifier',
+  'Episode Number(s)',
+  'About this program',
+  'Organization List',
+  'Production Companies',
+  'Distributor',
+  'Schedule Notes',
+  'DATES/TIMES',
+  'REPEAT DT/TM',
+  'Program Notes',
+  'Dates, episodes #s & titles',
+  'EMBEDDED PROMO',
+  'Rights Notes',
+  'Underwriting Notes'
+];
 
-function normalizeLookupTitle(value) {
-  return normalizeLower(value)
-    .replace(/[’']/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+const PBS_IMPORT_STOP_HEADINGS = [
+  'Rights (Permissions)',
+  'Media Context',
+  'Prohibition',
+  'Funding',
+  'FUNDER'
+];
+
+function escapeRegex(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function titleTokens(value) {
-  return normalizeLookupTitle(value)
-    .split(/\s+/)
-    .filter((token) => token && !['the', 'a', 'an', 'and', 'of', 'for', 'to', 'with'].includes(token));
+function pbsImportVisibleText(text) {
+  return normalizeText(String(text || '').replace(/\u00a0/g, ' ').replace(/\t+/g, ' ').replace(/[ ]{2,}/g, ' '));
 }
 
-function slugifyTitle(value, dropLeadingArticle = false) {
-  let text = normalizeText(value)
-    .replace(/[’']/g, '')
-    .replace(/&/g, ' and ');
-  if (dropLeadingArticle) text = text.replace(/^(the|a|an)\s+/i, '');
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-');
-}
+function splitPbsOfferSections(rawText) {
+  const sections = {};
+  let current = null;
+  const labelMatchers = PBS_IMPORT_KNOWN_LABELS.map((label) => ({ label, pattern: new RegExp(`^${escapeRegex(label)}:\\s*(.*)$`, 'i') }));
 
-function toIsoDate(value) {
-  const raw = normalizeText(value);
-  if (!raw) return '';
-  const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!match) return '';
-  let [, mm, dd, yy] = match;
-  const year = yy.length === 2 ? `20${yy}` : yy;
-  return `${year}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-}
-
-function maybeHtml(text) {
-  return /<html|<body|<table|<div|<meta/i.test(text || '');
-}
-
-function parseHtml(text) {
-  return new DOMParser().parseFromString(text, 'text/html');
-}
-
-function textLinesFromPayload(text) {
-  if (!text) return [];
-  if (maybeHtml(text)) {
-    const doc = parseHtml(text);
-    return doc.body.textContent.split('\n').map((line) => line.trim()).filter(Boolean);
-  }
-  return text.split('\n').map((line) => line.trim()).filter(Boolean);
-}
-
-async function fetchWithTimeout(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { signal: controller.signal, credentials: 'omit', cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function fetchLookupText(url) {
-  const attempts = [
-    url,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://r.jina.ai/http://${url.replace(/^https?:\/\//i, '')}`
-  ];
-
-  let lastError = null;
-  for (const attempt of attempts) {
-    try {
-      const text = await fetchWithTimeout(attempt);
-      if (normalizeText(text)) return text;
-    } catch (error) {
-      lastError = error;
+  String(rawText || '').replace(/\r/g, '').split('\n').forEach((line) => {
+    const raw = line.trimEnd();
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      if (current) sections[current].push('');
+      return;
     }
-  }
-  throw lastError || new Error('Lookup fetch failed.');
-}
-
-function scoreTitleMatch(candidateTitle, requestedTitle) {
-  const candidate = normalizeLookupTitle(candidateTitle);
-  const requested = normalizeLookupTitle(requestedTitle);
-  if (!candidate || !requested) return 0;
-  if (candidate === requested) return 120;
-  if (candidate.includes(requested) || requested.includes(candidate)) return 80;
-  const tokens = titleTokens(requested);
-  const hits = tokens.filter((token) => candidate.includes(token)).length;
-  return hits * 10;
-}
-
-function parseNetaRows(text) {
-  const rows = [];
-  if (maybeHtml(text)) {
-    const doc = parseHtml(text);
-    const htmlRows = Array.from(doc.querySelectorAll('table tbody tr'));
-    htmlRows.forEach((row) => {
-      const cells = Array.from(row.querySelectorAll('td')).map((cell) => normalizeText(cell.textContent));
-      if (cells.length >= 7) {
-        rows.push({
-          title: cells[0],
-          nola: cells[1],
-          episodes: cells[2],
-          length: cells[3],
-          genre: cells[4],
-          version: cells[5],
-          rightsEnd: cells[6]
-        });
-      }
-    });
-    if (rows.length) return rows;
-  }
-
-  const lines = textLinesFromPayload(text);
-  for (const line of lines) {
-    if (!line.includes('|')) continue;
-    const parts = line.split('|').map((part) => normalizeText(part)).filter(Boolean);
-    if (parts.length < 7) continue;
-    const [title, nola, episodes, length, genre, version, rightsEnd] = parts;
-    if (normalizeLower(title) === 'title' || /^-+$/.test(title)) continue;
-    rows.push({ title, nola, episodes, length, genre, version, rightsEnd });
-  }
-  return rows;
-}
-
-async function lookupNetaMetadata(title, nola) {
-  const url = `https://www.netaonline.org/programming-service/program-catalog?title=${encodeURIComponent(title || '')}&field_program_nola_value=${encodeURIComponent(nola || '')}`;
-  const text = await fetchLookupText(url);
-  const rows = parseNetaRows(text);
-  if (!rows.length) return null;
-
-  const requestedNola = normalizeLower(nola);
-  const best = rows
-    .map((row) => {
-      const exactNola = requestedNola && normalizeLower(row.nola) === requestedNola ? 150 : 0;
-      return { row, score: exactNola + scoreTitleMatch(row.title, title) };
-    })
-    .sort((a, b) => b.score - a.score)[0];
-
-  if (!best || best.score < 40) return null;
-
-  const fields = {};
-  if (best.row.nola) fields.nola_eidr = best.row.nola;
-  if (best.row.length) fields.length_minutes = best.row.length;
-  if (best.row.genre) fields.topic = best.row.genre;
-  if (best.row.episodes) {
-    const count = Number(best.row.episodes);
-    fields.episode_season = Number.isFinite(count) && count > 0 ? `${count} episode${count === 1 ? '' : 's'}` : best.row.episodes;
-  }
-  const rightsEnd = toIsoDate(best.row.rightsEnd);
-  if (rightsEnd) fields.rights_end = rightsEnd;
-  fields.distributor = fields.distributor || 'NETA';
-
-  return { source: 'NETA Program Catalog', fields, matchedTitle: best.row.title };
-}
-
-function extractGenreFromLines(lines) {
-  for (let i = 0; i < lines.length; i += 1) {
-    if (normalizeLower(lines[i]) === 'genre') {
-      for (let j = i + 1; j < Math.min(i + 4, lines.length); j += 1) {
-        const value = normalizeText(lines[j]);
-        if (value && normalizeLower(value) !== 'share this show') return value;
-      }
+    if (PBS_IMPORT_STOP_HEADINGS.some((heading) => trimmed.toLowerCase() === heading.toLowerCase())) {
+      current = null;
+      return;
     }
-  }
-  return '';
-}
-
-function parsePbsPage(text, requestedTitle, url) {
-  const lines = textLinesFromPayload(text);
-  const doc = maybeHtml(text) ? parseHtml(text) : null;
-  const metaTitle = normalizeText(doc?.querySelector('meta[property="og:title"]')?.content || doc?.querySelector('title')?.textContent || '');
-  const heading = normalizeText(doc?.querySelector('h1')?.textContent || lines.find((line) => line.startsWith('# '))?.replace(/^#\s+/, '') || '');
-  const resolvedTitle = heading || metaTitle.replace(/\|\s*PBS$/i, '').trim();
-  const score = scoreTitleMatch(resolvedTitle, requestedTitle);
-  if (score < 40) return null;
-
-  const description = normalizeText(doc?.querySelector('meta[name="description"]')?.content || doc?.querySelector('meta[property="og:description"]')?.content || lines[lines.findIndex((line) => normalizeLookupTitle(line) === normalizeLookupTitle(resolvedTitle)) + 1] || '');
-  const bodyText = lines.join('\n');
-  const distributorMatch = bodyText.match(/Distributed nationally by\s+([^\n]+)/i);
-  const distributor = distributorMatch ? normalizeText(distributorMatch[1].replace(/\s*Learn More.*$/i, '')) : '';
-  const genre = extractGenreFromLines(lines);
-  const fields = {};
-  if (description) fields.notes = description;
-  if (genre) fields.topic = genre;
-  if (distributor) fields.distributor = distributor;
-  if (/\bEpisodes\b/i.test(bodyText)) fields.program_type = 'Series';
-  return { source: 'PBS show page', fields, matchedTitle: resolvedTitle, url };
-}
-
-async function lookupPbsMetadata(title) {
-  const slugs = Array.from(new Set([
-    slugifyTitle(title, false),
-    slugifyTitle(title, true)
-  ].filter(Boolean)));
-
-  for (const slug of slugs) {
-    const url = `https://www.pbs.org/show/${slug}/`;
-    try {
-      const text = await fetchLookupText(url);
-      const parsed = parsePbsPage(text, title, url);
-      if (parsed) return parsed;
-    } catch (error) {
-      // keep trying other slug variants
+    const matched = labelMatchers.find((entry) => entry.pattern.test(trimmed));
+    if (matched) {
+      const value = trimmed.replace(matched.pattern, '$1').trim();
+      current = matched.label;
+      sections[current] ||= [];
+      sections[current].push(value);
+      return;
     }
-  }
+    if (current) sections[current].push(trimmed);
+  });
+
+  return Object.fromEntries(Object.entries(sections).map(([label, lines]) => [label, lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()]));
+}
+
+function parseNamedMonthDate(text) {
+  const match = normalizeText(text).match(/^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/);
+  if (!match) return null;
+  const [_, monthName, day, year] = match;
+  const probe = new Date(`${monthName} ${day}, ${year} 00:00:00`);
+  if (Number.isNaN(probe.getTime())) return null;
+  const month = String(probe.getMonth() + 1).padStart(2, '0');
+  const iso = `${year}-${month}-${String(Number(day)).padStart(2, '0')}`;
+  return normalizeIsoDate(iso);
+}
+
+function normalizeEpisodeCode(value) {
+  const digits = String(value || '').match(/\d+/)?.[0] || '';
+  if (!digits) return '';
+  return String(Number(digits));
+}
+
+function parseEpisodeNumberList(value) {
+  return Array.from(new Set((String(value || '').match(/\d{3,6}/g) || []).map(normalizeEpisodeCode).filter(Boolean)));
+}
+
+function buildEpisodeSeasonValue(episodeNumbers) {
+  if (!episodeNumbers.length) return '';
+  if (episodeNumbers.length === 1) return episodeNumbers[0];
+  const numeric = episodeNumbers.map((value) => Number(value)).filter(Number.isFinite);
+  const continuous = numeric.length === episodeNumbers.length && numeric.every((value, index) => index === 0 || value === numeric[index - 1] + 1);
+  if (continuous) return `${numeric[0]}-${numeric[numeric.length - 1]} / ${episodeNumbers.length}`;
+  return `${episodeNumbers.join(', ')} / ${episodeNumbers.length}`;
+}
+
+function inferChannelField(token) {
+  const text = normalizeLower(token);
+  if (!text) return null;
+  if (text.includes('hd01') || text.includes('13.1')) return 'aired_13_1';
+  if (text.includes('hd03') || text.includes('13.3')) return 'aired_13_3';
   return null;
 }
 
-function shouldFillField(fieldName, currentValue) {
-  const current = normalizeText(currentValue);
-  if (!current) return true;
-  if (fieldName === 'nola_eidr' && isPlaceholderNola(current)) return true;
-  return false;
+function toDisplayTime(hhmm) {
+  const digits = String(hhmm || '').replace(/\D/g, '');
+  if (!digits) return '';
+  let hours = 0;
+  let minutes = 0;
+  if (digits.length <= 2) {
+    hours = Number(digits);
+  } else if (digits.length === 3) {
+    hours = Number(digits.slice(0, 1));
+    minutes = Number(digits.slice(1));
+  } else {
+    hours = Number(digits.slice(0, 2));
+    minutes = Number(digits.slice(2, 4));
+  }
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return '';
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = ((hours + 11) % 12) + 1;
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${suffix}`;
 }
 
-function applyLookupFields(resultFields) {
-  const filled = [];
-  const skipped = [];
-  Object.entries(resultFields || {}).forEach(([fieldName, value]) => {
-    const field = els.programForm?.elements?.[fieldName];
-    const normalizedValue = normalizeText(value);
-    if (!field || !normalizedValue) return;
-    if (!shouldFillField(fieldName, field.value)) {
-      skipped.push(fieldName);
-      return;
-    }
-    if (field.tagName === 'SELECT') ensureEditorSelectOption(fieldName, normalizedValue);
-    field.value = normalizedValue;
-    filled.push(fieldName);
+function extractPrimaryScheduleMeta(block) {
+  const lines = String(block || '').replace(/\r/g, '').split('\n').map((line) => normalizeText(line)).filter(Boolean);
+  const mappings = [];
+  lines.forEach((line) => {
+    const timeMatch = line.match(/(?:^|,\s*)(\d{3,4})\s*-\s*\d{3,4}\s*\/\s*([A-Z0-9.]+)/i);
+    if (!timeMatch) return;
+    const time = toDisplayTime(timeMatch[1]);
+    const channel = timeMatch[2];
+    const field = inferChannelField(channel);
+    if (!field || !time) return;
+    mappings.push({ field, time, channel, raw: line });
   });
-  return { filled, skipped };
+  return mappings;
 }
 
-function humanFieldName(fieldName) {
-  const labels = {
-    nola_eidr: 'NOLA',
-    notes: 'Description',
-    program_type: 'Program or series',
-    length_minutes: 'Length',
-    topic: 'Topic',
-    secondary_topic: 'Secondary topic',
-    rights_end: 'Rights end',
-    episode_season: 'Season / Episode',
-    distributor: 'Distributor'
-  };
-  return labels[fieldName] || fieldName;
+function defaultImportYear(sections, termStartIso) {
+  const dateMatch = (sections['DATES/TIMES'] || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (dateMatch) {
+    let year = Number(dateMatch[3]);
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+    return year;
+  }
+  if (termStartIso) return Number(termStartIso.slice(0, 4));
+  return new Date().getFullYear();
 }
 
-async function performMetadataLookup() {
-  if (!canEdit()) {
-    setLookupMessage('Sign in as admin to use online lookup.', 'warn');
-    return;
-  }
-  const title = normalizeText(els.programForm?.elements?.title?.value);
-  const nola = normalizeText(els.programForm?.elements?.nola_eidr?.value);
-  if (!title) {
-    updateLookupButtonState();
-    return;
-  }
+function parseEpisodeListings(block, year) {
+  const results = [];
+  const lines = String(block || '').replace(/\r/g, '').split('\n').map((line) => normalizeText(line)).filter(Boolean);
+  lines.forEach((line) => {
+    const match = line.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+#?(\d{1,6})(?:\s+["“](.*?)["”])?(?:\s+(.*))?$/);
+    if (!match) return;
+    let [, month, day, explicitYear, episodeCode, quotedTitle, trailing] = match;
+    let finalYear = explicitYear ? Number(explicitYear) : Number(year || new Date().getFullYear());
+    if (finalYear < 100) finalYear += finalYear >= 70 ? 1900 : 2000;
+    const date = `${Number(month)}/${Number(day)}/${String(finalYear).slice(-2)}`;
+    const title = normalizeText(quotedTitle || trailing || '');
+    results.push({
+      month: Number(month),
+      day: Number(day),
+      year: finalYear,
+      date,
+      episodeCode: normalizeEpisodeCode(episodeCode),
+      title
+    });
+  });
+  return results;
+}
 
-  state.lookupBusy = true;
-  updateLookupButtonState();
-
-  try {
-    const sources = [];
-    const combinedFields = {};
-
-    const neta = await lookupNetaMetadata(title, nola).catch(() => null);
-    if (neta) {
-      Object.assign(combinedFields, neta.fields);
-      sources.push(neta.source);
-    }
-
-    const pbs = await lookupPbsMetadata(title).catch(() => null);
-    if (pbs) {
-      Object.entries(pbs.fields).forEach(([key, value]) => {
-        if (!combinedFields[key]) combinedFields[key] = value;
+function buildAiringFields(scheduleMeta, episodeListings) {
+  const airings = { aired_13_1: [], aired_13_3: [] };
+  scheduleMeta.forEach((meta, index) => {
+    if (episodeListings.length) {
+      episodeListings.forEach((episode) => {
+        airings[meta.field].push(`${episode.date} ${meta.time}`);
       });
-      sources.push(pbs.source);
-    }
-
-    if (!sources.length || !Object.keys(combinedFields).length) {
-      setLookupMessage('No public match found from PBS or NETA for that title.', 'warn');
-      setStatus('Lookup finished, but no public metadata match was found.');
       return;
     }
+    const dateMatches = (meta.raw.match(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g) || []).map((value) => normalizeText(value));
+    dateMatches.forEach((dateValue) => airings[meta.field].push(`${dateValue} ${meta.time}`));
+    if (!dateMatches.length && index === 0) airings[meta.field].push(meta.time);
+  });
+  return Object.fromEntries(Object.entries(airings).map(([field, values]) => [field, Array.from(new Set(values)).join('; ')]));
+}
 
-    const { filled } = applyLookupFields(combinedFields);
-    updateVoteVisibility();
-    renderDuplicateCheck();
-    updateLookupButtonState();
+function parseTermDates(rawText) {
+  const termMatch = String(rawText || '').match(/Term:\s*([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})\s*-\s*([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})/i);
+  if (!termMatch) return { rightsBegin: '', rightsEnd: '' };
+  return {
+    rightsBegin: parseNamedMonthDate(termMatch[1]) || '',
+    rightsEnd: parseNamedMonthDate(termMatch[2]) || ''
+  };
+}
 
-    if (!filled.length) {
-      setLookupMessage(`Lookup found data from ${Array.from(new Set(sources)).join(' + ')}, but your current fields already had values.`, 'info');
-      setStatus('Lookup found matching public metadata, but there was nothing blank to fill.');
-      return;
-    }
-
-    const fieldList = filled.map(humanFieldName).join(', ');
-    const sourceLabel = Array.from(new Set(sources)).join(' + ');
-    setLookupMessage(`Loaded ${filled.length} field${filled.length === 1 ? '' : 's'} from ${sourceLabel}: ${fieldList}.`, 'good');
-    setStatus(`Lookup loaded ${filled.length} field${filled.length === 1 ? '' : 's'} from ${sourceLabel}.`);
-  } catch (error) {
-    console.error(error);
-    setLookupMessage('Lookup hit an error. The public sources may be blocking the request right now.', 'danger');
-    setStatus(error.message || 'Lookup failed.');
-  } finally {
-    state.lookupBusy = false;
-    updateLookupButtonState();
+function buildRightsNotes(parsed, sections) {
+  const lines = [];
+  if (parsed.productionCompanies) lines.push(`Production companies: ${parsed.productionCompanies}`);
+  if (parsed.scheduleNotes) lines.push(`Schedule notes: ${parsed.scheduleNotes}`);
+  if (parsed.programNotes) lines.push(`Program notes: ${parsed.programNotes}`);
+  if (parsed.repeatSchedule) lines.push(`Repeat schedule: ${parsed.repeatSchedule.replace(/\n+/g, ' | ')}`);
+  if (parsed.embeddedPromo) lines.push(`Embedded promo: ${parsed.embeddedPromo.replace(/\n+/g, ' | ')}`);
+  if (parsed.episodeListings.length > 1) {
+    lines.push(`Episodes: ${parsed.episodeListings.map((episode) => `#${episode.episodeCode}${episode.title ? ` ${episode.title}` : ''}`).join('; ')}`);
   }
+  if (sections['Underwriting Notes']) lines.push(`Underwriting notes: ${sections['Underwriting Notes']}`);
+  if (sections['Rights Notes']) lines.push(`Rights notes: ${sections['Rights Notes']}`);
+  return lines.join('\n\n');
+}
+
+function parsePbsOffer(rawText, mode = 'series') {
+  const visibleText = String(rawText || '').trim();
+  if (!visibleText) throw new Error('Paste a PBS offer first.');
+  const sections = splitPbsOfferSections(visibleText);
+  const releaseTitle = pbsImportVisibleText(sections['Release Title']);
+  if (!releaseTitle) throw new Error('Could not find “Release Title” in that PBS offer.');
+
+  const { rightsBegin, rightsEnd } = parseTermDates(visibleText);
+  const importYear = defaultImportYear(sections, rightsBegin);
+  const episodeNumbers = parseEpisodeNumberList(sections['Episode Number(s)']);
+  const episodeListings = parseEpisodeListings(sections['Dates, episodes #s & titles'], importYear);
+  const scheduleMeta = extractPrimaryScheduleMeta(sections['DATES/TIMES']);
+  const airingFields = buildAiringFields(scheduleMeta, episodeListings);
+  const contentIdentifier = pbsImportVisibleText(sections['Content Identifier']);
+  const distributor = pbsImportVisibleText(sections['Distributor']) || 'PBS';
+  const source = /\bvia\s+sIX\b/i.test(visibleText) ? 'sIX' : DEFAULT_NEW_PROGRAM_VALUES.server_tape;
+  const description = pbsImportVisibleText(sections['About this program']);
+  const episodeSeasonSeries = buildEpisodeSeasonValue(episodeNumbers.length ? episodeNumbers : episodeListings.map((episode) => episode.episodeCode).filter(Boolean));
+  const firstEpisode = episodeListings[0] || { episodeCode: episodeNumbers[0] || '', title: '' };
+  const programType = mode === 'program' ? 'Program' : ((episodeNumbers.length > 1 || episodeListings.length > 1) ? 'Series' : 'Program');
+  const title = mode === 'program'
+    ? (firstEpisode.title ? `${releaseTitle}: ${firstEpisode.title}` : `${releaseTitle}${firstEpisode.episodeCode ? ` #${firstEpisode.episodeCode}` : ''}`)
+    : releaseTitle;
+  const episodeSeason = mode === 'program'
+    ? normalizeText([firstEpisode.episodeCode ? `#${firstEpisode.episodeCode}` : '', firstEpisode.title || ''].filter(Boolean).join(' '))
+    : episodeSeasonSeries;
+  const rightsNotes = buildRightsNotes({
+    productionCompanies: pbsImportVisibleText(sections['Production Companies']),
+    scheduleNotes: pbsImportVisibleText(sections['Schedule Notes']),
+    programNotes: pbsImportVisibleText(sections['Program Notes']),
+    repeatSchedule: pbsImportVisibleText(sections['REPEAT DT/TM']),
+    embeddedPromo: pbsImportVisibleText(sections['EMBEDDED PROMO']),
+    episodeListings
+  }, sections);
+
+  const warnings = [];
+  if (!scheduleMeta.length) warnings.push('No main HD01/HD03 schedule line was detected, so airing fields may need to be filled manually.');
+  if (mode === 'program' && (episodeListings.length > 1 || episodeNumbers.length > 1)) warnings.push('Program draft mode only prefills the first listed episode in this first pass.');
+  if (sections['REPEAT DT/TM']) warnings.push('Repeat schedule was copied into Rights Notes instead of the aired fields.');
+  if (sections['EMBEDDED PROMO']) warnings.push('Embedded promo details were copied into Rights Notes, not separate structured fields.');
+
+  return {
+    mode,
+    sections,
+    releaseTitle,
+    contentIdentifier,
+    distributor,
+    source,
+    description,
+    rightsBegin,
+    rightsEnd,
+    episodeNumbers,
+    episodeListings,
+    primaryScheduleLines: scheduleMeta,
+    warnings,
+    payload: {
+      title,
+      nola_eidr: contentIdentifier,
+      notes: description,
+      episode_season: episodeSeason,
+      program_type: programType,
+      rights_begin: rightsBegin,
+      rights_end: rightsEnd,
+      rights_notes: rightsNotes,
+      package_type: DEFAULT_NEW_PROGRAM_VALUES.package_type,
+      server_tape: source,
+      distributor,
+      aired_13_1: airingFields.aired_13_1,
+      aired_13_3: airingFields.aired_13_3
+    }
+  };
+}
+
+function previewLine(label, value) {
+  return `<div class="pbs-preview-line"><span class="pbs-preview-label">${escapeHtml(label)}</span><span class="pbs-preview-value">${escapeHtml(value || '—')}</span></div>`;
+}
+
+function renderPbsImportPreview(parsed) {
+  if (!els.pbsImportPreview) return;
+  if (!parsed) {
+    els.pbsImportPreview.innerHTML = '';
+    els.pbsImportPreview.classList.add('hidden');
+    return;
+  }
+  const preview = [
+    previewLine('Title', parsed.payload.title),
+    previewLine('NOLA', parsed.payload.nola_eidr),
+    previewLine('Type', parsed.payload.program_type),
+    previewLine('Season / Episode', parsed.payload.episode_season),
+    previewLine('Rights', [formatShortDateInput(parsed.payload.rights_begin), formatShortDateInput(parsed.payload.rights_end)].filter(Boolean).join(' → ')),
+    previewLine('Distributor', parsed.payload.distributor),
+    previewLine('Source', parsed.payload.server_tape),
+    previewLine('Aired on 13.1', parsed.payload.aired_13_1),
+    previewLine('Aired on 13.3', parsed.payload.aired_13_3)
+  ].join('');
+  const warnings = parsed.warnings.length
+    ? `<div class="pbs-preview-warnings">${parsed.warnings.map((warning) => `<div>• ${escapeHtml(warning)}</div>`).join('')}</div>`
+    : '';
+  const episodeSummary = parsed.episodeListings.length
+    ? `<div class="pbs-preview-episodes"><strong>Episodes found:</strong> ${parsed.episodeListings.map((episode) => `${escapeHtml(episode.date)} #${escapeHtml(episode.episodeCode)}${episode.title ? ` “${escapeHtml(episode.title)}”` : ''}`).join(' · ')}</div>`
+    : '';
+  els.pbsImportPreview.innerHTML = `
+    <div class="pbs-preview-card">
+      <div class="pbs-preview-title">PBS import preview</div>
+      <div class="pbs-preview-grid">${preview}</div>
+      ${episodeSummary}
+      ${warnings}
+      <div class="pbs-preview-actions">
+        <button type="button" id="applyPbsImportBtn" class="primary">Fill new draft</button>
+      </div>
+    </div>
+  `;
+  els.pbsImportPreview.classList.remove('hidden');
+}
+
+function setSelectFieldValue(fieldName, value) {
+  const field = els.programForm?.elements?.[fieldName];
+  if (!field) return;
+  if (field.tagName === 'SELECT') {
+    const target = normalizeLower(value);
+    let matched = Array.from(field.options).find((option) => normalizeLower(option.value) === target || normalizeLower(option.textContent) === target);
+    if (!matched && value) {
+      ensureEditorSelectOption(fieldName, value);
+      matched = Array.from(field.options).find((option) => normalizeLower(option.value) === target || normalizeLower(option.textContent) === target);
+    }
+    field.value = matched ? matched.value : (value || '');
+    return;
+  }
+  field.value = value || '';
+}
+
+function applyPbsImportToForm(parsed) {
+  if (!parsed || !els.programForm) return;
+  const form = els.programForm;
+  const payload = parsed.payload || {};
+  form.elements.title.value = payload.title || '';
+  form.elements.nola_eidr.value = payload.nola_eidr || '';
+  form.elements.notes.value = payload.notes || '';
+  form.elements.episode_season.value = payload.episode_season || '';
+  form.elements.rights_notes.value = payload.rights_notes || '';
+  form.elements.aired_13_1.value = payload.aired_13_1 || '';
+  form.elements.aired_13_3.value = payload.aired_13_3 || '';
+  form.elements.rights_begin.value = formatShortDateInput(payload.rights_begin) || '';
+  form.elements.rights_end.value = formatShortDateInput(payload.rights_end) || '';
+  setSelectFieldValue('program_type', payload.program_type || '');
+  setSelectFieldValue('package_type', payload.package_type || DEFAULT_NEW_PROGRAM_VALUES.package_type);
+  setSelectFieldValue('server_tape', payload.server_tape || DEFAULT_NEW_PROGRAM_VALUES.server_tape);
+  setSelectFieldValue('topic', '');
+  form.elements.distributor.value = payload.distributor || '';
+  ['rights_begin', 'rights_end'].forEach(syncDateProxyField);
+  updateVoteVisibility();
+  renderDuplicateCheck();
+  updateLookupButtonState();
+  renderFormFlags(null);
+  state.pbsImportPanelOpen = false;
+  updatePbsImportVisibility();
+  setStatus('PBS offer parsed into a new draft. Review the fields, then save when ready.');
+  requestAnimationFrame(() => form.elements.title.focus());
+}
+
+function resetPbsImportUi(options = {}) {
+  state.pbsImportData = null;
+  if (options.clearText && els.pbsOfferInput) els.pbsOfferInput.value = '';
+  renderPbsImportPreview(null);
+}
+
+function togglePbsImportPanel(forceOpen = null) {
+  state.pbsImportPanelOpen = forceOpen == null ? !state.pbsImportPanelOpen : Boolean(forceOpen);
+  updatePbsImportVisibility();
+  if (state.pbsImportPanelOpen) requestAnimationFrame(() => els.pbsOfferInput?.focus());
 }

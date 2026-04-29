@@ -1,961 +1,644 @@
-const config = window.APP_CONFIG || {};
+// Filter building, view logic, table rendering, and stats
+// Extracted from the former monolithic app.js during the v1.5.10 structural refactor.
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const ONLINE_HOLIDAY_MODULE = 'https://cdn.skypack.dev/date-holidays@3.27.0';
-const UN_ICS_URL = 'https://raw.githubusercontent.com/civilianEU/un-international-days/master/un-international-days.ics';
-
-const CATEGORY_META = Object.freeze({
-  national: { label: 'National / Civic', className: 'cat-national' },
-  religious: { label: 'Religious', className: 'cat-religious' },
-  health: { label: 'Health / Safety', className: 'cat-health' },
-  heritage: { label: 'Heritage / Culture', className: 'cat-heritage' },
-  environment: { label: 'Environment / Wildlife', className: 'cat-environment' },
-  education: { label: 'Education / Arts / Science', className: 'cat-education' },
-  awareness: { label: 'Awareness / Advocacy', className: 'cat-awareness' },
-  international: { label: 'International / UN', className: 'cat-international' },
-  history: { label: 'Historical / Remembrance', className: 'cat-history' },
-  seasonal: { label: 'Seasonal / Lifestyle', className: 'cat-seasonal' },
-  custom: { label: 'Custom', className: 'cat-custom' }
-});
-
-const SUPPLEMENTAL_OBSERVANCES = Object.freeze([
-  { title: 'Glaucoma Awareness Month', rule_type: 'month_scope', month: 1, category: 'health' },
-  { title: 'National Mentoring Month', rule_type: 'month_scope', month: 1, category: 'awareness' },
-  { title: 'Slavery and Human Trafficking Prevention Month', rule_type: 'month_scope', month: 1, category: 'awareness' },
-  { title: 'Science Fiction Day', rule_type: 'fixed_date', month: 1, day: 2, category: 'education' },
-  { title: 'Technology Day', rule_type: 'fixed_date', month: 1, day: 6, category: 'education' },
-  { title: 'National Human Trafficking Awareness Day', rule_type: 'fixed_date', month: 1, day: 11, category: 'awareness' },
-  { title: 'Religious Freedom Day', rule_type: 'fixed_date', month: 1, day: 16, category: 'national' },
-  { title: 'International Holocaust Remembrance Day', rule_type: 'fixed_date', month: 1, day: 27, category: 'history' },
-
-  { title: 'Bird-Feeding Month', rule_type: 'month_scope', month: 2, category: 'environment' },
-  { title: 'American Heart Month', rule_type: 'month_scope', month: 2, category: 'health' },
-  { title: 'Black History Month', rule_type: 'month_scope', month: 2, category: 'heritage' },
-  { title: 'Groundhog Day', rule_type: 'fixed_date', month: 2, day: 2, category: 'seasonal' },
-  { title: 'World Cancer Day', rule_type: 'fixed_date', month: 2, day: 4, category: 'health' },
-  { title: 'Sami National Day', rule_type: 'fixed_date', month: 2, day: 6, category: 'heritage' },
-  { title: 'Safer Internet Day', rule_type: 'nth_weekday', month: 2, nth: 2, weekday: 2, category: 'education', notes: '2nd Tuesday in February' },
-  { title: 'International Day of Women and Girls in Science', rule_type: 'fixed_date', month: 2, day: 11, category: 'education' },
-  { title: 'World Day of the Sick', rule_type: 'fixed_date', month: 2, day: 11, category: 'health' },
-  { title: 'Sexual and Reproductive Health Awareness Week', rule_type: 'date_range_fixed', month: 2, start_month: 2, start_day: 12, end_month: 2, end_day: 16, category: 'health' },
-  { title: 'Valentine\'s Day', rule_type: 'fixed_date', month: 2, day: 14, category: 'seasonal' },
-  { title: 'Random Acts of Kindness Day', rule_type: 'fixed_date', month: 2, day: 17, category: 'awareness' },
-  { title: 'World Day of Social Justice', rule_type: 'fixed_date', month: 2, day: 20, category: 'international' },
-
-  { title: 'Brain Injury Awareness Month', rule_type: 'month_scope', month: 3, category: 'health' },
-  { title: 'Irish-American Heritage Month', rule_type: 'month_scope', month: 3, category: 'heritage' },
-  { title: 'National Colon Cancer Awareness Month', rule_type: 'month_scope', month: 3, category: 'health' },
-  { title: 'Women\'s History Month', rule_type: 'month_scope', month: 3, category: 'heritage' },
-  { title: 'Youth Art Month', rule_type: 'month_scope', month: 3, category: 'education' },
-  { title: 'Employee Appreciation Day', rule_type: 'nth_weekday', month: 3, nth: 1, weekday: 5, category: 'awareness' },
-  { title: 'World Wildlife Day', rule_type: 'fixed_date', month: 3, day: 3, category: 'environment' },
-  { title: 'International Women\'s Day', rule_type: 'fixed_date', month: 3, day: 8, category: 'international' },
-  { title: 'St. Urho Day', rule_type: 'fixed_date', month: 3, day: 16, category: 'heritage' },
-  { title: 'St. Patrick\'s Day', rule_type: 'fixed_date', month: 3, day: 17, category: 'heritage' },
-  { title: 'World Poetry Day', rule_type: 'fixed_date', month: 3, day: 21, category: 'education' },
-  { title: 'World Down Syndrome Day', rule_type: 'fixed_date', month: 3, day: 21, category: 'health' },
-  { title: 'International Day of Forests', rule_type: 'fixed_date', month: 3, day: 21, category: 'environment' },
-  { title: 'World Water Day', rule_type: 'fixed_date', month: 3, day: 22, category: 'environment' },
-  { title: 'National Vietnam War Veterans Day', rule_type: 'fixed_date', month: 3, day: 29, category: 'history' },
-  { title: 'World Bipolar Day', rule_type: 'fixed_date', month: 3, day: 30, category: 'health' },
-
-  { title: 'Arab American Heritage Month', rule_type: 'month_scope', month: 4, category: 'heritage' },
-  { title: 'Autism Awareness Month', rule_type: 'month_scope', month: 4, category: 'health' },
-  { title: 'Jazz Appreciation Month', rule_type: 'month_scope', month: 4, category: 'education' },
-  { title: 'National Child Abuse Prevention Month', rule_type: 'month_scope', month: 4, category: 'awareness' },
-  { title: 'National Poetry Month', rule_type: 'month_scope', month: 4, category: 'education' },
-  { title: 'Second Chance Month', rule_type: 'month_scope', month: 4, category: 'awareness' },
-  { title: 'Sexual Assault Awareness Month', rule_type: 'month_scope', month: 4, category: 'health' },
-  { title: 'Public School Month', rule_type: 'month_scope', month: 4, category: 'education' },
-  { title: 'World Autism Awareness Day', rule_type: 'fixed_date', month: 4, day: 2, category: 'health' },
-  { title: 'World Health Day', rule_type: 'fixed_date', month: 4, day: 7, category: 'health' },
-  { title: 'World Hemophilia Day', rule_type: 'fixed_date', month: 4, day: 17, category: 'health' },
-  { title: 'National Education and Sharing Day', rule_type: 'fixed_date', month: 4, day: 19, category: 'education' },
-  { title: 'Earth Day', rule_type: 'fixed_date', month: 4, day: 22, category: 'environment' },
-  { title: 'International Jazz Day', rule_type: 'fixed_date', month: 4, day: 30, category: 'education' },
-
-  { title: 'Women\'s Health Month', rule_type: 'month_scope', month: 5, category: 'health' },
-  { title: 'ALS Awareness Month', rule_type: 'month_scope', month: 5, category: 'health' },
-  { title: 'Asian Pacific American Heritage Month', rule_type: 'month_scope', month: 5, category: 'heritage' },
-  { title: 'Celiac Awareness Month', rule_type: 'month_scope', month: 5, category: 'health' },
-  { title: 'Jewish American Heritage Month', rule_type: 'month_scope', month: 5, category: 'heritage' },
-  { title: 'Mental Health Awareness Month', rule_type: 'month_scope', month: 5, category: 'health' },
-  { title: 'National Bike Month', rule_type: 'month_scope', month: 5, category: 'environment' },
-  { title: 'National Foster Care Month', rule_type: 'month_scope', month: 5, category: 'awareness' },
-  { title: 'National Pet Month', rule_type: 'month_scope', month: 5, category: 'seasonal' },
-  { title: 'National Stroke Awareness Month', rule_type: 'month_scope', month: 5, category: 'health' },
-  { title: 'World Press Freedom Day', rule_type: 'fixed_date', month: 5, day: 3, category: 'awareness' },
-  { title: 'International Firefighters\' Day', rule_type: 'fixed_date', month: 5, day: 4, category: 'national' },
-  { title: 'Cinco de Mayo', rule_type: 'fixed_date', month: 5, day: 5, category: 'heritage' },
-  { title: 'International No Diet Day', rule_type: 'fixed_date', month: 5, day: 6, category: 'health' },
-  { title: 'Teacher Appreciation Day', rule_type: 'nth_weekday', month: 5, nth: 1, weekday: 2, category: 'education' },
-  { title: 'World Migratory Bird Day', rule_type: 'nth_weekday', month: 5, nth: 2, weekday: 6, category: 'environment' },
-  { title: 'International Nurses Day', rule_type: 'fixed_date', month: 5, day: 12, category: 'health' },
-  { title: 'Greek Pride Day', rule_type: 'fixed_date', month: 5, day: 19, category: 'heritage' },
-  { title: 'World Hunger Day', rule_type: 'fixed_date', month: 5, day: 28, category: 'awareness' },
-  { title: 'World No Tobacco Day', rule_type: 'fixed_date', month: 5, day: 31, category: 'health' },
-
-  { title: 'Great Outdoors Month', rule_type: 'month_scope', month: 6, category: 'environment' },
-  { title: 'African-American Music Appreciation Month', rule_type: 'month_scope', month: 6, category: 'heritage' },
-  { title: 'Alzheimer\'s and Brain Awareness Month', rule_type: 'month_scope', month: 6, category: 'health' },
-  { title: 'LGBT Pride Month', rule_type: 'month_scope', month: 6, category: 'heritage' },
-  { title: 'National Safety Month', rule_type: 'month_scope', month: 6, category: 'health' },
-  { title: 'International Children\'s Day', rule_type: 'fixed_date', month: 6, day: 1, category: 'international' },
-  { title: 'World Environment Day', rule_type: 'fixed_date', month: 6, day: 5, category: 'environment' },
-  { title: 'D-Day Anniversary', rule_type: 'fixed_date', month: 6, day: 6, category: 'history' },
-  { title: 'Anne Frank Day', rule_type: 'fixed_date', month: 6, day: 12, category: 'history' },
-  { title: 'Flag Day', rule_type: 'fixed_date', month: 6, day: 14, category: 'national' },
-  { title: 'International Yoga Day', rule_type: 'fixed_date', month: 6, day: 21, category: 'health' },
-  { title: 'Take Your Dog to Work Day', rule_type: 'nth_weekday', month: 6, nth: 3, weekday: 5, category: 'seasonal' },
-  { title: 'PTSD Awareness Day', rule_type: 'fixed_date', month: 6, day: 27, category: 'health' },
-
-  { title: 'National Ice Cream Month', rule_type: 'month_scope', month: 7, category: 'seasonal' },
-  { title: 'Bastille Day', rule_type: 'fixed_date', month: 7, day: 14, category: 'heritage' },
-  { title: 'Christmas in July', rule_type: 'month_scope', month: 7, category: 'seasonal' },
-
-  { title: 'International Beer Day', rule_type: 'nth_weekday', month: 8, nth: 1, weekday: 5, category: 'seasonal' },
-  { title: 'International Owl Awareness Day', rule_type: 'fixed_date', month: 8, day: 4, category: 'environment' },
-  { title: 'International Day of the World\'s Indigenous Peoples', rule_type: 'fixed_date', month: 8, day: 9, category: 'heritage' },
-  { title: 'Youth Day', rule_type: 'fixed_date', month: 8, day: 12, category: 'awareness' },
-  { title: 'World Mosquito Day', rule_type: 'fixed_date', month: 8, day: 20, category: 'health' },
-  { title: 'Women\'s Equality Day', rule_type: 'fixed_date', month: 8, day: 26, category: 'awareness' },
-  { title: 'Friendship Day', rule_type: 'nth_weekday', month: 8, nth: 1, weekday: 0, category: 'seasonal' },
-  { title: 'National Park Service Anniversary', rule_type: 'fixed_date', month: 8, day: 25, category: 'environment' },
-
-  { title: 'Classical Music Month', rule_type: 'month_scope', month: 9, category: 'education' },
-  { title: 'Gospel Music Heritage Month', rule_type: 'month_scope', month: 9, category: 'heritage' },
-  { title: 'Healthy Aging Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'Self-Improvement Month', rule_type: 'month_scope', month: 9, category: 'awareness' },
-  { title: 'Civic Awareness Month', rule_type: 'month_scope', month: 9, category: 'awareness' },
-  { title: 'National Honey Month', rule_type: 'month_scope', month: 9, category: 'environment' },
-  { title: 'National Sewing Month', rule_type: 'month_scope', month: 9, category: 'education' },
-  { title: 'National Bourbon Heritage Month', rule_type: 'month_scope', month: 9, category: 'heritage' },
-  { title: 'National Preparedness Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'National Prostate Health Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'National Yoga Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'Pain Awareness Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'National Recovery Month', rule_type: 'month_scope', month: 9, category: 'health' },
-  { title: 'National Grandparents Day', rule_type: 'nth_weekday', month: 9, nth: 2, weekday: 0, category: 'seasonal' },
-  { title: 'World Suicide Prevention Day', rule_type: 'fixed_date', month: 9, day: 10, category: 'health' },
-  { title: 'Positive Thinking Day', rule_type: 'fixed_date', month: 9, day: 13, category: 'awareness' },
-  { title: 'International Chocolate Day', rule_type: 'fixed_date', month: 9, day: 13, category: 'seasonal' },
-  { title: 'World Car-Free Day', rule_type: 'fixed_date', month: 9, day: 22, category: 'environment' },
-  { title: 'Native American Day', rule_type: 'fixed_date', month: 9, day: 27, category: 'heritage' },
-
-  { title: 'Breast Cancer Awareness Month', rule_type: 'month_scope', month: 10, category: 'health' },
-  { title: 'Filipino American Heritage Month', rule_type: 'month_scope', month: 10, category: 'heritage' },
-  { title: 'Italian American Heritage and Culture Month', rule_type: 'month_scope', month: 10, category: 'heritage' },
-  { title: 'National Arts and Humanities Month', rule_type: 'month_scope', month: 10, category: 'education' },
-  { title: 'National Bullying Prevention Month', rule_type: 'month_scope', month: 10, category: 'awareness' },
-  { title: 'National Cybersecurity Awareness Month', rule_type: 'month_scope', month: 10, category: 'education' },
-  { title: 'National Disability Employment Awareness Month', rule_type: 'month_scope', month: 10, category: 'awareness' },
-  { title: 'National Hispanic Heritage Month', rule_type: 'date_range_fixed', month: 9, start_month: 9, start_day: 15, end_month: 10, end_day: 15, category: 'heritage' },
-  { title: 'National Pizza Month', rule_type: 'month_scope', month: 10, category: 'seasonal' },
-  { title: 'Domestic Violence Awareness Month', rule_type: 'month_scope', month: 10, category: 'awareness' },
-  { title: 'Armenian Culture Month', rule_type: 'month_scope', month: 10, category: 'heritage' },
-  { title: 'World Vegetarian Day', rule_type: 'fixed_date', month: 10, day: 1, category: 'health' },
-  { title: 'World Mental Health Day', rule_type: 'fixed_date', month: 10, day: 10, category: 'health' },
-  { title: 'National Coming Out Day', rule_type: 'fixed_date', month: 10, day: 11, category: 'awareness' },
-  { title: 'Boss\'s Day', rule_type: 'fixed_date', month: 10, day: 16, category: 'seasonal' },
-  { title: 'Sweetest Day', rule_type: 'nth_weekday', month: 10, nth: 3, weekday: 6, category: 'seasonal' },
-  { title: 'United Nations Day', rule_type: 'fixed_date', month: 10, day: 24, category: 'international' },
-  { title: 'National Cat Day', rule_type: 'fixed_date', month: 10, day: 29, category: 'seasonal' },
-  { title: 'Mischief Night', rule_type: 'fixed_date', month: 10, day: 30, category: 'seasonal' },
-
-  { title: 'COPD Awareness Month', rule_type: 'month_scope', month: 11, category: 'health' },
-  { title: 'Men\'s Health Awareness Month', rule_type: 'month_scope', month: 11, category: 'health' },
-  { title: 'Native American and Alaska Native Heritage Month', rule_type: 'month_scope', month: 11, category: 'heritage' },
-  { title: 'National Education Month', rule_type: 'month_scope', month: 11, category: 'education' },
-  { title: 'American Education Week', rule_type: 'date_range_fixed', month: 11, start_month: 11, start_day: 18, end_month: 11, end_day: 22, category: 'education' },
-  { title: 'World Vegan Day', rule_type: 'fixed_date', month: 11, day: 1, category: 'health' },
-  { title: 'All Saints\' Day', rule_type: 'fixed_date', month: 11, day: 1, category: 'religious' },
-  { title: 'All Souls\' Day', rule_type: 'fixed_date', month: 11, day: 2, category: 'religious' },
-  { title: 'Veterans Day', rule_type: 'fixed_date', month: 11, day: 11, category: 'national' },
-  { title: 'International Men\'s Day', rule_type: 'fixed_date', month: 11, day: 19, category: 'awareness' },
-  { title: 'JFK Assassination Remembrance', rule_type: 'fixed_date', month: 11, day: 22, category: 'history' },
-  { title: 'Black Friday', rule_type: 'nth_weekday', month: 11, nth: 4, weekday: 5, category: 'seasonal' },
-
-  { title: 'Cyber Monday', rule_type: 'nth_weekday', month: 12, nth: 1, weekday: 1, category: 'seasonal' },
-  { title: 'Pearl Harbor Remembrance Day', rule_type: 'fixed_date', month: 12, day: 7, category: 'history' },
-  { title: 'Human Rights Day', rule_type: 'fixed_date', month: 12, day: 10, category: 'international' },
-  { title: 'December Solstice', rule_type: 'manual_text', month: 12, manual_date_text: 'Around 12/21 each year', category: 'seasonal' },
-  { title: 'Festivus', rule_type: 'fixed_date', month: 12, day: 23, category: 'seasonal' },
-  { title: 'Christmas Eve', rule_type: 'fixed_date', month: 12, day: 24, category: 'religious' },
-  { title: 'Christmas Day', rule_type: 'fixed_date', month: 12, day: 25, category: 'religious' },
-  { title: 'Kwanzaa', rule_type: 'date_range_fixed', month: 12, start_month: 12, start_day: 26, end_month: 1, end_day: 1, category: 'heritage' },
-  { title: 'New Year\'s Eve', rule_type: 'fixed_date', month: 12, day: 31, category: 'seasonal' }
-]);
-
-const state = {
-  supabase: null,
-  session: null,
-  customObservances: [],
-  selectedYear: new Date().getFullYear(),
-  editingId: null,
-  onlineObservances: [],
-  holidayFeedStatus: 'Loading online holiday sources…',
-  holidaysModule: null
-};
-
-const els = {
-  setupNotice: document.getElementById('setupNotice'),
-  pageShell: document.getElementById('pageShell'),
-  statusLine: document.getElementById('statusLine'),
-  loginGitHubBtn: document.getElementById('loginGitHubBtn'),
-  logoutBtn: document.getElementById('logoutBtn'),
-  authStateText: document.getElementById('authStateText'),
-  pageFeedback: document.getElementById('pageFeedback'),
-  yearSelect: document.getElementById('yearSelect'),
-  refreshBtn: document.getElementById('refreshBtn'),
-  monthsGrid: document.getElementById('monthsGrid'),
-  customForm: document.getElementById('customForm'),
-  saveCustomBtn: document.getElementById('saveCustomBtn'),
-  resetCustomBtn: document.getElementById('resetCustomBtn'),
-  customList: document.getElementById('customList'),
-  ruleTypeSelect: document.getElementById('ruleTypeSelect'),
-  monthSelect: document.getElementById('monthSelect'),
-  ruleMonthSelect: document.getElementById('ruleMonthSelect'),
-  startMonthSelect: document.getElementById('startMonthSelect'),
-  endMonthSelect: document.getElementById('endMonthSelect'),
-  weekdaySelect: document.getElementById('weekdaySelect'),
-  holidaySourceNote: document.getElementById('holidaySourceNote'),
-  legendChips: document.getElementById('legendChips')
-};
-
-function normalizeText(value) {
-  return (value ?? '').toString().trim();
+function parseLeadingNumber(value) {
+  const match = normalizeText(value).match(/\d+/);
+  return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
 }
 
-function normalizeLower(value) {
-  return normalizeText(value).toLowerCase();
+function sortLengthValues(values) {
+  return [...values].sort((a, b) => {
+    const aNum = parseLeadingNumber(a);
+    const bNum = parseLeadingNumber(b);
+    if (aNum !== bNum) return aNum - bNum;
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  });
 }
 
-function escapeHtml(value) {
-  return (value ?? '').toString()
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+function sortCodeValues(values) {
+  const priority = ['AM250', 'Y', 'N', 'M', 'YES', 'NO', '?', '13.3'];
+  return [...values].sort((a, b) => {
+    const aText = normalizeText(a).toUpperCase();
+    const bText = normalizeText(b).toUpperCase();
+    const aIdx = priority.indexOf(aText);
+    const bIdx = priority.indexOf(bText);
+    if (aIdx !== -1 || bIdx !== -1) {
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    }
+    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+  });
 }
 
-function hasValidConfig() {
-  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
+function uniqueCodeValues() {
+  const normalized = Array.from(new Set(
+    state.programs
+      .map((p) => normalizeText(p.legacy_code))
+      .filter(Boolean)
+      .map((value) => value.toUpperCase())
+  ));
+  return sortCodeValues(normalized);
 }
 
-function canEdit() {
-  return Boolean(state.session);
+
+function uniqueLookupFromPrograms(field) {
+  const values = field === 'secondary_topic'
+    ? Array.from(new Set(state.programs.flatMap((p) => splitMultiValues(p[field]))))
+    : Array.from(new Set(state.programs.map((p) => normalizeText(p[field])).filter(Boolean)));
+  if (field === 'length_minutes') return sortLengthValues(values);
+  return values.sort((a, b) => a.localeCompare(b));
 }
 
-function setStatus(message) {
-  if (els.statusLine) els.statusLine.textContent = message || '';
-}
-
-function setFeedback(message = '', tone = '') {
-  if (!els.pageFeedback) return;
-  els.pageFeedback.textContent = message || '';
-  els.pageFeedback.className = `feedback-line ${tone}`.trim();
-}
-
-function setHolidaySourceNote(message) {
-  if (els.holidaySourceNote) els.holidaySourceNote.textContent = message || '';
-}
-
-function fillSelect(select, values, labeler) {
-  if (!select) return;
-  const existing = normalizeText(select.value);
-  select.innerHTML = values.map((value) => `<option value="${value}">${escapeHtml(labeler ? labeler(value) : value)}</option>`).join('');
-  if (existing) select.value = existing;
-}
-
-function populateStaticSelects() {
-  const years = [];
-  for (let year = state.selectedYear - 2; year <= state.selectedYear + 5; year += 1) years.push(year);
-  fillSelect(els.yearSelect, years, (value) => String(value));
-  els.yearSelect.value = String(state.selectedYear);
-  fillSelect(els.monthSelect, MONTH_NAMES.map((_, idx) => idx + 1), (value) => MONTH_NAMES[value - 1]);
-  fillSelect(els.ruleMonthSelect, MONTH_NAMES.map((_, idx) => idx + 1), (value) => MONTH_NAMES[value - 1]);
-  fillSelect(els.startMonthSelect, MONTH_NAMES.map((_, idx) => idx + 1), (value) => MONTH_NAMES[value - 1]);
-  fillSelect(els.endMonthSelect, MONTH_NAMES.map((_, idx) => idx + 1), (value) => MONTH_NAMES[value - 1]);
-  fillSelect(els.weekdaySelect, WEEKDAY_NAMES.map((_, idx) => idx), (value) => WEEKDAY_NAMES[value]);
-}
-
-function renderLegend() {
-  if (!els.legendChips) return;
-  els.legendChips.innerHTML = Object.values(CATEGORY_META).map((meta) => `
-    <span class="category-badge ${meta.className}"><span class="dot"></span>${escapeHtml(meta.label)}</span>
-  `).join('');
-}
-
-function nthWeekdayOfMonth(year, month, weekday, nth) {
-  const first = new Date(year, month - 1, 1);
-  const offset = (weekday - first.getDay() + 7) % 7;
-  const day = 1 + offset + ((nth - 1) * 7);
-  const candidate = new Date(year, month - 1, day);
-  if (candidate.getMonth() !== month - 1) return null;
-  return candidate;
-}
-
-function lastWeekdayOfMonth(year, month, weekday) {
-  const last = new Date(year, month, 0);
-  const offset = (last.getDay() - weekday + 7) % 7;
-  return new Date(year, month - 1, last.getDate() - offset);
-}
-
-function monthDayText(month, day) {
-  return `${MONTH_NAMES[month - 1]} ${Number(day)}`;
-}
-
-function formatEventDate(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
-function ordinalLabel(value) {
-  const numeric = Number(value);
-  if (numeric === 1) return '1st';
-  if (numeric === 2) return '2nd';
-  if (numeric === 3) return '3rd';
-  return `${numeric}th`;
-}
-
-function summarizeRule(item) {
-  switch (item.rule_type) {
-    case 'fixed_date': return `${MONTH_NAMES[(item.rule_month || item.month || 1) - 1]} ${item.day}`;
-    case 'nth_weekday': return `${ordinalLabel(item.nth)} ${WEEKDAY_NAMES[item.weekday]} in ${MONTH_NAMES[(item.rule_month || item.month || 1) - 1]}`;
-    case 'last_weekday': return `Last ${WEEKDAY_NAMES[item.weekday]} in ${MONTH_NAMES[(item.rule_month || item.month || 1) - 1]}`;
-    case 'month_scope': return `${MONTH_NAMES[(item.rule_month || item.month || 1) - 1]} (month-long)`;
-    case 'date_range_fixed': return `${monthDayText(item.start_month, item.start_day)}–${monthDayText(item.end_month, item.end_day)}`;
-    case 'manual_text': return item.manual_date_text || 'Manual date text';
-    default: return item.rule_type || '';
+function fillDatalist(listEl, items) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  for (const item of items) {
+    const label = typeof item === 'string' ? item : item.name;
+    const option = document.createElement('option');
+    option.value = label;
+    listEl.append(option);
   }
 }
 
-function computeOccurrence(item, year) {
-  const ruleMonth = Number(item.rule_month || item.month || 0);
-  switch (item.rule_type) {
-    case 'fixed_date': {
-      const month = ruleMonth;
-      const date = new Date(year, month - 1, Number(item.day));
-      if (date.getMonth() !== month - 1) return null;
-      return { month, dateText: formatEventDate(date), sortDay: date.getDate() };
-    }
-    case 'nth_weekday': {
-      const month = ruleMonth;
-      const date = nthWeekdayOfMonth(year, month, Number(item.weekday), Number(item.nth));
-      if (!date) return null;
-      return { month, dateText: formatEventDate(date), sortDay: date.getDate() };
-    }
-    case 'last_weekday': {
-      const month = ruleMonth;
-      const date = lastWeekdayOfMonth(year, month, Number(item.weekday));
-      return { month, dateText: formatEventDate(date), sortDay: date.getDate() };
-    }
-    case 'month_scope': {
-      const month = ruleMonth;
-      return { month, dateText: 'All month', sortDay: 0, monthScope: true };
-    }
-    case 'date_range_fixed': {
-      const month = Number(item.month || item.start_month || 0);
-      return {
-        month,
-        dateText: `${monthDayText(Number(item.start_month), Number(item.start_day))}–${monthDayText(Number(item.end_month), Number(item.end_day))}`,
-        sortDay: Number(item.start_day || 0)
-      };
-    }
-    case 'manual_text': {
-      const month = Number(item.month || 0);
-      return { month, dateText: normalizeText(item.manual_date_text) || 'Custom date', sortDay: 99 };
-    }
-    default:
-      return null;
+
+function lookupItemsOrFallback(key, fieldName) {
+  const items = state.lookups[key] || [];
+  if (items.length) return items;
+  return uniqueLookupFromPrograms(fieldName).map((name, index) => ({ name, sort_order: index + 1 }));
+}
+
+function fillSelect(selectEl, items, includeBlank = true) {
+  const currentValues = selectEl.multiple ? selectedValues(selectEl) : [selectEl.value];
+  selectEl.innerHTML = '';
+  if (includeBlank) {
+    selectEl.append(new Option('', ''));
+  }
+  for (const item of items) {
+    const label = typeof item === 'string' ? item : item.name;
+    const option = new Option(label, label);
+    if (currentValues.includes(label)) option.selected = true;
+    selectEl.add(option);
+  }
+  if (!selectEl.multiple && [...selectEl.options].some((opt) => opt.value === currentValues[0])) {
+    selectEl.value = currentValues[0];
   }
 }
 
-function getCategoryMeta(category) {
-  return CATEGORY_META[category] || CATEGORY_META.custom;
+function mergeOptionLabels(preferredValues, items) {
+  const merged = [];
+  const seen = new Set();
+  [...preferredValues, ...items.map((item) => (typeof item === 'string' ? item : item.name))].forEach((label) => {
+    const value = normalizeText(label);
+    if (!value) return;
+    const key = value.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(value);
+  });
+  return merged;
 }
 
-function inferCategory(title, types = [], note = '') {
-  const haystack = `${normalizeLower(title)} ${normalizeLower(note)}`;
-  const typeSet = Array.isArray(types) ? types.map((type) => normalizeLower(type)) : [normalizeLower(types)];
+function renderFilters() {
+  fillSelect(els.topicFilter, lookupItemsOrFallback('topics', 'topic'), false);
+  fillSelect(els.secondaryTopicFilter, lookupItemsOrFallback('secondary_topics', 'secondary_topic'), false);
+  fillSelect(els.distributorFilter, lookupItemsOrFallback('distributors', 'distributor'));
+  fillSelect(els.programTypeFilter, lookupItemsOrFallback('program_types', 'program_type'));
+  fillSelect(els.lengthFilter, sortLengthValues(uniqueLookupFromPrograms('length_minutes')), false);
+  fillSelect(els.codeFilter, uniqueCodeValues(), false);
 
-  if (typeSet.includes('public') || typeSet.includes('bank') || haystack.includes('president') || haystack.includes('memorial') || haystack.includes('veteran') || haystack.includes('independence') || haystack.includes('labor day') || haystack.includes('flag day') || haystack.includes('martin luther king')) return 'national';
-  if (typeSet.includes('observance') && haystack.includes('united nations')) return 'international';
-  if (haystack.includes('easter') || haystack.includes('passover') || haystack.includes('hanukkah') || haystack.includes('ramadan') || haystack.includes('diwali') || haystack.includes('epiphany') || haystack.includes('holy') || haystack.includes('christmas') || haystack.includes('all saints') || haystack.includes('all souls') || haystack.includes('religious') || haystack.includes('ash wednesday')) return 'religious';
-  if (haystack.includes('cancer') || haystack.includes('health') || haystack.includes('nurse') || haystack.includes('medical') || haystack.includes('brain') || haystack.includes('mental') || haystack.includes('suicide') || haystack.includes('heart') || haystack.includes('trauma') || haystack.includes('autism') || haystack.includes('hemophilia') || haystack.includes('ptsd') || haystack.includes('tobacco') || haystack.includes('yoga') || haystack.includes('sick')) return 'health';
-  if (haystack.includes('heritage') || haystack.includes('history month') || haystack.includes('culture') || haystack.includes('pride') || haystack.includes('holocaust') || haystack.includes('native american') || haystack.includes('black history') || haystack.includes('hispanic') || haystack.includes('jewish') || haystack.includes('irish') || haystack.includes('filipino') || haystack.includes('italian') || haystack.includes('armenian') || haystack.includes('sami') || haystack.includes('indigenous')) return 'heritage';
-  if (haystack.includes('earth') || haystack.includes('forest') || haystack.includes('wildlife') || haystack.includes('bird') || haystack.includes('wetland') || haystack.includes('water') || haystack.includes('environment') || haystack.includes('park') || haystack.includes('arbor') || haystack.includes('car-free')) return 'environment';
-  if (haystack.includes('science') || haystack.includes('teacher') || haystack.includes('education') || haystack.includes('poetry') || haystack.includes('jazz') || haystack.includes('music') || haystack.includes('technology') || haystack.includes('cyber') || haystack.includes('art') || haystack.includes('press freedom')) return 'education';
-  if (haystack.includes('international') || haystack.includes('united nations') || haystack.includes('human rights') || haystack.includes('social justice')) return 'international';
-  if (haystack.includes('awareness') || haystack.includes('kindness') || haystack.includes('mentoring') || haystack.includes('foster care') || haystack.includes('child abuse') || haystack.includes('domestic violence') || haystack.includes('preparedness') || haystack.includes('women\'s equality') || haystack.includes('coming out')) return 'awareness';
-  if (haystack.includes('anniversary') || haystack.includes('remembrance') || haystack.includes('vietnam') || haystack.includes('jfk') || haystack.includes('pearl harbor') || haystack.includes('d-day')) return 'history';
-  return 'seasonal';
+  const form = els.programForm;
+  fillSelect(form.elements.program_type, lookupItemsOrFallback('program_types', 'program_type'));
+  fillSelect(form.elements.topic, lookupItemsOrFallback('topics', 'topic'));
+  fillDatalist(els.secondaryTopicList, lookupItemsOrFallback('secondary_topics', 'secondary_topic'));
+  fillDatalist(els.distributorList, lookupItemsOrFallback('distributors', 'distributor'));
+  fillSelect(form.elements.package_type, mergeOptionLabels([DEFAULT_NEW_PROGRAM_VALUES.package_type], lookupItemsOrFallback('package_types', 'package_type')));
+  fillSelect(form.elements.server_tape, mergeOptionLabels(CURATED_SOURCE_OPTIONS, lookupItemsOrFallback('server_locations', 'server_tape')));
 }
 
-function createEntry(base) {
+function snapshotViewState() {
   return {
-    title: base.title,
-    month: Number(base.month),
-    dateText: base.dateText,
-    sortDay: Number(base.sortDay || 0),
-    note: normalizeText(base.note || ''),
-    category: base.category || 'custom',
-    monthScope: Boolean(base.monthScope),
-    source: base.source || 'supplemental'
+    searchInput: els.searchInput.value,
+    searchFieldSelect: els.searchFieldSelect.value,
+    codeFilter: selectedValues(els.codeFilter),
+    topicFilter: selectedValues(els.topicFilter),
+    secondaryTopicFilter: selectedValues(els.secondaryTopicFilter),
+    lengthFilter: selectedValues(els.lengthFilter),
+    distributorFilter: els.distributorFilter.value,
+    programTypeFilter: els.programTypeFilter.value,
+    statusFilter: els.statusFilter.value,
+    ratingFilter: els.ratingFilter?.value || '',
+    currentView: state.currentView
   };
 }
 
-function dedupeEntries(entries) {
-  const seen = new Map();
-  entries.forEach((entry) => {
-    const key = `${normalizeLower(entry.title)}|${entry.month}|${normalizeLower(entry.dateText)}|${Boolean(entry.monthScope)}`;
-    if (!seen.has(key)) seen.set(key, entry);
-  });
-  return [...seen.values()];
+function sameViewState(a, b) {
+  return JSON.stringify(a || {}) === JSON.stringify(b || {});
 }
 
-function buildSupplementalEntries(year) {
-  return SUPPLEMENTAL_OBSERVANCES.map((item) => {
-    const occurrence = computeOccurrence(item, year);
-    if (!occurrence || !occurrence.month) return null;
-    return createEntry({
-      title: item.title,
-      month: occurrence.month,
-      dateText: occurrence.dateText,
-      sortDay: occurrence.sortDay,
-      monthScope: occurrence.monthScope,
-      note: item.notes || '',
-      category: item.category || inferCategory(item.title, [], item.notes || ''),
-      source: 'supplemental'
-    });
-  }).filter(Boolean);
+function rememberViewState() {
+  const current = snapshotViewState();
+  if (sameViewState(current, state.lastAppliedViewState)) return;
+  if (state.lastAppliedViewState) state.viewHistory.push(JSON.parse(JSON.stringify(state.lastAppliedViewState)));
+  if (state.viewHistory.length > 20) state.viewHistory.shift();
+  state.lastAppliedViewState = current;
+  syncUndoButton();
 }
 
-function buildCustomEntries(year) {
-  return state.customObservances
-    .filter((item) => item.is_active !== false)
-    .map((item) => {
-      const occurrence = computeOccurrence(item, year);
-      if (!occurrence || !occurrence.month) return null;
-      return createEntry({
-        title: item.title,
-        month: occurrence.month,
-        dateText: occurrence.dateText,
-        sortDay: occurrence.sortDay,
-        monthScope: occurrence.monthScope,
-        note: item.notes || '',
-        category: inferCategory(item.title, [], item.notes || '') || 'custom',
-        source: 'custom'
-      });
-    })
-    .filter(Boolean);
+function applySnapshot(snapshot) {
+  if (!snapshot) return;
+  els.searchInput.value = snapshot.searchInput || '';
+  els.searchFieldSelect.value = snapshot.searchFieldSelect || '';
+  setMultiSelectValues(els.codeFilter, snapshot.codeFilter || []);
+  setMultiSelectValues(els.topicFilter, snapshot.topicFilter || []);
+  setMultiSelectValues(els.secondaryTopicFilter, snapshot.secondaryTopicFilter || []);
+  setMultiSelectValues(els.lengthFilter, snapshot.lengthFilter || []);
+  els.distributorFilter.value = snapshot.distributorFilter || '';
+  els.programTypeFilter.value = snapshot.programTypeFilter || '';
+  els.statusFilter.value = snapshot.statusFilter === 'expired' ? '' : (snapshot.statusFilter || '');
+  if (els.ratingFilter) els.ratingFilter.value = snapshot.ratingFilter || '';
+  state.currentView = snapshot.currentView === 'expired' ? 'archived' : (snapshot.currentView || 'all');
+  syncQuickViewState();
+  resetVisibleRowWindow();
+  renderTable();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
+  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
 }
 
-function buildMonthBuckets(year) {
-  const buckets = Array.from({ length: 12 }, () => ({ monthItems: [], datedItems: [] }));
-  const combined = dedupeEntries([
-    ...state.onlineObservances,
-    ...buildSupplementalEntries(year),
-    ...buildCustomEntries(year)
-  ]);
-
-  combined.forEach((entry) => {
-    if (!entry.month || entry.month < 1 || entry.month > 12) return;
-    const target = buckets[entry.month - 1];
-    if (entry.monthScope) target.monthItems.push(entry);
-    else target.datedItems.push(entry);
-  });
-
-  buckets.forEach((bucket) => {
-    bucket.monthItems.sort((a, b) => normalizeLower(a.title).localeCompare(normalizeLower(b.title)));
-    bucket.datedItems.sort((a, b) => (a.sortDay - b.sortDay) || normalizeLower(a.title).localeCompare(normalizeLower(b.title)));
-  });
-  return buckets;
+function undoViewState() {
+  const snapshot = state.viewHistory.pop();
+  if (!snapshot) return;
+  applySnapshot(snapshot);
 }
 
-function renderCategoryBadge(category) {
-  const meta = getCategoryMeta(category);
-  return `<span class="category-badge ${meta.className}"><span class="dot"></span>${escapeHtml(meta.label)}</span>`;
+function syncUndoButton() {
+  if (!els.undoViewBtn) return;
+  els.undoViewBtn.classList.toggle('hidden', !state.viewHistory.length);
 }
 
-function renderCalendar() {
-  const buckets = buildMonthBuckets(state.selectedYear);
-  els.monthsGrid.innerHTML = buckets.map((bucket, idx) => {
-    const combined = [
-      ...bucket.monthItems.map((item) => ({ ...item, displayDate: 'ALL', monthScope: true })),
-      ...bucket.datedItems.map((item) => ({ ...item, displayDate: item.dateText, monthScope: false }))
-    ].sort((a, b) => {
-      const dayDiff = (a.monthScope ? -1 : Number(a.sortDay || 0)) - (b.monthScope ? -1 : Number(b.sortDay || 0));
-      if (dayDiff !== 0) return dayDiff;
-      return normalizeLower(a.title).localeCompare(normalizeLower(b.title));
-    });
-
-    return `
-    <section class="month-card">
-      <div class="month-head"><h3>${MONTH_NAMES[idx]} ${state.selectedYear}</h3></div>
-      <div class="month-body">
-        ${combined.length ? `<div class="month-event-list">${combined.map((item) => `
-          <div class="month-event ${getCategoryMeta(item.category).className}">
-            <div class="event-date">${escapeHtml(item.displayDate)}</div>
-            <div>
-              <div class="event-top">
-                <div class="event-title">${escapeHtml(item.title)}</div>
-                ${item.note ? `<div class="event-note">${escapeHtml(item.note)}</div>` : ''}
-              </div>
-            </div>
-            ${renderCategoryBadge(item.category)}
-          </div>`).join('')}</div>` : '<div class="muted-empty">Nothing loaded.</div>'}
-      </div>
-    </section>`;
-  }).join('');
+function setMultiSelectValues(selectEl, values) {
+  const set = new Set(values || []);
+  Array.from(selectEl.options).forEach((opt) => { opt.selected = set.has(opt.value); });
 }
 
-function updateAuthUi() {
-  const editing = canEdit();
-  els.loginGitHubBtn?.classList.toggle('hidden', editing);
-  els.logoutBtn?.classList.toggle('hidden', !editing);
-  if (els.authStateText) {
-    els.authStateText.textContent = editing
-      ? 'Signed in. You can add, edit, and delete custom observances.'
-      : 'Read-only. Sign in with GitHub to change the custom list.';
+function viewIncludesArchived(view) {
+  return new Set(['archived', 'ending_soon', 'expired']).has(view);
+}
+
+function programsInCurrentViewPool() {
+  const cacheKey = `${state.currentView}|${state.programs.length}`;
+  if (state.poolCacheKey === cacheKey && Array.isArray(state.poolProgramIds)) return state.poolProgramIds;
+
+  let items = state.programs;
+  if (state.currentView === 'archived') {
+    items = items.filter((item) => item.is_archived);
+  } else {
+    items = items.filter((item) => !item.is_archived);
+    if (state.currentView && state.currentView !== 'all') items = items.filter((item) => matchesView(item, state.currentView));
   }
-  els.customForm?.querySelectorAll('input, select, textarea, button').forEach((field) => {
-    if (field === els.resetCustomBtn) return;
-    field.disabled = !editing;
-  });
-  renderCustomList();
+
+  state.poolCacheKey = cacheKey;
+  state.poolProgramIds = items;
+  return items;
 }
 
-function collectCustomPayload() {
-  const form = els.customForm;
-  const ruleType = normalizeText(form.elements.rule_type.value);
-  const base = {
-    title: normalizeText(form.elements.title.value),
-    rule_type: ruleType,
-    month: Number(form.elements.month.value || 0) || null,
-    rule_month: Number(form.elements.rule_month.value || 0) || null,
-    day: Number(form.elements.day.value || 0) || null,
-    nth: Number(form.elements.nth.value || 0) || null,
-    weekday: normalizeText(form.elements.weekday.value) === '' ? null : Number(form.elements.weekday.value),
-    start_month: Number(form.elements.start_month.value || 0) || null,
-    start_day: Number(form.elements.start_day.value || 0) || null,
-    end_month: Number(form.elements.end_month.value || 0) || null,
-    end_day: Number(form.elements.end_day.value || 0) || null,
-    manual_date_text: normalizeText(form.elements.manual_date_text.value) || null,
-    notes: normalizeText(form.elements.notes.value) || null,
-    is_active: Boolean(form.elements.is_active.checked),
-    updated_at: new Date().toISOString()
-  };
-  if (ruleType === 'fixed_date') base.rule_month = base.rule_month || base.month;
-  return base;
+function selectedValues(selectEl) {
+  return Array.from(selectEl.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
 }
 
-function validateCustomPayload(payload) {
-  if (!payload.title) return 'Title is required.';
-  switch (payload.rule_type) {
-    case 'fixed_date':
-      if (!payload.rule_month || !payload.day) return 'Fixed date needs a month and day.';
-      break;
-    case 'nth_weekday':
-      if (!payload.rule_month || !payload.nth || payload.weekday == null) return 'Nth weekday needs month, nth value, and weekday.';
-      break;
-    case 'last_weekday':
-      if (!payload.rule_month || payload.weekday == null) return 'Last weekday needs month and weekday.';
-      break;
-    case 'month_scope':
-      if (!payload.rule_month) return 'Month-long observance needs a month.';
-      break;
-    case 'date_range_fixed':
-      if (!payload.start_month || !payload.start_day || !payload.end_month || !payload.end_day) return 'Date range needs start and end month/day.';
-      break;
-    case 'manual_text':
-      if (!payload.month || !payload.manual_date_text) return 'Manual text needs a display month and date text.';
-      break;
-    default:
-      return 'Unknown rule type.';
-  }
-  return '';
+function clearMultiSelect(selectEl) {
+  Array.from(selectEl.options).forEach((opt) => { opt.selected = false; });
 }
 
-function resetCustomForm() {
-  els.customForm?.reset();
-  state.editingId = null;
-  if (els.customForm?.elements?.is_active) els.customForm.elements.is_active.checked = true;
-  els.customForm.elements.id.value = '';
-  els.saveCustomBtn.textContent = 'Save observance';
-  updateRuleFieldVisibility();
+function resetFilters() {
+  rememberViewState();
+  els.searchInput.value = '';
+  els.searchFieldSelect.value = '';
+  clearMultiSelect(els.codeFilter);
+  clearMultiSelect(els.topicFilter);
+  clearMultiSelect(els.secondaryTopicFilter);
+  clearMultiSelect(els.lengthFilter);
+  els.distributorFilter.value = '';
+  els.programTypeFilter.value = '';
+  els.statusFilter.value = '';
+  if (els.ratingFilter) els.ratingFilter.value = '';
+  state.currentView = 'all';
+  syncQuickViewState();
+  resetVisibleRowWindow();
+  renderTable();
+  state.lastAppliedViewState = snapshotViewState();
+  syncUndoButton();
+  setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
 }
 
-function loadCustomIntoForm(id) {
-  const item = state.customObservances.find((entry) => String(entry.id) === String(id));
-  if (!item) return;
-  state.editingId = item.id;
-  const form = els.customForm;
-  form.elements.id.value = item.id;
-  form.elements.title.value = item.title || '';
-  form.elements.rule_type.value = item.rule_type || 'fixed_date';
-  form.elements.month.value = item.month || item.rule_month || item.start_month || 1;
-  form.elements.rule_month.value = item.rule_month || item.month || 1;
-  form.elements.day.value = item.day || '';
-  form.elements.nth.value = item.nth || 1;
-  form.elements.weekday.value = item.weekday ?? '';
-  form.elements.start_month.value = item.start_month || item.month || 1;
-  form.elements.start_day.value = item.start_day || '';
-  form.elements.end_month.value = item.end_month || item.month || 1;
-  form.elements.end_day.value = item.end_day || '';
-  form.elements.manual_date_text.value = item.manual_date_text || '';
-  form.elements.notes.value = item.notes || '';
-  form.elements.is_active.checked = item.is_active !== false;
-  els.saveCustomBtn.textContent = 'Update observance';
-  updateRuleFieldVisibility();
-  window.scrollTo({ top: els.customForm.getBoundingClientRect().top + window.scrollY - 110, behavior: 'smooth' });
-}
+function activePrograms() {
+  const search = normalizeLower(els.searchInput.value);
+  const searchField = els.searchFieldSelect.value;
+  const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase()).sort().join('|');
+  const topics = selectedValues(els.topicFilter).sort().join('|');
+  const secondaryTopics = selectedValues(els.secondaryTopicFilter).sort().join('|');
+  const lengths = selectedValues(els.lengthFilter).sort().join('|');
+  const distributor = els.distributorFilter.value;
+  const programType = els.programTypeFilter.value;
+  const status = els.statusFilter.value;
+  const ratingFilter = els.ratingFilter?.value || '';
+  const cacheKey = [
+    state.currentView,
+    state.programs.length,
+    search,
+    searchField,
+    codes,
+    topics,
+    secondaryTopics,
+    lengths,
+    distributor,
+    programType,
+    status,
+    ratingFilter
+  ].join('||');
 
-function renderCustomList() {
-  els.customList.innerHTML = state.customObservances.length ? state.customObservances.map((item) => `
-    <article class="custom-item">
-      <div class="custom-item-top">
-        <div>
-          <div class="event-top">
-            <div class="custom-item-title">${escapeHtml(item.title)}</div>
-            ${renderCategoryBadge(inferCategory(item.title, [], item.notes || '') || 'custom')}
-          </div>
-          <div class="custom-item-meta">${escapeHtml(summarizeRule(item))}${item.notes ? ` · ${escapeHtml(item.notes)}` : ''}${item.is_active === false ? ' · inactive' : ''}</div>
-        </div>
-        <div class="custom-actions">
-          ${canEdit() ? `<button type="button" data-action="edit" data-id="${item.id}">Edit</button>` : ''}
-          ${canEdit() ? `<button type="button" class="danger" data-action="delete" data-id="${item.id}">Delete</button>` : ''}
-        </div>
-      </div>
-    </article>
-  `).join('') : '<div class="muted-empty">No custom observances yet.</div>';
-}
+  if (state.filteredCacheKey === cacheKey && Array.isArray(state.filteredProgramIds)) return state.filteredProgramIds;
 
-function updateRuleFieldVisibility() {
-  const selected = normalizeText(els.ruleTypeSelect?.value || 'fixed_date');
-  document.querySelectorAll('[data-rule]').forEach((field) => {
-    const allowed = normalizeText(field.dataset.rule).split(/\s+/).filter(Boolean);
-    field.classList.toggle('hidden', !allowed.includes(selected));
-  });
-}
+  const codeSet = new Set(codes ? codes.split('|') : []);
+  const topicSet = new Set(topics ? topics.split('|') : []);
+  const secondarySet = new Set(secondaryTopics ? secondaryTopics.split('|') : []);
+  const lengthSet = new Set(lengths ? lengths.split('|') : []);
 
-async function loadCustomObservances() {
-  setStatus('Loading custom observances…');
-  const { data, error } = await state.supabase
-    .from('holiday_observances')
-    .select('*')
-    .order('month', { ascending: true, nullsFirst: false })
-    .order('title', { ascending: true });
-  if (error) throw error;
-  state.customObservances = data || [];
-  renderCustomList();
-  renderCalendar();
-  setStatus(`Loaded ${state.customObservances.length.toLocaleString()} custom observance${state.customObservances.length === 1 ? '' : 's'}.`);
-}
-
-function dayCodeToIndex(dayCode) {
-  const map = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
-  return map[dayCode] ?? null;
-}
-
-function parseIcsDate(raw) {
-  const compact = normalizeText(raw).replace(/[^0-9]/g, '');
-  if (compact.length < 8) return null;
-  const year = Number(compact.slice(0, 4));
-  const month = Number(compact.slice(4, 6));
-  const day = Number(compact.slice(6, 8));
-  return new Date(year, month - 1, day);
-}
-
-function unfoldIcs(text) {
-  return text.replace(/\r?\n[ \t]/g, '').split(/\r?\n/);
-}
-
-function computeFromRRule(dtstart, rrule, year) {
-  if (!rrule) return dtstart && dtstart.getFullYear() === year ? dtstart : null;
-  const parts = Object.fromEntries(rrule.split(';').map((segment) => {
-    const [key, value] = segment.split('=');
-    return [key, value];
-  }));
-  const month = Number(parts.BYMONTH || (dtstart ? dtstart.getMonth() + 1 : 0));
-  if (!month) return dtstart && dtstart.getFullYear() === year ? dtstart : null;
-  if (parts.BYMONTHDAY) {
-    return new Date(year, month - 1, Number(parts.BYMONTHDAY.split(',')[0]));
-  }
-  if (parts.BYDAY) {
-    const rawByDay = parts.BYDAY.split(',')[0];
-    const match = rawByDay.match(/^(-?\d)?([A-Z]{2})$/);
-    const bySetPos = Number(parts.BYSETPOS || 0);
-    if (match) {
-      const ordinal = Number(match[1] || bySetPos || 0);
-      const weekday = dayCodeToIndex(match[2]);
-      if (weekday == null) return null;
-      if (ordinal === -1) return lastWeekdayOfMonth(year, month, weekday);
-      if (ordinal > 0) return nthWeekdayOfMonth(year, month, weekday, ordinal);
-      if (dtstart) {
-        const fallbackOrdinal = Math.ceil(dtstart.getDate() / 7);
-        return nthWeekdayOfMonth(year, month, weekday, fallbackOrdinal);
-      }
+  const items = programsInCurrentViewPool().filter((item) => {
+    const derived = getProgramDerived(item);
+    if (search) {
+      const haystack = searchField ? (derived.searchByField[searchField] ?? normalizeLower(item?.[searchField])) : derived.searchAll;
+      if (!haystack.includes(search)) return false;
     }
-  }
-  return dtstart ? new Date(year, dtstart.getMonth(), dtstart.getDate()) : null;
-}
-
-function parseUNIcs(text, year) {
-  const lines = unfoldIcs(text);
-  const events = [];
-  let current = null;
-
-  lines.forEach((line) => {
-    if (line === 'BEGIN:VEVENT') {
-      current = {};
-      return;
-    }
-    if (line === 'END:VEVENT') {
-      if (current?.summary) {
-        const dtstart = current.dtstart ? parseIcsDate(current.dtstart) : null;
-        const date = computeFromRRule(dtstart, current.rrule, year);
-        if (date && date.getFullYear() === year) {
-          const title = current.summary.replace(/\\,/g, ',').replace(/\\n/g, ' ');
-          events.push(createEntry({
-            title,
-            month: date.getMonth() + 1,
-            dateText: formatEventDate(date),
-            sortDay: date.getDate(),
-            note: 'UN observance',
-            category: inferCategory(title, [], 'UN observance') || 'international',
-            source: 'un'
-          }));
+    if (codeSet.size && !codeSet.has(derived.legacyCode)) return false;
+    if (topicSet.size && !derived.topicValues.some((topic) => topicSet.has(topic))) return false;
+    if (secondarySet.size && !derived.secondaryTopicValues.some((topic) => secondarySet.has(topic))) return false;
+    if (lengthSet.size && !lengthSet.has(derived.lengthValue)) return false;
+    if (distributor && item.distributor !== distributor) return false;
+    if (programType && item.program_type !== programType) return false;
+    if (status && status !== 'expired' && !matchesView(item, status)) return false;
+    if (ratingFilter) {
+      const rating = getProgramRating(item);
+      switch (ratingFilter) {
+        case 'unrated':
+          if (rating != null) return false;
+          break;
+        case '4plus':
+          if (!(rating != null && rating >= 4)) return false;
+          break;
+        case '3plus':
+          if (!(rating != null && rating >= 3)) return false;
+          break;
+        default: {
+          const exact = normalizeRating(ratingFilter);
+          if (!(exact != null && rating === exact)) return false;
         }
       }
-      current = null;
-      return;
     }
-    if (!current) return;
-    const separator = line.indexOf(':');
-    if (separator < 0) return;
-    const rawKey = line.slice(0, separator);
-    const value = line.slice(separator + 1);
-    const key = rawKey.split(';')[0];
-    if (key === 'SUMMARY') current.summary = value;
-    if (key === 'DTSTART') current.dtstart = value;
-    if (key === 'RRULE') current.rrule = value;
+    return true;
   });
 
-  return events;
+  state.filteredCacheKey = cacheKey;
+  state.filteredProgramIds = items;
+  return items;
 }
 
-async function getHolidaysModule() {
-  if (state.holidaysModule) return state.holidaysModule;
-  const mod = await import(ONLINE_HOLIDAY_MODULE);
-  state.holidaysModule = mod.default || mod;
-  return state.holidaysModule;
+function matchesView(program, view) {
+  const flags = computeFlags(program);
+  const derived = getProgramDerived(program);
+  switch (view) {
+    case 'all':
+      return true;
+    case 'active':
+      return !program.is_archived;
+    case 'archived':
+      return program.is_archived;
+    case 'needs_apt_check':
+      return flags.needsAptCheck;
+    case 'ending_soon':
+      return flags.rightsStatus === 'Ending soon';
+    case 'expired':
+      return false;
+    case 'new_to_13_1':
+      return flags.newTo131;
+    case 'new_to_13_3':
+      return flags.newTo133;
+    case 'archive_candidate':
+      return flags.archiveCandidate;
+    case 'no_end_date':
+      return flags.rightsStatus === 'No end date';
+    case 'missing_rights':
+      return flags.missingRights;
+    case 'missing_info':
+      return !derived.notesLower || !derived.searchByField.topic || !derived.lengthValue || !derived.programType || !derived.searchByField.aired_13_1 || !derived.searchByField.aired_13_3 || !derived.searchByField.distributor;
+    case 'michigan':
+      return derived.searchAll.includes('michigan');
+    case 'evergreens':
+      return derived.searchByField.package_type === 'hdever';
+    default:
+      return true;
+  }
 }
 
-async function fetchDateHolidays(year) {
-  const Holidays = await getHolidaysModule();
-  const hd = new Holidays('US');
-  if (typeof hd.setLanguages === 'function') hd.setLanguages('en');
-  const raw = typeof hd.getHolidays === 'function' ? hd.getHolidays(year) : [];
-  return (raw || []).map((holiday) => {
-    const rawDate = normalizeText(holiday.date).slice(0, 10);
-    const date = rawDate ? new Date(`${rawDate}T00:00:00`) : holiday.start ? new Date(holiday.start) : null;
-    if (!date || Number.isNaN(date.getTime())) return null;
-    const noteBits = [];
-    if (holiday.substitute) noteBits.push('Observed');
-    if (holiday.note) noteBits.push(holiday.note);
-    return createEntry({
-      title: holiday.name || holiday.localName || 'Holiday',
-      month: date.getMonth() + 1,
-      dateText: formatEventDate(date),
-      sortDay: date.getDate(),
-      note: noteBits.join(' · '),
-      category: inferCategory(holiday.name || holiday.localName || '', holiday.type || holiday.types || [], holiday.note || ''),
-      source: 'date-holidays'
-    });
-  }).filter(Boolean);
+function hashTopicName(topicName) {
+  const text = normalizeText(topicName);
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
-async function loadOnlineObservances(year) {
-  const sourcesLoaded = [];
-  const allEntries = [];
-  const errors = [];
+function fallbackTopicPalette(topicName) {
+  const palette = [
+    { bg: '#dbeafe', fg: '#163b6d', border: '#9ec5fe' },
+    { bg: '#dcfce7', fg: '#166534', border: '#86efac' },
+    { bg: '#fef3c7', fg: '#92400e', border: '#fcd34d' },
+    { bg: '#fae8ff', fg: '#7e22ce', border: '#d8b4fe' },
+    { bg: '#fee2e2', fg: '#991b1b', border: '#fca5a5' },
+    { bg: '#e0f2fe', fg: '#075985', border: '#7dd3fc' },
+    { bg: '#ede9fe', fg: '#5b21b6', border: '#c4b5fd' },
+    { bg: '#fce7f3', fg: '#9d174d', border: '#f9a8d4' },
+    { bg: '#ecfccb', fg: '#3f6212', border: '#bef264' },
+    { bg: '#ffe4e6', fg: '#9f1239', border: '#fda4af' },
+    { bg: '#e0f7fa', fg: '#155e75', border: '#67e8f9' },
+    { bg: '#fef9c3', fg: '#854d0e', border: '#fde047' }
+  ];
+  return palette[hashTopicName(topicName) % palette.length];
+}
 
+function topicColorInfo(topicName) {
+  const requested = normalizeText(topicName);
+  const topic = state.lookups.topics.find((item) => item.name === requested);
+  const colorHex = normalizeText(topic?.color_hex || '');
+  if (/^#[0-9a-f]{6}$/i.test(colorHex)) {
+    return { bg: colorHex, fg: '#1f2e39', border: 'rgba(31, 46, 57, .12)' };
+  }
+  return fallbackTopicPalette(requested);
+}
+
+function topicChipMarkup(topicName, extraClass = '') {
+  const topic = normalizeText(topicName);
+  if (!topic) return '';
+  const colors = topicColorInfo(topic);
+  return `<span class="topic-chip${extraClass ? ` ${extraClass}` : ''}" style="background:${colors.bg}; color:${colors.fg}; border-color:${colors.border}">${escapeHtml(topic)}</span>`;
+}
+
+function badgesFor(program) {
+  const flags = computeFlags(program);
+  const badges = [];
+
+  if (flags.needsAptCheck) badges.push({ label: 'APT check', cls: 'danger' });
+  if (flags.rightsStatus === 'Ending soon') badges.push({ label: `Ends in ${flags.daysLeft}d`, cls: 'warn' });
+  if (flags.rightsStatus === 'Expired') badges.push({ label: 'Expired', cls: 'danger' });
+  if (flags.missingRights) badges.push({ label: 'Missing rights', cls: 'warn' });
+  if (flags.newTo131) badges.push({ label: 'New to 13.1', cls: 'info' });
+  if (flags.newTo133) badges.push({ label: 'New to 13.3', cls: 'info' });
+  if (program.is_archived) badges.push({ label: 'Archived', cls: 'good' });
+  return badges;
+}
+
+function formatAiringTime(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  const match = text.match(/^(\d{1,2})(?:[:\s](\d{2}))?(?::\d{2})?\s*([ap]m)?$/i);
+  if (!match) return text;
+  let hours = Number(match[1]);
+  const minutes = match[2] || '00';
+  const meridiem = match[3] ? match[3].toLowerCase() : '';
+  if (meridiem === 'pm' && hours < 12) hours += 12;
+  if (meridiem === 'am' && hours === 12) hours = 0;
+  if (hours > 23) return text;
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+function formatAiringEntry(entry) {
+  const text = normalizeText(entry);
+  if (!text) return '';
+  const dateMatch = text.match(/^(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\s*(.*)$/);
+  if (!dateMatch) return text;
+  const datePart = dateMatch[1].replace(/-/g, '/');
+  const rest = normalizeText(dateMatch[2]);
+  if (!rest) return datePart;
+  const timeMatch = rest.match(/^(\d{1,2}(?:[:\s]\d{2})?(?::\d{2})?\s*(?:[ap]m)?)\s*(.*)$/i);
+  if (!timeMatch) return `${datePart} ${rest}`;
+  const timePart = formatAiringTime(timeMatch[1]);
+  const trailing = normalizeText(timeMatch[2]);
+  return [datePart, timePart, trailing].filter(Boolean).join(' ');
+}
+
+function formatAiringSegments(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  const normalized = text
+    .replace(/\r/g, '')
+    .replace(/\n+/g, ';')
+    .replace(/\s*;\s*/g, ';')
+    .replace(/,\s*(?=\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/g, ';');
+  const rawParts = normalized.split(';').map((part) => normalizeText(part)).filter(Boolean);
+  const parts = rawParts.length ? rawParts : [text];
+  return parts.map((part) => `<div class="airing-item">${escapeHtml(formatAiringEntry(part))}</div>`).join('');
+}
+
+function formatRightsWindow(program) {
+  const begin = formatDate(program.rights_begin);
+  const end = formatDate(program.rights_end);
+  return `
+    <div class="rights-stack">
+      <div><span class="rights-label">Begin</span> <span>${begin || '—'}</span></div>
+      <div><span class="rights-label">End</span> <span>${end || '—'}</span></div>
+    </div>
+  `;
+}
+
+function isSeriesProgram(program) {
+  const value = normalizeLower(program?.program_type);
+  return value.includes('series');
+}
+
+function extractEpisodeCount(program) {
+  const raw = normalizeText(program?.episode_season);
+  if (!raw) return null;
+
+  const slashMatch = raw.match(/\/\s*(\d{1,4})\b/);
+  if (slashMatch) return Number(slashMatch[1]);
+
+  const epsMatch = raw.match(/\b(\d{1,4})\s*(?:eps?|episodes?)\b/i);
+  if (epsMatch) return Number(epsMatch[1]);
+
+  if (isSeriesProgram(program) && /^\d{1,4}$/.test(raw)) return Number(raw);
+
+  return null;
+}
+
+function formatSeriesCountBadge(program) {
+  if (!isSeriesProgram(program)) return '';
+  const count = extractEpisodeCount(program);
+  if (!Number.isFinite(count) || count <= 0) return '';
+  return `<span class="series-count-pill" title="${count} episode${count === 1 ? '' : 's'}">${count} ep${count === 1 ? '' : 's'}</span>`;
+}
+
+function formatEpisodeTagBadge(program) {
+  if (isSeriesProgram(program)) return '';
+  const raw = normalizeText(program?.episode_season);
+  if (!raw) return '';
+  const cleaned = raw.replace(/\s+/g, ' ').trim();
+  return `<span class="episode-tag-pill" title="Season / episode">${escapeHtml(cleaned)}</span>`;
+}
+
+function renderRatingStarsMarkup(program, options = {}) {
+  const current = getProgramRating(program);
+  const editable = Boolean(options.editable);
+  const programId = program?.id ?? '';
+  const label = current ? `${current} out of 5 stars` : 'Not rated';
+  const stars = Array.from({ length: 5 }, (_, index) => {
+    const value = index + 1;
+    const filled = current != null && value <= current;
+    if (!editable) return `<span class="star-rating-btn static${filled ? ' filled' : ''}" aria-hidden="true">★</span>`;
+    return `<button type="button" class="star-rating-btn${filled ? ' filled' : ''}${current === value ? ' anchor' : ''}" data-inline-rating-value="${value}" data-inline-rating-program="${programId}" aria-label="${value} star${value === 1 ? '' : 's'}" aria-pressed="${current === value ? 'true' : 'false'}">★</button>`;
+  }).join('');
+  return `<div class="program-rating-row${editable ? ' editable' : ' readonly'}" data-inline-rating-editor="${programId}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><div class="star-rating inline-star-rating">${stars}</div>${current ? `<span class="rating-text">${current}/5</span>` : ''}</div>`;
+}
+
+function renderInlineAiringEditor(program) {
+  if (!canEdit()) return '';
+  const isOpen = String(state.inlineAiringEditorId || '') === String(program.id);
+  const toggleLabel = isOpen ? 'Hide air dates' : 'Quick air dates';
+  return `
+    <div class="program-inline-tools">
+      <button type="button" class="inline-airing-toggle-btn" data-inline-airing-toggle="${program.id}" aria-expanded="${isOpen ? 'true' : 'false'}">${toggleLabel}</button>
+    </div>
+    ${isOpen ? `
+      <div class="inline-airing-editor" data-inline-airing-editor="${program.id}">
+        <label class="inline-airing-field">
+          <span class="inline-airing-label">Aired on 13.1</span>
+          <input
+            type="text"
+            class="inline-airing-input"
+            data-inline-airing-field="aired_13_1"
+            value="${escapeHtml(normalizeText(program.aired_13_1))}"
+            placeholder="Add 13.1 date(s)"
+            aria-label="Aired on 13.1"
+          />
+        </label>
+        <label class="inline-airing-field">
+          <span class="inline-airing-label">Aired on 13.3</span>
+          <input
+            type="text"
+            class="inline-airing-input"
+            data-inline-airing-field="aired_13_3"
+            value="${escapeHtml(normalizeText(program.aired_13_3))}"
+            placeholder="Add 13.3 date(s)"
+            aria-label="Aired on 13.3"
+          />
+        </label>
+        <button type="button" class="inline-airing-save-btn" data-inline-airing-save="${program.id}">Save</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+function formatDetailsCell(program) {
+  const topics = splitMultiValues(program.topic);
+  const secondaryTopics = splitMultiValues(program.secondary_topic);
+  const topicMarkup = topics.length
+    ? `<div class="topic-chip-wrap">${topics.map((topic) => topicChipMarkup(topic)).join('')}</div>`
+    : '<span class="meta-muted">No topic</span>';
+  const secondaryMarkup = secondaryTopics.length
+    ? `<div class="secondary-topic-wrap">${secondaryTopics.map((topic) => topicChipMarkup(topic, 'secondary')).join('')}</div>`
+    : '';
+  const metaBits = [program.length_minutes, program.program_type].filter(Boolean).map(escapeHtml);
+  const metaMarkup = metaBits.length ? `<div class="details-meta">${metaBits.join(' · ')}</div>` : '<div class="details-meta meta-muted">—</div>';
+  return `<div class="details-stack">${topicMarkup}${secondaryMarkup}${metaMarkup}</div>`;
+}
+
+async function handleCopyNote(programId, triggerButton) {
+  const item = state.programs.find((program) => String(program.id) === String(programId));
+  const noteText = item?.notes || '';
   try {
-    const holidays = await fetchDateHolidays(year);
-    allEntries.push(...holidays);
-    sourcesLoaded.push(`date-holidays (${holidays.length})`);
-  } catch (error) {
-    console.error('date-holidays load failed', error);
-    errors.push('date-holidays feed failed');
-  }
-
-  try {
-    const response = await fetch(UN_ICS_URL, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`UN feed returned ${response.status}`);
-    const text = await response.text();
-    const unEntries = parseUNIcs(text, year);
-    allEntries.push(...unEntries);
-    sourcesLoaded.push(`UN observances (${unEntries.length})`);
-  } catch (error) {
-    console.error('UN ICS load failed', error);
-    errors.push('UN observance feed failed');
-  }
-
-  state.onlineObservances = dedupeEntries(allEntries);
-  if (sourcesLoaded.length) {
-    state.holidayFeedStatus = `Online feeds loaded for ${year}: ${sourcesLoaded.join(' + ')}. Supplemental recurring observances are layered in below.`;
-  } else {
-    state.holidayFeedStatus = `Online feeds were unavailable for ${year}. Showing the supplemental recurring observances and anything custom you saved.`;
-  }
-  if (errors.length) {
-    state.holidayFeedStatus += ` (${errors.join('; ')})`;
-  }
-  setHolidaySourceNote(state.holidayFeedStatus);
-  renderCalendar();
-}
-
-async function saveCustomObservance(event) {
-  event.preventDefault();
-  if (!canEdit()) {
-    setFeedback('Sign in with GitHub to change the custom list.', 'warn');
-    return;
-  }
-  const payload = collectCustomPayload();
-  const validationMessage = validateCustomPayload(payload);
-  if (validationMessage) {
-    setFeedback(validationMessage, 'warn');
-    return;
-  }
-  setFeedback(`${state.editingId ? 'Updating' : 'Saving'} ${payload.title}…`, 'info');
-  setStatus(`${state.editingId ? 'Updating' : 'Saving'} ${payload.title}…`);
-  try {
-    let response;
-    if (state.editingId) response = await state.supabase.from('holiday_observances').update(payload).eq('id', state.editingId).select('*').single();
-    else response = await state.supabase.from('holiday_observances').insert(payload).select('*').single();
-    if (response.error) throw response.error;
-    await loadCustomObservances();
-    resetCustomForm();
-    setFeedback(`Saved ${response.data.title}.`, 'success');
-    setStatus(`Saved ${response.data.title}.`);
-  } catch (error) {
-    console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
-  }
-}
-
-async function deleteCustomObservance(id) {
-  const existing = state.customObservances.find((item) => String(item.id) === String(id));
-  const label = existing?.title || 'this observance';
-  if (!window.confirm(`Delete ${label}?`)) return;
-  setFeedback(`Deleting ${label}…`, 'info');
-  setStatus(`Deleting ${label}…`);
-  try {
-    const { error } = await state.supabase.from('holiday_observances').delete().eq('id', id);
-    if (error) throw error;
-    await loadCustomObservances();
-    setFeedback(`Deleted ${label}.`, 'success');
-    setStatus(`Deleted ${label}.`);
-  } catch (error) {
-    console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
-  }
-}
-
-function bindEvents() {
-  els.loginGitHubBtn?.addEventListener('click', async () => {
-    setFeedback('Sending you to GitHub…', 'info');
-    const { error } = await state.supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: window.location.href.split('#')[0] }
-    });
-    if (error) {
-      setFeedback(error.message, 'error');
-      setStatus(error.message);
+    await navigator.clipboard.writeText(noteText);
+    if (triggerButton) {
+      const original = triggerButton.textContent;
+      triggerButton.textContent = 'Copied';
+      setTimeout(() => { triggerButton.textContent = original; }, 1200);
     }
-  });
-
-  els.logoutBtn?.addEventListener('click', async () => {
-    await state.supabase.auth.signOut();
-    state.session = null;
-    updateAuthUi();
-    setStatus('Signed out. Read-only mode is active.');
-  });
-
-  els.yearSelect?.addEventListener('change', async () => {
-    state.selectedYear = Number(els.yearSelect.value) || new Date().getFullYear();
-    renderCalendar();
-    setStatus(`Loading holiday feeds for ${state.selectedYear}…`);
-    await loadOnlineObservances(state.selectedYear);
-    setStatus(`Showing holidays and observances for ${state.selectedYear}.`);
-  });
-
-  els.refreshBtn?.addEventListener('click', () => {
-    void loadCustomObservances().catch((error) => {
-      console.error(error);
-      setFeedback(error.message, 'error');
-      setStatus(error.message);
-    });
-  });
-
-  els.ruleTypeSelect?.addEventListener('change', updateRuleFieldVisibility);
-  els.customForm?.addEventListener('submit', saveCustomObservance);
-  els.resetCustomBtn?.addEventListener('click', resetCustomForm);
-  els.customList?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action][data-id]');
-    if (!button || !canEdit()) return;
-    const { action, id } = button.dataset;
-    if (action === 'edit') loadCustomIntoForm(id);
-    if (action === 'delete') void deleteCustomObservance(id);
-  });
-}
-
-async function init() {
-  if (!hasValidConfig()) {
-    els.setupNotice?.classList.remove('hidden');
-    return;
-  }
-
-  populateStaticSelects();
-  renderLegend();
-  bindEvents();
-  updateRuleFieldVisibility();
-  resetCustomForm();
-  els.pageShell?.classList.remove('hidden');
-  setHolidaySourceNote(state.holidayFeedStatus);
-
-  const noStoreFetch = (input, init = {}) => fetch(input, { ...init, cache: 'no-store' });
-  state.supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-    global: { fetch: noStoreFetch }
-  });
-
-  const { data } = await state.supabase.auth.getSession();
-  state.session = data.session;
-  updateAuthUi();
-  renderCalendar();
-
-  state.supabase.auth.onAuthStateChange((_event, session) => {
-    state.session = session;
-    updateAuthUi();
-  });
-
-  try {
-    await loadCustomObservances();
-    await loadOnlineObservances(state.selectedYear);
-    setFeedback('', '');
-  } catch (error) {
-    console.error(error);
-    const message = normalizeLower(error?.message).includes('holiday_observances')
-      ? 'The holiday observances table is missing. Run sql/monthly-media-and-holidays.sql first.'
-      : error.message;
-    setFeedback(message, 'error');
-    setStatus(message);
+  } catch {
+    alert('Clipboard copy failed.');
   }
 }
 
-void init();
+function flushSearchUpdate() {
+  if (state.searchDebounceTimer) {
+    clearTimeout(state.searchDebounceTimer);
+    state.searchDebounceTimer = null;
+  }
+  updateQueryStatus();
+}
+
+function scheduleSearchUpdate() {
+  if (state.searchDebounceTimer) clearTimeout(state.searchDebounceTimer);
+  state.searchDebounceTimer = setTimeout(() => {
+    state.searchDebounceTimer = null;
+    updateQueryStatus();
+  }, SEARCH_INPUT_DEBOUNCE_MS);
+}
+
+function renderTable() {
+  const allItems = sortProgramsForDisplay(activePrograms());
+  const selectedId = state.selectedId;
+  const poolCount = programsInCurrentViewPool().length;
+  const renderLimit = currentVisibleRowLimit(allItems.length);
+  const items = allItems.slice(0, renderLimit);
+
+  updateListSummary(items.length, poolCount, allItems.length);
+  updateRenderWindowControls(allItems.length, items.length);
+
+  renderSortHeaders();
+
+  els.tableBody.innerHTML = items.map((item) => {
+    const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+    const selectedClass = item.id === selectedId ? 'selected' : '';
+    const archivedClass = item.is_archived ? 'archived-row' : '';
+    return `
+      <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
+        <td>
+          <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
+          ${renderRatingStarsMarkup(item, { editable: canEdit() })}
+          ${renderInlineAiringEditor(item)}
+        </td>
+        <td>
+          <div class="notes-cell">
+            <div class="notes-text">${escapeHtml(item.notes || '')}</div>
+            <button type="button" class="copy-note-btn" data-copy-note="${item.id}">Copy</button>
+          </div>
+        </td>
+        <td>${formatDetailsCell(item)}</td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
+        <td class="type-cell">${escapeHtml(item.package_type || '')}</td>
+        <td>${formatRightsWindow(item)}</td>
+        <td>${escapeHtml(item.distributor || '')}</td>
+        <td><div class="badges">${badges}</div></td>
+      </tr>
+    `;
+  }).join('');
+  setSelectedRowHighlight(selectedId);
+}
+
+function renderStats() {
+  const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
+  const activeFlags = flags.filter((x) => !x.program.is_archived);
+  els.statApt.textContent = activeFlags.filter((x) => x.flags.needsAptCheck).length.toLocaleString();
+  els.statEnding.textContent = activeFlags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
+  els.statMissingRights.textContent = activeFlags.filter((x) => x.flags.missingRights).length.toLocaleString();
+  els.statArchived.textContent = state.programs.filter((item) => item.is_archived).length.toLocaleString();
+  syncQuickViewState();
+}
+
+function syncQuickViewState() {
+  document.querySelectorAll('#quickStrip [data-view]').forEach((card) => card.classList.toggle('active', card.dataset.view === state.currentView));
+}
+

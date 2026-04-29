@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.51 · Monthly Media</title>
+  <title>WNMU TV Programming Library v1.5.52 · Monthly Media</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.51" />
+  <link rel="stylesheet" href="styles.css?v=1.5.52" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
@@ -35,7 +35,7 @@
       display:grid;
       gap:10px;
       align-items:end;
-      grid-template-columns: minmax(210px, 2.2fr) minmax(78px, .72fr) minmax(78px, .76fr) minmax(108px, .98fr) minmax(90px, .82fr) minmax(118px, 1fr) auto auto;
+      grid-template-columns: minmax(205px, 2.15fr) minmax(72px, .66fr) minmax(72px, .7fr) minmax(104px, .95fr) minmax(104px, .9fr) minmax(112px, .95fr) auto auto;
     }
     .media-form-grid label { min-width:0; }
     .media-form-grid input[type="text"],
@@ -56,7 +56,7 @@
     .media-header,
     .media-row {
       display:grid;
-      grid-template-columns: minmax(210px, 2.15fr) 78px 78px 108px 90px minmax(118px, 1fr) 78px;
+      grid-template-columns: minmax(205px, 2.05fr) 72px 72px 104px 104px minmax(112px, .95fr) 78px;
       gap:7px;
       align-items:center;
     }
@@ -131,7 +131,7 @@
       .media-form-grid button { width:100%; }
       .media-header,
       .media-row {
-        grid-template-columns: minmax(188px, 2fr) 76px 76px 104px 88px minmax(112px, .95fr) 76px;
+        grid-template-columns: minmax(182px, 1.95fr) 70px 70px 100px 100px minmax(108px, .95fr) 76px;
       }
     }
     @media (max-width: 920px) {
@@ -148,7 +148,7 @@
       }
     }
   </style>
-  <script defer src="js/monthly-media.js?v=1.5.51"></script>
+  <script defer src="js/monthly-media.js?v=1.5.52"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -166,7 +166,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Monthly Media to Schedule</h1>
-            <span class="version-pill">v1.5.51</span>
+            <span class="version-pill">v1.5.52</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
