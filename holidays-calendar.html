@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.45 · Holidays & Events</title>
+  <title>WNMU TV Programming Library v1.5.47 · Holidays & Events</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.45" />
+  <link rel="stylesheet" href="styles.css?v=1.5.47" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
     body.standalone-page { overflow-y: auto; background: #eef3f7; }
-    .standalone-shell { max-width: 1500px; margin: 0 auto; padding: 18px; }
+    .standalone-shell { max-width: 1520px; margin: 0 auto; padding: 18px; }
     .standalone-topbar {
       display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
       background:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 10px 30px rgba(12,39,68,.08); margin-bottom:16px;
@@ -29,6 +29,9 @@
     .feedback-line.warn { color:#8a5a11; }
     .feedback-line.error { color:#8a1e1e; }
     .mini-note { color:#5f7386; font-size:.92rem; }
+    .source-note { margin-top:10px; color:#4d6579; font-size:.9rem; }
+    .legend-wrap { display:grid; gap:10px; margin-top:14px; }
+    .legend-chips { display:flex; gap:8px; flex-wrap:wrap; }
     .months-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px; }
     .month-card { border:1px solid #d6e4ef; border-radius:18px; overflow:hidden; background:#fbfdff; }
     .month-head { background:linear-gradient(135deg, #184e7b, #1d5f96); color:#fff; padding:12px 14px; }
@@ -36,13 +39,50 @@
     .month-body { padding:14px; display:grid; gap:14px; }
     .section-label { font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#58728a; }
     .chip-list { display:flex; flex-wrap:wrap; gap:8px; }
-    .month-chip { display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px; background:#eef7fb; border:1px solid #cfe0ea; color:#254764; font-weight:700; font-size:.84rem; }
-    .month-event-list { display:grid; gap:10px; }
-    .month-event { display:grid; grid-template-columns: 90px minmax(0, 1fr); gap:10px; align-items:start; }
+    .month-chip {
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+      border:1px solid #d7e2ea; background:#f7fafc; color:#254764; font-weight:700; font-size:.82rem;
+    }
+    .month-event-list { display:grid; gap:8px; }
+    .month-event {
+      display:grid; grid-template-columns: 64px minmax(0, 1fr); gap:10px; align-items:start;
+      padding:8px 10px; border:1px solid #d9e5ef; border-left:5px solid #94a7b8; border-radius:12px; background:#fff;
+    }
     .event-date { font-weight:800; color:#103a66; }
+    .event-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; flex-wrap:wrap; }
     .event-title { font-weight:700; color:#1e3140; }
-    .event-note { color:#5f7386; font-size:.88rem; margin-top:2px; }
+    .event-note { color:#5f7386; font-size:.86rem; margin-top:3px; }
     .muted-empty { color:#7a8ea1; font-size:.9rem; }
+    .category-badge {
+      display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px;
+      font-size:.74rem; font-weight:800; letter-spacing:.02em; border:1px solid transparent; white-space:nowrap;
+    }
+    .dot { width:8px; height:8px; border-radius:50%; background:currentColor; display:inline-block; }
+
+    .cat-national { color:#0f4c81; background:#e3f0fb; border-color:#b8d5ee; }
+    .cat-religious { color:#6d2e9f; background:#f2e8fc; border-color:#dcc5f0; }
+    .cat-health { color:#a8333a; background:#fde8ea; border-color:#f2c3c7; }
+    .cat-heritage { color:#8e4e12; background:#fff1df; border-color:#f2d3ac; }
+    .cat-environment { color:#1f6b3d; background:#e6f6ea; border-color:#c1e2cc; }
+    .cat-education { color:#0c6674; background:#e4f7fb; border-color:#bde1e8; }
+    .cat-awareness { color:#775214; background:#fff4d9; border-color:#f0ddaa; }
+    .cat-international { color:#304d8c; background:#e8eefc; border-color:#c7d3f1; }
+    .cat-history { color:#5a4a3d; background:#ede8e2; border-color:#d8cbbd; }
+    .cat-seasonal { color:#7d5a11; background:#fbf2dc; border-color:#e7d4a3; }
+    .cat-custom { color:#46556b; background:#edf2f6; border-color:#d2dce5; }
+
+    .month-event.cat-national { border-left-color:#0f4c81; }
+    .month-event.cat-religious { border-left-color:#6d2e9f; }
+    .month-event.cat-health { border-left-color:#a8333a; }
+    .month-event.cat-heritage { border-left-color:#8e4e12; }
+    .month-event.cat-environment { border-left-color:#1f6b3d; }
+    .month-event.cat-education { border-left-color:#0c6674; }
+    .month-event.cat-awareness { border-left-color:#b08318; }
+    .month-event.cat-international { border-left-color:#304d8c; }
+    .month-event.cat-history { border-left-color:#7a6757; }
+    .month-event.cat-seasonal { border-left-color:#7d5a11; }
+    .month-event.cat-custom { border-left-color:#6b7d8f; }
+
     .admin-form-grid { display:grid; gap:12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .admin-form-grid .span-2 { grid-column: span 2; }
     .admin-form-grid .span-4 { grid-column: 1 / -1; }
@@ -61,7 +101,7 @@
       .admin-form-grid .span-2, .admin-form-grid .span-4 { grid-column: 1 / -1; }
     }
   </style>
-  <script defer src="js/holidays-calendar.js?v=1.5.45"></script>
+  <script defer src="js/holidays-calendar.js?v=1.5.47"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -79,7 +119,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Holidays & Events Calendar</h1>
-            <span class="version-pill">v1.5.45</span>
+            <span class="version-pill">v1.5.47</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -95,7 +135,7 @@
 
     <div class="standalone-grid">
       <section class="standalone-card">
-        <p style="margin:0; color:#30485f;">Rather than a 31-column spreadsheet wall, this page lays the year out in monthly cards. The built-in list handles the moveable dates automatically, and you can add your own recurring observances underneath.</p>
+        <p style="margin:0; color:#30485f;">This view now color-codes holidays and observances by category and pulls in online holiday data for the selected year, with a recurring observance layer on top for the month-long and awareness items that public holiday feeds usually miss.</p>
       </section>
 
       <section class="standalone-card">
@@ -104,16 +144,21 @@
             <select id="yearSelect"></select>
           </label>
           <div>
-            <button type="button" id="refreshBtn">Refresh custom list</button>
+            <button type="button" id="refreshBtn">Reload custom list</button>
           </div>
           <div class="mini-note" id="authStateText" style="align-self:center;">Checking sign-in status…</div>
         </div>
         <div id="pageFeedback" class="feedback-line"></div>
+        <div id="holidaySourceNote" class="source-note">Loading online holiday sources…</div>
+        <div class="legend-wrap">
+          <div class="section-label">Color legend</div>
+          <div id="legendChips" class="legend-chips"></div>
+        </div>
       </section>
 
       <section class="standalone-card">
         <div class="list-title">Year at a glance</div>
-        <div class="mini-note">Built-in holidays are included automatically. Anything custom you add below gets folded into the right month and year.</div>
+        <div class="mini-note">Online holiday feeds handle the year-specific dates. Supplemental recurring observances and anything custom you add below are folded into the correct month.</div>
         <div id="monthsGrid" class="months-grid" style="margin-top:14px;"></div>
       </section>
 
@@ -121,7 +166,7 @@
         <div class="title-row" style="justify-content:space-between; align-items:center;">
           <div>
             <div class="list-title">Custom observances</div>
-            <div class="mini-note">Use this for your own month-long observances, fixed dates, or moveable yearly items from the spreadsheet.</div>
+            <div class="mini-note">Use this for your own month-long observances, fixed dates, or moveable yearly items that do not come from the online feeds.</div>
           </div>
         </div>
         <form id="customForm" class="admin-form-grid">

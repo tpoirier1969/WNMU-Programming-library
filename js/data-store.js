@@ -5,7 +5,7 @@ async function loadEverything(options = {}) {
   const forceFresh = Boolean(options.forceFresh);
   let renderedFromCache = false;
 
-  if (!forceFresh && false && hydrateProgramsFromCache()) {
+  if (!forceFresh && hydrateProgramsFromCache()) {
     renderedFromCache = true;
     renderTable();
     renderStats();
@@ -276,7 +276,7 @@ async function persistProgramRating(programId, rating, options = {}) {
   }
 
   state.ratingDbSupport = true;
-  if (options.refreshUi !== false) await refreshUiFromServer(options.statusMessage || 'Saved rating.');
+  if (options.refreshUi !== false) refreshUiAfterProgramMutation(options.statusMessage || 'Saved rating.');
   else persistProgramsCache();
   return { persisted: true, storage: 'database' };
 }
@@ -289,8 +289,10 @@ async function saveInlineAirings(programId, values = {}) {
   };
   const { error } = await state.supabase.from('programs').update(payload).eq('id', programId);
   if (error) throw error;
-  await refreshUiFromServer('Saved airing fields.');
-  return state.programs.find((item) => String(item.id) === String(programId)) || null;
+  const refreshedProgram = await fetchProgramById(programId);
+  mergeProgramIntoState(refreshedProgram);
+  refreshUiAfterProgramMutation('Saved airing fields.');
+  return refreshedProgram;
 }
 
 function mergeProgramIntoState(program) {
@@ -335,12 +337,6 @@ function refreshUiAfterProgramMutation(statusMessage, options = {}) {
   renderStats();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
-  setStatus(statusMessage);
-}
-
-async function refreshUiFromServer(statusMessage, options = {}) {
-  await loadEverything({ forceFresh: true });
-  if (options.renderFilters === false) return setStatus(statusMessage);
   setStatus(statusMessage);
 }
 

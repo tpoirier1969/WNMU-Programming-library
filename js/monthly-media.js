@@ -4,7 +4,7 @@ const state = {
   supabase: null,
   session: null,
   rows: [],
-  filteredRows: []
+  saveTimers: new Map()
 };
 
 const MONTHLY_MEDIA_TABLE = 'monthly_media_schedule';
@@ -17,8 +17,6 @@ const els = {
   logoutBtn: document.getElementById('logoutBtn'),
   authStateText: document.getElementById('authStateText'),
   pageFeedback: document.getElementById('pageFeedback'),
-  statusFilter: document.getElementById('statusFilter'),
-  refreshBtn: document.getElementById('refreshBtn'),
   addForm: document.getElementById('addForm'),
   addRowBtn: document.getElementById('addRowBtn'),
   clearFormBtn: document.getElementById('clearFormBtn'),
@@ -82,29 +80,13 @@ function toIntegerOrNull(value) {
 }
 
 function sortRows(rows) {
-  return [...rows].sort((a, b) => {
-    const activeCmp = Number(b.is_active !== false) - Number(a.is_active !== false);
-    if (activeCmp) return activeCmp;
-    return normalizeLower(a.series_title).localeCompare(normalizeLower(b.series_title));
-  });
+  return [...rows].sort((a, b) => normalizeLower(a.series_title).localeCompare(normalizeLower(b.series_title)));
 }
 
-function updateRowVisualState(tr) {
-  if (!tr) return;
-  const checked = Boolean(tr.querySelector('[name="is_active"]')?.checked);
-  tr.classList.toggle('inactive-row', !checked);
-  const label = tr.querySelector('.compact-check span');
-  if (label) label.textContent = checked ? 'Yes' : 'No';
-}
-
-function updateAllRowVisualStates() {
-  els.mediaTableBody?.querySelectorAll('tr[data-row-id]').forEach(updateRowVisualState);
-}
-
-function getWriteErrorMessage(error, fallbackTableName) {
+function getWriteErrorMessage(error) {
   const lowered = normalizeLower(error?.message || '');
   if (lowered.includes('row-level security')) {
-    return `Supabase blocked the write. Run the updated sql/monthly-media-and-holidays.sql so ${fallbackTableName} has write policies.`;
+    return 'Supabase blocked the write. Run the updated sql/monthly-media-and-holidays.sql so the monthly media table has write policies.';
   }
   return error?.message || 'Supabase write failed.';
 }
@@ -122,64 +104,50 @@ function updateAuthUi() {
   els.logoutBtn?.classList.toggle('hidden', !editing);
   if (els.authStateText) {
     els.authStateText.textContent = editing
-      ? 'Signed in. You can add, update, and delete rows here.'
-      : 'Read-only. Sign in with GitHub to change this list.';
+      ? 'Signed in. Add rows up top, then just edit inline below. Changes auto-save.'
+      : 'Read-only. Sign in with GitHub to add, edit, or delete rows.';
   }
   setFormEnabled(editing);
   renderRows();
 }
 
-function getFilteredRows() {
-  const mode = normalizeLower(els.statusFilter?.value || 'active');
-  return state.rows.filter((row) => {
-    const active = row.is_active !== false;
-    if (mode === 'active' && !active) return false;
-    if (mode === 'inactive' && active) return false;
-    return true;
-  });
+function setRowState(tr, message = '', tone = '') {
+  if (!tr) return;
+  const node = tr.querySelector('[data-role="row-state"]');
+  if (!node) return;
+  node.textContent = message;
+  node.className = 'row-state';
+  if (tone) node.classList.add(tone);
 }
 
 function buildRowMarkup(row) {
   const editing = canEdit();
-  const active = row.is_active !== false;
   const lockAttr = editing ? '' : 'disabled';
   return `
-    <tr data-row-id="${row.id}">
-      <td><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></td>
-      <td><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="YYYY-MM-DD" ${lockAttr} /></td>
-      <td><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></td>
-      <td><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></td>
-      <td><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></td>
-      <td><input name="notes" type="text" value="${escapeHtml(row.notes || '')}" ${lockAttr} /></td>
-      <td>
-        <label class="compact-check">
-          <input name="is_active" type="checkbox" ${active ? 'checked' : ''} ${lockAttr} />
-          <span>${active ? 'Yes' : 'No'}</span>
-        </label>
-      </td>
-      <td>
-        <div class="row-actions">
-          ${editing ? '<button type="button" data-action="save">Save</button>' : ''}
-          ${editing ? '<button type="button" class="danger" data-action="delete">Delete</button>' : ''}
-        </div>
-      </td>
-    </tr>
+    <div class="media-row" data-row-id="${row.id}">
+      <div class="media-cell"><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></div>
+      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="YYYY-MM-DD" ${lockAttr} /></div>
+      <div class="media-cell"><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></div>
+      <div class="media-cell"><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></div>
+      <div class="media-cell"><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></div>
+      <div class="media-cell"><input name="notes" type="text" value="${escapeHtml(row.notes || '')}" ${lockAttr} /></div>
+      <div class="row-actions">
+        <span class="row-state" data-role="row-state"></span>
+        ${editing ? '<button type="button" class="danger" data-action="delete">Delete</button>' : ''}
+      </div>
+    </div>
   `;
 }
 
 function renderRows() {
-  state.filteredRows = getFilteredRows();
+  const rows = sortRows(state.rows);
   if (els.mediaTableBody) {
-    els.mediaTableBody.innerHTML = state.filteredRows.map(buildRowMarkup).join('');
-    updateAllRowVisualStates();
+    els.mediaTableBody.innerHTML = rows.map(buildRowMarkup).join('');
   }
   if (els.listSummary) {
-    const total = state.rows.length;
-    const shown = state.filteredRows.length;
-    const activeCount = state.rows.filter((row) => row.is_active !== false).length;
-    els.listSummary.textContent = `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} rows (${activeCount.toLocaleString()} active).`;
+    els.listSummary.textContent = `${rows.length.toLocaleString()} row${rows.length === 1 ? '' : 's'} loaded.`;
   }
-  els.emptyState?.classList.toggle('hidden', state.filteredRows.length > 0);
+  els.emptyState?.classList.toggle('hidden', rows.length > 0);
 }
 
 async function loadRows() {
@@ -188,10 +156,10 @@ async function loadRows() {
   const { data, error } = await state.supabase
     .from(MONTHLY_MEDIA_TABLE)
     .select('*')
-    .order('is_active', { ascending: false })
+    .eq('is_active', true)
     .order('series_title', { ascending: true });
   if (error) throw error;
-  state.rows = sortRows((data || []).map((row) => ({ ...row })));
+  state.rows = (data || []).map((row) => ({ ...row }));
   renderRows();
   setFeedback('', '');
   setStatus(`Loaded ${state.rows.length.toLocaleString()} monthly media rows.`);
@@ -206,14 +174,13 @@ function collectAddPayload() {
     record_source: normalizeText(form.elements.record_source.value) || null,
     last_episode_scheduled: toIntegerOrNull(form.elements.last_episode_scheduled.value),
     notes: normalizeText(form.elements.notes.value) || null,
-    is_active: Boolean(form.elements.is_active.checked),
+    is_active: true,
     updated_at: new Date().toISOString()
   };
 }
 
 function clearAddForm() {
   els.addForm?.reset();
-  if (els.addForm?.elements?.is_active) els.addForm.elements.is_active.checked = true;
 }
 
 async function createRow(event) {
@@ -229,8 +196,8 @@ async function createRow(event) {
     return;
   }
   els.addRowBtn.disabled = true;
-  setFeedback('Saving new row…', 'info');
-  setStatus('Saving new row…');
+  setFeedback('Adding row…', 'info');
+  setStatus('Adding row…');
   try {
     const { data, error } = await state.supabase
       .from(MONTHLY_MEDIA_TABLE)
@@ -238,14 +205,15 @@ async function createRow(event) {
       .select('*')
       .single();
     if (error) throw error;
-    await loadRows();
+    state.rows.push(data);
+    state.rows = sortRows(state.rows);
+    renderRows();
     clearAddForm();
-    const addedTitle = data?.series_title || payload.series_title;
-    setFeedback(`Added ${addedTitle}.`, 'success');
-    setStatus(`Added ${addedTitle}.`);
+    setFeedback(`Added ${payload.series_title}.`, 'success');
+    setStatus(`Added ${payload.series_title}.`);
   } catch (error) {
     console.error(error);
-    const message = getWriteErrorMessage(error, 'the monthly media table');
+    const message = getWriteErrorMessage(error);
     setFeedback(message, 'error');
     setStatus(message);
   } finally {
@@ -253,28 +221,38 @@ async function createRow(event) {
   }
 }
 
-function collectRowPayload(tr) {
+function collectRowPayload(rowNode) {
   return {
-    series_title: normalizeText(tr.querySelector('[name="series_title"]')?.value),
-    last_scheduled_date: normalizeText(tr.querySelector('[name="last_scheduled_date"]')?.value) || null,
-    record_time: normalizeText(tr.querySelector('[name="record_time"]')?.value) || null,
-    record_source: normalizeText(tr.querySelector('[name="record_source"]')?.value) || null,
-    last_episode_scheduled: toIntegerOrNull(tr.querySelector('[name="last_episode_scheduled"]')?.value),
-    notes: normalizeText(tr.querySelector('[name="notes"]')?.value) || null,
-    is_active: Boolean(tr.querySelector('[name="is_active"]')?.checked),
+    series_title: normalizeText(rowNode.querySelector('[name="series_title"]')?.value),
+    last_scheduled_date: normalizeText(rowNode.querySelector('[name="last_scheduled_date"]')?.value) || null,
+    record_time: normalizeText(rowNode.querySelector('[name="record_time"]')?.value) || null,
+    record_source: normalizeText(rowNode.querySelector('[name="record_source"]')?.value) || null,
+    last_episode_scheduled: toIntegerOrNull(rowNode.querySelector('[name="last_episode_scheduled"]')?.value),
+    notes: normalizeText(rowNode.querySelector('[name="notes"]')?.value) || null,
     updated_at: new Date().toISOString()
   };
 }
 
-async function saveRow(id, tr) {
-  const payload = collectRowPayload(tr);
+function cancelQueuedSave(id) {
+  const existing = state.saveTimers.get(String(id));
+  if (existing) {
+    window.clearTimeout(existing);
+    state.saveTimers.delete(String(id));
+  }
+}
+
+async function persistRow(id, rowNode) {
+  if (!canEdit() || !rowNode) return;
+  cancelQueuedSave(id);
+  const payload = collectRowPayload(rowNode);
   if (!payload.series_title) {
-    setFeedback('Series title cannot be blank.', 'warn');
-    tr.querySelector('[name="series_title"]')?.focus();
+    setRowState(rowNode, 'Need title', 'error');
+    rowNode.classList.add('save-error');
     return;
   }
-  setFeedback(`Saving ${payload.series_title}…`, 'info');
-  setStatus(`Saving ${payload.series_title}…`);
+  rowNode.classList.remove('save-error');
+  rowNode.classList.add('is-saving');
+  setRowState(rowNode, 'Saving…');
   try {
     const { data, error } = await state.supabase
       .from(MONTHLY_MEDIA_TABLE)
@@ -283,28 +261,43 @@ async function saveRow(id, tr) {
       .select('*')
       .single();
     if (error) throw error;
-    await loadRows();
-    const savedTitle = data?.series_title || payload.series_title;
-    if (payload.is_active === false && normalizeLower(els.statusFilter?.value || 'all') === 'active') {
-      setFeedback(`Saved ${savedTitle}. It is inactive now, so switch the filter to All rows or Inactive to see it again.`, 'success');
-      setStatus(`Saved ${savedTitle} as inactive.`);
-    } else {
-      setFeedback(`Saved ${savedTitle}.`, 'success');
-      setStatus(`Saved ${savedTitle}.`);
-    }
+    const idx = state.rows.findIndex((row) => String(row.id) === String(id));
+    if (idx >= 0) state.rows[idx] = { ...state.rows[idx], ...data };
+    rowNode.classList.remove('is-saving');
+    setRowState(rowNode, 'Saved', 'success');
+    window.setTimeout(() => {
+      if (rowNode.isConnected) setRowState(rowNode, '');
+    }, 1200);
+    setStatus(`Saved ${payload.series_title}.`);
   } catch (error) {
     console.error(error);
-    const message = getWriteErrorMessage(error, 'the monthly media table');
+    rowNode.classList.remove('is-saving');
+    rowNode.classList.add('save-error');
+    setRowState(rowNode, 'Error', 'error');
+    const message = getWriteErrorMessage(error);
     setFeedback(message, 'error');
     setStatus(message);
   }
 }
 
-async function deleteRow(id) {
+function queueRowSave(id, rowNode, delay = 700) {
+  if (!canEdit() || !rowNode) return;
+  cancelQueuedSave(id);
+  const timer = window.setTimeout(() => {
+    state.saveTimers.delete(String(id));
+    void persistRow(id, rowNode);
+  }, delay);
+  state.saveTimers.set(String(id), timer);
+  rowNode.classList.add('is-saving');
+  setRowState(rowNode, 'Pending');
+}
+
+async function deleteRow(id, rowNode) {
   const existing = state.rows.find((row) => String(row.id) === String(id));
   const label = existing?.series_title || 'this row';
   if (!window.confirm(`Delete ${label}?`)) return;
-  setFeedback(`Deleting ${label}…`, 'info');
+  cancelQueuedSave(id);
+  setRowState(rowNode, 'Deleting…');
   setStatus(`Deleting ${label}…`);
   try {
     const { error } = await state.supabase
@@ -312,14 +305,16 @@ async function deleteRow(id) {
       .delete()
       .eq('id', id);
     if (error) throw error;
-    await loadRows();
+    state.rows = state.rows.filter((row) => String(row.id) !== String(id));
+    renderRows();
     setFeedback(`Deleted ${label}.`, 'success');
     setStatus(`Deleted ${label}.`);
   } catch (error) {
     console.error(error);
-    const message = getWriteErrorMessage(error, 'the monthly media table');
+    const message = getWriteErrorMessage(error);
     setFeedback(message, 'error');
     setStatus(message);
+    setRowState(rowNode, 'Error', 'error');
   }
 }
 
@@ -343,39 +338,37 @@ function bindEvents() {
     setStatus('Signed out. Read-only mode is active.');
   });
 
-  els.refreshBtn?.addEventListener('click', () => {
-    void loadRows().catch((error) => {
-      console.error(error);
-      setFeedback(error.message, 'error');
-      setStatus(error.message);
-    });
-  });
-
-  els.statusFilter?.addEventListener('change', renderRows);
   els.addForm?.addEventListener('submit', createRow);
   els.clearFormBtn?.addEventListener('click', clearAddForm);
 
-  els.mediaTableBody?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action]');
-    if (!button || !canEdit()) return;
-    const tr = event.target.closest('tr[data-row-id]');
-    const id = tr?.dataset?.rowId;
-    if (!id || !tr) return;
-    const action = button.dataset.action;
-    if (action === 'save') void saveRow(id, tr);
-    if (action === 'delete') void deleteRow(id);
+  els.mediaTableBody?.addEventListener('input', (event) => {
+    const rowNode = event.target.closest('[data-row-id]');
+    const id = rowNode?.dataset?.rowId;
+    if (!id || !rowNode || !canEdit()) return;
+    queueRowSave(id, rowNode, 800);
   });
 
   els.mediaTableBody?.addEventListener('change', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    const tr = target.closest('tr[data-row-id]');
-    const id = tr?.dataset?.rowId;
-    if (!id || !tr) return;
-    if (target.name === 'is_active') {
-      updateRowVisualState(tr);
-      if (canEdit()) void saveRow(id, tr);
-    }
+    const rowNode = event.target.closest('[data-row-id]');
+    const id = rowNode?.dataset?.rowId;
+    if (!id || !rowNode || !canEdit()) return;
+    queueRowSave(id, rowNode, 250);
+  });
+
+  els.mediaTableBody?.addEventListener('focusout', (event) => {
+    const rowNode = event.target.closest('[data-row-id]');
+    const id = rowNode?.dataset?.rowId;
+    if (!id || !rowNode || !canEdit()) return;
+    void persistRow(id, rowNode);
+  });
+
+  els.mediaTableBody?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="delete"]');
+    if (!button || !canEdit()) return;
+    const rowNode = button.closest('[data-row-id]');
+    const id = rowNode?.dataset?.rowId;
+    if (!id || !rowNode) return;
+    void deleteRow(id, rowNode);
   });
 }
 
@@ -409,7 +402,7 @@ async function init() {
     console.error(error);
     const lowered = normalizeLower(error?.message);
     const message = lowered.includes('monthly_media_schedule')
-      ? 'The monthly media table is missing. Run the updated sql/monthly-media-and-holidays.sql first.'
+      ? 'The monthly media table is missing. Run sql/monthly-media-and-holidays.sql first.'
       : error.message;
     setFeedback(message, 'error');
     setStatus(message);
