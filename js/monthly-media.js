@@ -173,7 +173,7 @@ function applyTransientProgress(rowNode, triggerName = '') {
     last_episode_scheduled: normalizeText(rowNode.querySelector('[name="last_episode_scheduled"]')?.value),
     notes: normalizeText(rowNode.querySelector('[name="notes"]')?.value)
   };
-  const order = ['series_title', 'last_scheduled_date', 'record_time', 'record_source', 'last_episode_scheduled', 'notes'];
+  const order = ['series_title', 'record_time', 'record_source', 'last_scheduled_date', 'last_episode_scheduled', 'notes'];
   let upto = order.indexOf(triggerName);
   if (upto < 0) upto = 0;
   order.forEach((name, index) => {
@@ -200,9 +200,9 @@ function buildRowMarkup(row) {
   return `
     <div class="media-row" data-row-id="${row.id}">
       <div class="media-cell"><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></div>
-      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="M/D/YYYY" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></div>
+      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="M/D/YYYY" ${lockAttr} /></div>
       <div class="media-cell"><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="notes" type="text" value="${escapeHtml(row.notes || '')}" ${lockAttr} /></div>
       <div class="row-actions">
@@ -283,6 +283,7 @@ async function createRow(event) {
     state.rows = sortRows(state.rows);
     renderRows();
     clearAddForm();
+    els.addForm?.elements?.series_title?.focus();
     setFeedback(`Added ${payload.series_title}.`, 'success');
     setStatus(`Added ${payload.series_title}.`);
   } catch (error) {
@@ -396,6 +397,29 @@ async function deleteRow(id, rowNode) {
   }
 }
 
+function focusNextRowStart(currentRowNode) {
+  if (!currentRowNode) return;
+  const rows = Array.from(els.mediaTableBody?.querySelectorAll('[data-row-id]') || []);
+  const idx = rows.indexOf(currentRowNode);
+  const nextRow = idx >= 0 ? rows[idx + 1] : null;
+  if (nextRow) {
+    nextRow.querySelector('[name="series_title"]')?.focus();
+    nextRow.querySelector('[name="series_title"]')?.select?.();
+    return;
+  }
+  els.addForm?.elements?.series_title?.focus();
+  els.addForm?.elements?.series_title?.select?.();
+}
+
+function submitAddFormFromEntryField() {
+  if (!canEdit()) return;
+  if (typeof els.addForm?.requestSubmit === 'function') {
+    els.addForm.requestSubmit();
+  } else {
+    els.addForm?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  }
+}
+
 function bindEvents() {
   els.loginGitHubBtn?.addEventListener('click', async () => {
     setFeedback('Sending you to GitHub…', 'info');
@@ -418,6 +442,29 @@ function bindEvents() {
 
   els.addForm?.addEventListener('submit', createRow);
   els.clearFormBtn?.addEventListener('click', clearAddForm);
+
+  els.addForm?.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (event.key !== 'Enter') return;
+    if (!['last_episode_scheduled', 'notes'].includes(target.name)) return;
+    event.preventDefault();
+    submitAddFormFromEntryField();
+  });
+
+  els.mediaTableBody?.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (event.key !== 'Enter') return;
+    if (!['last_episode_scheduled', 'notes'].includes(target.name)) return;
+    const rowNode = target.closest('[data-row-id]');
+    const id = rowNode?.dataset?.rowId;
+    if (!id || !rowNode || !canEdit()) return;
+    event.preventDefault();
+    applyTransientProgress(rowNode, target.name);
+    queueRowSave(id, rowNode, ROW_AUTOSAVE_DELAY_MS);
+    focusNextRowStart(rowNode);
+  });
 
   els.mediaTableBody?.addEventListener('input', (event) => {
     const rowNode = event.target.closest('[data-row-id]');
