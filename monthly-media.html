@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.48 · Monthly Media</title>
+  <title>WNMU TV Programming Library v1.5.50 · Monthly Media</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.48" />
+  <link rel="stylesheet" href="styles.css?v=1.5.50" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
@@ -35,7 +35,7 @@
       display:grid;
       gap:10px;
       align-items:end;
-      grid-template-columns: minmax(210px, 3.1fr) minmax(110px, 1.15fr) minmax(62px, .68fr) minmax(72px, .78fr) minmax(86px, .95fr) minmax(120px, 1.15fr) auto auto;
+      grid-template-columns: minmax(190px, 2.5fr) minmax(112px, 1.15fr) minmax(64px, .62fr) minmax(70px, .7fr) minmax(104px, .9fr) minmax(106px, .95fr) auto auto;
     }
     .media-form-grid label { min-width:0; }
     .media-form-grid input[type="text"],
@@ -56,7 +56,7 @@
     .media-header,
     .media-row {
       display:grid;
-      grid-template-columns: minmax(220px, 3.1fr) 108px 62px 72px 86px minmax(118px, 1.1fr) 78px;
+      grid-template-columns: minmax(196px, 2.45fr) 104px 64px 70px 104px minmax(96px, .95fr) 78px;
       gap:7px;
       align-items:center;
     }
@@ -92,6 +92,20 @@
       border-color:#b33a3a;
       background:#fff7f7;
     }
+
+    .media-row.progress-touch .media-cell,
+    .media-row.progress-touch .row-actions {
+      transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .media-row .progress-fill {
+      background:#e7f4ea;
+      box-shadow: inset 0 0 0 1px #b8dcbc;
+      border-radius:10px;
+    }
+    .media-row .progress-fill input {
+      border-color:#8fbe96;
+      background:#f7fcf7;
+    }
     .row-actions {
       display:flex;
       align-items:center;
@@ -117,7 +131,7 @@
       .media-form-grid button { width:100%; }
       .media-header,
       .media-row {
-        grid-template-columns: minmax(180px, 2.6fr) 102px 60px 70px 82px minmax(108px, 1fr) 76px;
+        grid-template-columns: minmax(172px, 2.2fr) 100px 62px 68px 96px minmax(92px, .9fr) 76px;
       }
     }
     @media (max-width: 920px) {
@@ -134,7 +148,7 @@
       }
     }
   </style>
-  <script defer src="js/monthly-media.js?v=1.5.48"></script>
+  <script defer src="js/monthly-media.js?v=1.5.50"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -152,7 +166,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Monthly Media to Schedule</h1>
-            <span class="version-pill">v1.5.48</span>
+            <span class="version-pill">v1.5.50</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -169,7 +183,7 @@
     <div class="standalone-grid">
       <section class="standalone-card">
         <p class="page-subhead">Fast manual record list: title, last scheduled date, time, source, last episode number, and a short note.</p>
-        <p class="page-mini">Edits in the list auto-save. No extra save clicks needed.</p>
+        <p class="page-mini">Edits in the list auto-save about 3 seconds after you stop typing. No extra save clicks needed.</p>
       </section>
 
       <section class="standalone-card">
@@ -184,7 +198,7 @@
             <input name="series_title" type="text" required />
           </label>
           <label>Last scheduled
-            <input name="last_scheduled_date" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" />
+            <input name="last_scheduled_date" type="text" inputmode="numeric" placeholder="M/D/YYYY" />
           </label>
           <label>Time
             <input name="record_time" type="text" placeholder="8 PM" />

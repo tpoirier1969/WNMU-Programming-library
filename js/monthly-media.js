@@ -7,6 +7,8 @@ const state = {
   saveTimers: new Map()
 };
 
+const ROW_AUTOSAVE_DELAY_MS = 3000;
+
 const MONTHLY_MEDIA_TABLE = 'monthly_media_schedule';
 
 const els = {
@@ -62,13 +64,54 @@ function canEdit() {
 }
 
 function formatDateForInput(value) {
-  if (!value) return '';
-  if (typeof value === 'string') return value.slice(0, 10);
-  try {
-    return new Date(value).toISOString().slice(0, 10);
-  } catch (_error) {
-    return '';
+  const parts = parseDateInputParts(value);
+  if (!parts) return '';
+  return `${parts.month}/${parts.day}/${parts.year}`;
+}
+
+function parseDateInputParts(value) {
+  const raw = normalizeText(value);
+  if (!raw) return null;
+  let match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (isValidYMD(year, month, day)) return { year, month, day };
+    return null;
   }
+  match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (match) {
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+    let year = Number(match[3]);
+    if (String(match[3]).length === 2) year += year >= 70 ? 1900 : 2000;
+    if (isValidYMD(year, month, day)) return { year, month, day };
+    return null;
+  }
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.valueOf())) {
+    const year = parsed.getUTCFullYear();
+    const month = parsed.getUTCMonth() + 1;
+    const day = parsed.getUTCDate();
+    if (isValidYMD(year, month, day)) return { year, month, day };
+  }
+  return null;
+}
+
+function isValidYMD(year, month, day) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const test = new Date(Date.UTC(year, month - 1, day));
+  return test.getUTCFullYear() === year && test.getUTCMonth() === month - 1 && test.getUTCDate() === day;
+}
+
+function normalizeDateForDb(value) {
+  const parts = parseDateInputParts(value);
+  if (!parts) return null;
+  const mm = String(parts.month).padStart(2, '0');
+  const dd = String(parts.day).padStart(2, '0');
+  return `${parts.year}-${mm}-${dd}`;
 }
 
 function toIntegerOrNull(value) {
@@ -111,6 +154,37 @@ function updateAuthUi() {
   renderRows();
 }
 
+function clearProgressClasses(rowNode) {
+  if (!rowNode) return;
+  rowNode.querySelectorAll('.progress-fill').forEach((node) => node.classList.remove('progress-fill'));
+  rowNode.classList.remove('progress-touch');
+}
+
+function applyTransientProgress(rowNode, triggerName = '') {
+  if (!rowNode) return;
+  clearProgressClasses(rowNode);
+  rowNode.classList.add('progress-touch');
+  const cells = Array.from(rowNode.children);
+  const values = {
+    series_title: normalizeText(rowNode.querySelector('[name="series_title"]')?.value),
+    last_scheduled_date: normalizeText(rowNode.querySelector('[name="last_scheduled_date"]')?.value),
+    record_time: normalizeText(rowNode.querySelector('[name="record_time"]')?.value),
+    record_source: normalizeText(rowNode.querySelector('[name="record_source"]')?.value),
+    last_episode_scheduled: normalizeText(rowNode.querySelector('[name="last_episode_scheduled"]')?.value),
+    notes: normalizeText(rowNode.querySelector('[name="notes"]')?.value)
+  };
+  const order = ['series_title', 'last_scheduled_date', 'record_time', 'record_source', 'last_episode_scheduled', 'notes'];
+  let upto = order.indexOf(triggerName);
+  if (upto < 0) upto = 0;
+  order.forEach((name, index) => {
+    if (values[name]) upto = Math.max(upto, index);
+  });
+  if (values.last_episode_scheduled) upto = cells.length - 1;
+  for (let i = 0; i <= upto && i < cells.length; i += 1) {
+    cells[i].classList.add('progress-fill');
+  }
+}
+
 function setRowState(tr, message = '', tone = '') {
   if (!tr) return;
   const node = tr.querySelector('[data-role="row-state"]');
@@ -126,7 +200,7 @@ function buildRowMarkup(row) {
   return `
     <div class="media-row" data-row-id="${row.id}">
       <div class="media-cell"><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></div>
-      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="YYYY-MM-DD" ${lockAttr} /></div>
+      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="M/D/YYYY" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></div>
@@ -169,7 +243,7 @@ function collectAddPayload() {
   const form = els.addForm;
   return {
     series_title: normalizeText(form.elements.series_title.value),
-    last_scheduled_date: normalizeText(form.elements.last_scheduled_date.value) || null,
+    last_scheduled_date: normalizeDateForDb(form.elements.last_scheduled_date.value),
     record_time: normalizeText(form.elements.record_time.value) || null,
     record_source: normalizeText(form.elements.record_source.value) || null,
     last_episode_scheduled: toIntegerOrNull(form.elements.last_episode_scheduled.value),
@@ -224,7 +298,7 @@ async function createRow(event) {
 function collectRowPayload(rowNode) {
   return {
     series_title: normalizeText(rowNode.querySelector('[name="series_title"]')?.value),
-    last_scheduled_date: normalizeText(rowNode.querySelector('[name="last_scheduled_date"]')?.value) || null,
+    last_scheduled_date: normalizeDateForDb(rowNode.querySelector('[name="last_scheduled_date"]')?.value),
     record_time: normalizeText(rowNode.querySelector('[name="record_time"]')?.value) || null,
     record_source: normalizeText(rowNode.querySelector('[name="record_source"]')?.value) || null,
     last_episode_scheduled: toIntegerOrNull(rowNode.querySelector('[name="last_episode_scheduled"]')?.value),
@@ -263,6 +337,8 @@ async function persistRow(id, rowNode) {
     if (error) throw error;
     const idx = state.rows.findIndex((row) => String(row.id) === String(id));
     if (idx >= 0) state.rows[idx] = { ...state.rows[idx], ...data };
+    const dateInput = rowNode.querySelector('[name="last_scheduled_date"]');
+    if (dateInput) dateInput.value = formatDateForInput(data?.last_scheduled_date || payload.last_scheduled_date);
     rowNode.classList.remove('is-saving');
     setRowState(rowNode, 'Saved', 'success');
     window.setTimeout(() => {
@@ -280,7 +356,7 @@ async function persistRow(id, rowNode) {
   }
 }
 
-function queueRowSave(id, rowNode, delay = 700) {
+function queueRowSave(id, rowNode, delay = ROW_AUTOSAVE_DELAY_MS) {
   if (!canEdit() || !rowNode) return;
   cancelQueuedSave(id);
   const timer = window.setTimeout(() => {
@@ -288,9 +364,11 @@ function queueRowSave(id, rowNode, delay = 700) {
     void persistRow(id, rowNode);
   }, delay);
   state.saveTimers.set(String(id), timer);
+  rowNode.classList.remove('save-error');
   rowNode.classList.add('is-saving');
-  setRowState(rowNode, 'Pending');
+  setRowState(rowNode, `Waiting ${Math.ceil(delay / 1000)}s`);
 }
+
 
 async function deleteRow(id, rowNode) {
   const existing = state.rows.find((row) => String(row.id) === String(id));
@@ -345,21 +423,26 @@ function bindEvents() {
     const rowNode = event.target.closest('[data-row-id]');
     const id = rowNode?.dataset?.rowId;
     if (!id || !rowNode || !canEdit()) return;
-    queueRowSave(id, rowNode, 800);
+    applyTransientProgress(rowNode, event.target.name);
+    queueRowSave(id, rowNode, ROW_AUTOSAVE_DELAY_MS);
   });
 
   els.mediaTableBody?.addEventListener('change', (event) => {
     const rowNode = event.target.closest('[data-row-id]');
     const id = rowNode?.dataset?.rowId;
     if (!id || !rowNode || !canEdit()) return;
-    queueRowSave(id, rowNode, 250);
+    applyTransientProgress(rowNode, event.target.name);
+    queueRowSave(id, rowNode, ROW_AUTOSAVE_DELAY_MS);
   });
 
   els.mediaTableBody?.addEventListener('focusout', (event) => {
     const rowNode = event.target.closest('[data-row-id]');
     const id = rowNode?.dataset?.rowId;
     if (!id || !rowNode || !canEdit()) return;
-    void persistRow(id, rowNode);
+    applyTransientProgress(rowNode, event.target.name);
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && rowNode.contains(nextTarget)) return;
+    queueRowSave(id, rowNode, ROW_AUTOSAVE_DELAY_MS);
   });
 
   els.mediaTableBody?.addEventListener('click', (event) => {
