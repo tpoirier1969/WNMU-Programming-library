@@ -134,8 +134,8 @@ const els = {
 
 const SEARCH_INPUT_DEBOUNCE_MS = 140;
 const AUTO_ARCHIVE_LAST_RUN_KEY = 'program-library-auto-archive-last-run';
-const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v1';
-const RATING_OVERLAY_KEY = 'program-library-rating-overrides-v1';
+const PROGRAM_CACHE_KEY = 'program-library-programs-cache-v2';
+const RATING_OVERLAY_KEY = 'program-library-rating-overrides-v2';
 const DEFAULT_NEW_PROGRAM_VALUES = Object.freeze({ package_type: 'HDBA', server_tape: 'sIX' });
 const CURATED_SOURCE_OPTIONS = Object.freeze(['sIX', 'Server', 'Tape', 'FTP', 'Feed', 'Unavailable', "Don't Have", 'Other']);
 const DEFAULT_VISIBLE_ROWS = 150;

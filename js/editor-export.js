@@ -105,9 +105,8 @@ async function restoreArchivedProgram() {
       .eq('id', id);
     if (error) throw error;
 
-    const refreshedProgram = await fetchProgramById(id);
-    mergeProgramIntoState(refreshedProgram);
-    refreshUiAfterProgramMutation('Program restored to active.');
+    await loadEverything({ forceFresh: true });
+    setStatus('Program restored to active.');
     setLoading('');
     openEditor(id);
   } catch (error) {
@@ -222,16 +221,13 @@ async function saveProgram(event) {
     if (response.error) throw response.error;
 
     const refreshedId = response.data?.id || programId;
-    const refreshedProgram = await fetchProgramById(refreshedId);
-    mergeProgramIntoState(refreshedProgram);
-    const lookupsChanged = syncLookupsFromProgram(refreshedProgram);
 
     let ratingWarning = '';
     const existingRating = normalizeRating(existingItem?.rating);
     const shouldPersistRating = selectedRating !== existingRating;
     if (shouldPersistRating) {
       try {
-        await persistProgramRating(refreshedProgram.id, selectedRating, { refreshUi: false, silentLocalFallback: true });
+        await persistProgramRating(refreshedId, selectedRating, { refreshUi: false, silentLocalFallback: true });
       } catch (ratingError) {
         console.error(ratingError);
         ratingWarning = ' Rating saved locally only; database sync failed.';
@@ -241,7 +237,8 @@ async function saveProgram(event) {
     const savedMessage = (!programId
       ? 'Created program.'
       : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.')) + ratingWarning;
-    refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
+    await loadEverything({ forceFresh: true });
+    setStatus(savedMessage);
     setLoading('');
     closeEditor();
   } catch (error) {
@@ -270,9 +267,8 @@ async function deleteProgram() {
     return;
   }
 
-  state.programs = state.programs.filter((program) => String(program.id) !== String(id));
-  state.templateSourceDirty = true;
-  refreshUiAfterProgramMutation('Program deleted.');
+  await loadEverything({ forceFresh: true });
+  setStatus('Program deleted.');
   setLoading('');
   closeEditor();
 }
