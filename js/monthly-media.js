@@ -15,7 +15,6 @@ const els = {
   logoutBtn: document.getElementById('logoutBtn'),
   authStateText: document.getElementById('authStateText'),
   pageFeedback: document.getElementById('pageFeedback'),
-  searchInput: document.getElementById('searchInput'),
   statusFilter: document.getElementById('statusFilter'),
   refreshBtn: document.getElementById('refreshBtn'),
   addForm: document.getElementById('addForm'),
@@ -35,19 +34,16 @@ function normalizeLower(value) {
 }
 
 function escapeHtml(value) {
-  return (value ?? '').toString()
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function hasValidConfig() {
-  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && String(config.SUPABASE_URL).startsWith('http'));
-}
-
-function canEdit() {
-  return Boolean(state.session);
+  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY);
 }
 
 function setStatus(message) {
@@ -57,26 +53,22 @@ function setStatus(message) {
 function setFeedback(message = '', tone = '') {
   if (!els.pageFeedback) return;
   els.pageFeedback.textContent = message || '';
-  els.pageFeedback.className = `feedback-line ${tone}`.trim();
+  els.pageFeedback.className = 'feedback-line';
+  if (tone) els.pageFeedback.classList.add(tone);
+}
+
+function canEdit() {
+  return Boolean(state.session);
 }
 
 function formatDateForInput(value) {
-  const raw = normalizeText(value);
-  if (!raw) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const day = String(parsed.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateForDisplay(value) {
-  const iso = formatDateForInput(value);
-  if (!iso) return '';
-  const [year, month, day] = iso.split('-');
-  return `${Number(month)}/${Number(day)}/${year}`;
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch (_error) {
+    return '';
+  }
 }
 
 function toIntegerOrNull(value) {
@@ -88,7 +80,7 @@ function toIntegerOrNull(value) {
 }
 
 function setFormEnabled(enabled) {
-  els.addForm?.querySelectorAll('input, textarea, button').forEach((field) => {
+  els.addForm?.querySelectorAll('input, button').forEach((field) => {
     if (field === els.clearFormBtn) return;
     field.disabled = !enabled;
   });
@@ -108,23 +100,12 @@ function updateAuthUi() {
 }
 
 function getFilteredRows() {
-  const search = normalizeLower(els.searchInput?.value);
   const mode = normalizeLower(els.statusFilter?.value || 'active');
   return state.rows.filter((row) => {
     const active = row.is_active !== false;
     if (mode === 'active' && !active) return false;
     if (mode === 'inactive' && active) return false;
-    if (!search) return true;
-    const haystack = [
-      row.series_title,
-      row.record_source,
-      row.record_time,
-      row.schedule_pattern,
-      row.notes,
-      row.last_episode_scheduled,
-      row.last_scheduled_date
-    ].map(normalizeLower).join(' ');
-    return haystack.includes(search);
+    return true;
   });
 }
 
@@ -135,16 +116,15 @@ function buildRowMarkup(row) {
   return `
     <tr data-row-id="${row.id}">
       <td><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></td>
-      <td><input name="last_scheduled_date" type="date" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" ${lockAttr} /></td>
+      <td><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="YYYY-MM-DD" ${lockAttr} /></td>
       <td><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></td>
       <td><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></td>
-      <td><input name="schedule_pattern" type="text" value="${escapeHtml(row.schedule_pattern || '')}" ${lockAttr} /></td>
       <td><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></td>
-      <td><textarea name="notes" rows="2" ${lockAttr}>${escapeHtml(row.notes || '')}</textarea></td>
+      <td><input name="notes" type="text" value="${escapeHtml(row.notes || '')}" ${lockAttr} /></td>
       <td>
-        <label style="display:flex; flex-direction:column; gap:8px; align-items:flex-start;">
-          <span class="row-status-pill ${active ? '' : 'inactive'}">${active ? 'Active' : 'Inactive'}</span>
+        <label class="compact-check">
           <input name="is_active" type="checkbox" ${active ? 'checked' : ''} ${lockAttr} />
+          <span>${active ? 'Yes' : 'No'}</span>
         </label>
       </td>
       <td>
@@ -193,7 +173,6 @@ function collectAddPayload() {
     last_scheduled_date: normalizeText(form.elements.last_scheduled_date.value) || null,
     record_time: normalizeText(form.elements.record_time.value) || null,
     record_source: normalizeText(form.elements.record_source.value) || null,
-    schedule_pattern: normalizeText(form.elements.schedule_pattern.value) || null,
     last_episode_scheduled: toIntegerOrNull(form.elements.last_episode_scheduled.value),
     notes: normalizeText(form.elements.notes.value) || null,
     is_active: Boolean(form.elements.is_active.checked),
@@ -236,8 +215,11 @@ async function createRow(event) {
     setStatus(`Added ${payload.series_title}.`);
   } catch (error) {
     console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
+    const message = normalizeLower(error?.message).includes('row-level security')
+      ? 'Supabase blocked the insert. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
+      : error.message;
+    setFeedback(message, 'error');
+    setStatus(message);
   } finally {
     els.addRowBtn.disabled = !canEdit();
   }
@@ -249,7 +231,6 @@ function collectRowPayload(tr) {
     last_scheduled_date: normalizeText(tr.querySelector('[name="last_scheduled_date"]')?.value) || null,
     record_time: normalizeText(tr.querySelector('[name="record_time"]')?.value) || null,
     record_source: normalizeText(tr.querySelector('[name="record_source"]')?.value) || null,
-    schedule_pattern: normalizeText(tr.querySelector('[name="schedule_pattern"]')?.value) || null,
     last_episode_scheduled: toIntegerOrNull(tr.querySelector('[name="last_episode_scheduled"]')?.value),
     notes: normalizeText(tr.querySelector('[name="notes"]')?.value) || null,
     is_active: Boolean(tr.querySelector('[name="is_active"]')?.checked),
@@ -281,8 +262,11 @@ async function saveRow(id, tr) {
     setStatus(`Saved ${payload.series_title}.`);
   } catch (error) {
     console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
+    const message = normalizeLower(error?.message).includes('row-level security')
+      ? 'Supabase blocked the update. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
+      : error.message;
+    setFeedback(message, 'error');
+    setStatus(message);
   }
 }
 
@@ -304,8 +288,11 @@ async function deleteRow(id) {
     setStatus(`Deleted ${label}.`);
   } catch (error) {
     console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
+    const message = normalizeLower(error?.message).includes('row-level security')
+      ? 'Supabase blocked the delete. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
+      : error.message;
+    setFeedback(message, 'error');
+    setStatus(message);
   }
 }
 
@@ -337,7 +324,6 @@ function bindEvents() {
     });
   });
 
-  els.searchInput?.addEventListener('input', renderRows);
   els.statusFilter?.addEventListener('change', renderRows);
   els.addForm?.addEventListener('submit', createRow);
   els.clearFormBtn?.addEventListener('click', clearAddForm);
@@ -382,8 +368,9 @@ async function init() {
     await loadRows();
   } catch (error) {
     console.error(error);
-    const message = normalizeLower(error?.message).includes('monthly_media_schedule')
-      ? 'The monthly media table is missing. Run sql/monthly-media-and-holidays.sql first.'
+    const lowered = normalizeLower(error?.message);
+    const message = lowered.includes('monthly_media_schedule')
+      ? 'The monthly media table is missing. Run the updated sql/monthly-media-and-holidays.sql first.'
       : error.message;
     setFeedback(message, 'error');
     setStatus(message);
