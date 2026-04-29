@@ -7,6 +7,8 @@ const state = {
   filteredRows: []
 };
 
+const MONTHLY_MEDIA_TABLE = 'monthly_media_schedule';
+
 const els = {
   setupNotice: document.getElementById('setupNotice'),
   pageShell: document.getElementById('pageShell'),
@@ -79,6 +81,34 @@ function toIntegerOrNull(value) {
   return Math.trunc(numeric);
 }
 
+function sortRows(rows) {
+  return [...rows].sort((a, b) => {
+    const activeCmp = Number(b.is_active !== false) - Number(a.is_active !== false);
+    if (activeCmp) return activeCmp;
+    return normalizeLower(a.series_title).localeCompare(normalizeLower(b.series_title));
+  });
+}
+
+function updateRowVisualState(tr) {
+  if (!tr) return;
+  const checked = Boolean(tr.querySelector('[name="is_active"]')?.checked);
+  tr.classList.toggle('inactive-row', !checked);
+  const label = tr.querySelector('.compact-check span');
+  if (label) label.textContent = checked ? 'Yes' : 'No';
+}
+
+function updateAllRowVisualStates() {
+  els.mediaTableBody?.querySelectorAll('tr[data-row-id]').forEach(updateRowVisualState);
+}
+
+function getWriteErrorMessage(error, fallbackTableName) {
+  const lowered = normalizeLower(error?.message || '');
+  if (lowered.includes('row-level security')) {
+    return `Supabase blocked the write. Run the updated sql/monthly-media-and-holidays.sql so ${fallbackTableName} has write policies.`;
+  }
+  return error?.message || 'Supabase write failed.';
+}
+
 function setFormEnabled(enabled) {
   els.addForm?.querySelectorAll('input, button').forEach((field) => {
     if (field === els.clearFormBtn) return;
@@ -141,6 +171,7 @@ function renderRows() {
   state.filteredRows = getFilteredRows();
   if (els.mediaTableBody) {
     els.mediaTableBody.innerHTML = state.filteredRows.map(buildRowMarkup).join('');
+    updateAllRowVisualStates();
   }
   if (els.listSummary) {
     const total = state.rows.length;
@@ -155,12 +186,12 @@ async function loadRows() {
   setStatus('Loading monthly media list…');
   setFeedback('Loading rows…', 'info');
   const { data, error } = await state.supabase
-    .from('monthly_media_schedule')
+    .from(MONTHLY_MEDIA_TABLE)
     .select('*')
     .order('is_active', { ascending: false })
     .order('series_title', { ascending: true });
   if (error) throw error;
-  state.rows = (data || []).map((row) => ({ ...row }));
+  state.rows = sortRows((data || []).map((row) => ({ ...row })));
   renderRows();
   setFeedback('', '');
   setStatus(`Loaded ${state.rows.length.toLocaleString()} monthly media rows.`);
@@ -202,22 +233,19 @@ async function createRow(event) {
   setStatus('Saving new row…');
   try {
     const { data, error } = await state.supabase
-      .from('monthly_media_schedule')
+      .from(MONTHLY_MEDIA_TABLE)
       .insert(payload)
       .select('*')
       .single();
     if (error) throw error;
-    state.rows.unshift(data);
-    state.rows.sort((a, b) => normalizeLower(a.series_title).localeCompare(normalizeLower(b.series_title)));
-    renderRows();
+    await loadRows();
     clearAddForm();
-    setFeedback(`Added ${payload.series_title}.`, 'success');
-    setStatus(`Added ${payload.series_title}.`);
+    const addedTitle = data?.series_title || payload.series_title;
+    setFeedback(`Added ${addedTitle}.`, 'success');
+    setStatus(`Added ${addedTitle}.`);
   } catch (error) {
     console.error(error);
-    const message = normalizeLower(error?.message).includes('row-level security')
-      ? 'Supabase blocked the insert. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
-      : error.message;
+    const message = getWriteErrorMessage(error, 'the monthly media table');
     setFeedback(message, 'error');
     setStatus(message);
   } finally {
@@ -249,22 +277,24 @@ async function saveRow(id, tr) {
   setStatus(`Saving ${payload.series_title}…`);
   try {
     const { data, error } = await state.supabase
-      .from('monthly_media_schedule')
+      .from(MONTHLY_MEDIA_TABLE)
       .update(payload)
       .eq('id', id)
       .select('*')
       .single();
     if (error) throw error;
-    const idx = state.rows.findIndex((row) => String(row.id) === String(id));
-    if (idx >= 0) state.rows[idx] = data;
-    renderRows();
-    setFeedback(`Saved ${payload.series_title}.`, 'success');
-    setStatus(`Saved ${payload.series_title}.`);
+    await loadRows();
+    const savedTitle = data?.series_title || payload.series_title;
+    if (payload.is_active === false && normalizeLower(els.statusFilter?.value || 'all') === 'active') {
+      setFeedback(`Saved ${savedTitle}. It is inactive now, so switch the filter to All rows or Inactive to see it again.`, 'success');
+      setStatus(`Saved ${savedTitle} as inactive.`);
+    } else {
+      setFeedback(`Saved ${savedTitle}.`, 'success');
+      setStatus(`Saved ${savedTitle}.`);
+    }
   } catch (error) {
     console.error(error);
-    const message = normalizeLower(error?.message).includes('row-level security')
-      ? 'Supabase blocked the update. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
-      : error.message;
+    const message = getWriteErrorMessage(error, 'the monthly media table');
     setFeedback(message, 'error');
     setStatus(message);
   }
@@ -278,19 +308,16 @@ async function deleteRow(id) {
   setStatus(`Deleting ${label}…`);
   try {
     const { error } = await state.supabase
-      .from('monthly_media_schedule')
+      .from(MONTHLY_MEDIA_TABLE)
       .delete()
       .eq('id', id);
     if (error) throw error;
-    state.rows = state.rows.filter((row) => String(row.id) !== String(id));
-    renderRows();
+    await loadRows();
     setFeedback(`Deleted ${label}.`, 'success');
     setStatus(`Deleted ${label}.`);
   } catch (error) {
     console.error(error);
-    const message = normalizeLower(error?.message).includes('row-level security')
-      ? 'Supabase blocked the delete. Run the updated sql/monthly-media-and-holidays.sql so this table has write policies.'
-      : error.message;
+    const message = getWriteErrorMessage(error, 'the monthly media table');
     setFeedback(message, 'error');
     setStatus(message);
   }
@@ -337,6 +364,18 @@ function bindEvents() {
     const action = button.dataset.action;
     if (action === 'save') void saveRow(id, tr);
     if (action === 'delete') void deleteRow(id);
+  });
+
+  els.mediaTableBody?.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const tr = target.closest('tr[data-row-id]');
+    const id = tr?.dataset?.rowId;
+    if (!id || !tr) return;
+    if (target.name === 'is_active') {
+      updateRowVisualState(tr);
+      if (canEdit()) void saveRow(id, tr);
+    }
   });
 }
 

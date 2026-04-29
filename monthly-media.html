@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.43 · Monthly Media</title>
+  <title>WNMU TV Programming Library v1.5.44 · Monthly Media</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.43" />
+  <link rel="stylesheet" href="styles.css?v=1.5.44" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
@@ -63,6 +63,11 @@
     .media-table td input { width:100%; min-width:0; }
     .media-table td .compact-check { display:flex; align-items:center; gap:6px; justify-content:flex-start; white-space:nowrap; }
     .media-table td .compact-check span { font-size:.82rem; color:#38556f; }
+
+    .media-table tbody tr.inactive-row { background:#f2f5f7; }
+    .media-table tbody tr.inactive-row td { color:#667b8c; }
+    .media-table tbody tr.inactive-row input[type="text"],
+    .media-table tbody tr.inactive-row input[type="number"] { background:#f7f9fb; color:#667b8c; }
     .row-actions { display:flex; gap:6px; align-items:center; flex-wrap:nowrap; white-space:nowrap; }
     .row-actions button { padding:6px 10px; }
     .empty-state { padding:18px; border:1px dashed #cbd9e6; border-radius:14px; color:#5f7386; text-align:center; }
@@ -82,7 +87,7 @@
       .media-form-grid button { width:100%; }
     }
   </style>
-  <script defer src="js/monthly-media.js?v=1.5.43"></script>
+  <script defer src="js/monthly-media.js?v=1.5.44"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -100,7 +105,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Monthly Media to Schedule</h1>
-            <span class="version-pill">v1.5.43</span>
+            <span class="version-pill">v1.5.44</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -165,8 +170,8 @@
           <div class="tools-right">
             <label>Status
               <select id="statusFilter">
-                <option value="active">Active only</option>
                 <option value="all">All rows</option>
+                <option value="active">Active only</option>
                 <option value="inactive">Inactive only</option>
               </select>
             </label>

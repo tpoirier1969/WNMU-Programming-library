@@ -67,6 +67,8 @@ const BUILT_IN_OBSERVANCES = Object.freeze([
   { title: 'New Year\'s Eve', rule_type: 'fixed_date', month: 12, day: 31, category: 'date' }
 ]);
 
+const HOLIDAY_OBSERVANCES_TABLE = 'holiday_observances';
+
 const state = {
   supabase: null,
   session: null,
@@ -130,6 +132,14 @@ function setFeedback(message = '', tone = '') {
   if (!els.pageFeedback) return;
   els.pageFeedback.textContent = message || '';
   els.pageFeedback.className = `feedback-line ${tone}`.trim();
+}
+
+function getWriteErrorMessage(error, fallbackTableName) {
+  const lowered = normalizeLower(error?.message || '');
+  if (lowered.includes('row-level security')) {
+    return `Supabase blocked the write. Run sql/monthly-media-and-holidays.sql so ${fallbackTableName} has write policies.`;
+  }
+  return error?.message || 'Supabase write failed.';
 }
 
 function fillSelect(select, values, labeler) {
@@ -415,7 +425,7 @@ function updateRuleFieldVisibility() {
 async function loadCustomObservances() {
   setStatus('Loading custom observances…');
   const { data, error } = await state.supabase
-    .from('holiday_observances')
+    .from(HOLIDAY_OBSERVANCES_TABLE)
     .select('*')
     .order('month', { ascending: true, nullsFirst: false })
     .order('title', { ascending: true });
@@ -443,25 +453,21 @@ async function saveCustomObservance(event) {
   try {
     let response;
     if (state.editingId) {
-      response = await state.supabase.from('holiday_observances').update(payload).eq('id', state.editingId).select('*').single();
+      response = await state.supabase.from(HOLIDAY_OBSERVANCES_TABLE).update(payload).eq('id', state.editingId).select('*').single();
     } else {
-      response = await state.supabase.from('holiday_observances').insert(payload).select('*').single();
+      response = await state.supabase.from(HOLIDAY_OBSERVANCES_TABLE).insert(payload).select('*').single();
     }
     if (response.error) throw response.error;
     const saved = response.data;
-    const index = state.customObservances.findIndex((item) => String(item.id) === String(saved.id));
-    if (index >= 0) state.customObservances[index] = saved;
-    else state.customObservances.push(saved);
-    state.customObservances.sort((a, b) => (Number(a.month || a.rule_month || a.start_month || 99) - Number(b.month || b.rule_month || b.start_month || 99)) || normalizeLower(a.title).localeCompare(normalizeLower(b.title)));
+    await loadCustomObservances();
     resetCustomForm();
-    renderCustomList();
-    renderCalendar();
     setFeedback(`Saved ${saved.title}.`, 'success');
     setStatus(`Saved ${saved.title}.`);
   } catch (error) {
     console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
+    const message = getWriteErrorMessage(error, 'the holiday observances table');
+    setFeedback(message, 'error');
+    setStatus(message);
   }
 }
 
@@ -472,17 +478,17 @@ async function deleteCustomObservance(id) {
   setFeedback(`Deleting ${label}…`, 'info');
   setStatus(`Deleting ${label}…`);
   try {
-    const { error } = await state.supabase.from('holiday_observances').delete().eq('id', id);
+    const { error } = await state.supabase.from(HOLIDAY_OBSERVANCES_TABLE).delete().eq('id', id);
     if (error) throw error;
-    state.customObservances = state.customObservances.filter((item) => String(item.id) !== String(id));
-    renderCustomList();
-    renderCalendar();
+    await loadCustomObservances();
+    resetCustomForm();
     setFeedback(`Deleted ${label}.`, 'success');
     setStatus(`Deleted ${label}.`);
   } catch (error) {
     console.error(error);
-    setFeedback(error.message, 'error');
-    setStatus(error.message);
+    const message = getWriteErrorMessage(error, 'the holiday observances table');
+    setFeedback(message, 'error');
+    setStatus(message);
   }
 }
 
