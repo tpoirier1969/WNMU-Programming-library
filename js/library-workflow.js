@@ -1,4 +1,4 @@
-// v1.5.51 targeted workflow helpers
+// v1.5.53 targeted workflow helpers
 // Adds: main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
@@ -190,6 +190,214 @@
     button.addEventListener('click', openStandaloneAddProgram, true);
   }
 
+
+
+  function installCompactFilterLayout() {
+    if (document.getElementById('wnmuCompactFilterLayoutV153')) return;
+    const style = document.createElement('style');
+    style.id = 'wnmuCompactFilterLayoutV153';
+    style.textContent = `
+      @media (min-width: 1180px) {
+        #controlsPanel.controls.compact-controls {
+          padding-bottom: 10px !important;
+        }
+        #controlsPanel .filters.filters-grid {
+          display: grid !important;
+          grid-template-columns:
+            minmax(160px, .9fr)
+            minmax(170px, 1fr)
+            minmax(82px, .45fr)
+            minmax(100px, .55fr)
+            minmax(610px, 4fr) !important;
+          gap: 8px 10px !important;
+          align-items: start !important;
+          align-content: start !important;
+          grid-auto-flow: row !important;
+        }
+        #controlsPanel .filters.filters-grid > .filter-box,
+        #controlsPanel .filters.filters-grid > .filters-cluster {
+          min-width: 0 !important;
+        }
+        #controlsPanel .filters.filters-grid > .filter-box:nth-child(1) {
+          grid-column: 1 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .filters.filters-grid > .filter-box:nth-child(2) {
+          grid-column: 2 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .filters.filters-grid > .filter-box:nth-child(3) {
+          grid-column: 3 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .filters.filters-grid > .filter-box:nth-child(4) {
+          grid-column: 4 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .filters.filters-grid > .compact-search-cluster,
+        #controlsPanel .filters.filters-grid > .filters-cluster.compact-search-cluster {
+          grid-column: 5 !important;
+          grid-row: 1 !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          display: grid !important;
+          grid-template-columns:
+            minmax(190px, 2fr)
+            minmax(120px, .9fr)
+            minmax(78px, .55fr)
+            minmax(112px, .75fr)
+            minmax(114px, .72fr) !important;
+          gap: 8px 10px !important;
+          align-items: start !important;
+          align-content: start !important;
+        }
+        #controlsPanel .cluster-search-text {
+          grid-column: 1 / span 2 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .cluster-distributor {
+          grid-column: 3 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .cluster-type {
+          grid-column: 4 !important;
+          grid-row: 1 !important;
+        }
+        #controlsPanel .cluster-search-in {
+          grid-column: 1 / span 2 !important;
+          grid-row: 2 !important;
+        }
+        #controlsPanel .cluster-status {
+          grid-column: 3 !important;
+          grid-row: 2 !important;
+        }
+        #controlsPanel .cluster-rating {
+          grid-column: 4 !important;
+          grid-row: 2 !important;
+        }
+        #controlsPanel .cluster-episodes {
+          grid-column: 5 !important;
+          grid-row: 1 / span 2 !important;
+          align-self: stretch !important;
+          min-width: 0 !important;
+        }
+        #controlsPanel .filter-box.wide,
+        #controlsPanel .filters-cluster {
+          grid-column: auto !important;
+        }
+        #controlsPanel .filter-label {
+          margin-bottom: 4px !important;
+        }
+        #controlsPanel .filter-box select,
+        #controlsPanel .filter-box input {
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+        #controlsPanel .filter-box select[multiple] {
+          height: 98px !important;
+          min-height: 98px !important;
+          max-height: 98px !important;
+          padding-top: 5px !important;
+          padding-bottom: 5px !important;
+        }
+        #controlsPanel .episode-range-filter {
+          display: grid !important;
+          grid-template-columns: minmax(48px, 1fr) minmax(48px, 1fr) !important;
+          gap: 6px !important;
+          max-width: 118px !important;
+        }
+        #controlsPanel #episodeMinFilter,
+        #controlsPanel #episodeMaxFilter {
+          min-width: 0 !important;
+          width: 100% !important;
+          padding-left: 7px !important;
+          padding-right: 7px !important;
+        }
+        #controlsPanel .filter-help {
+          line-height: 1.15 !important;
+        }
+        #controlsPanel .filter-foot {
+          display: flex !important;
+          justify-content: flex-end !important;
+          margin-top: 0 !important;
+          padding-right: 0 !important;
+        }
+      }
+
+      @media (min-width: 1550px) {
+        #controlsPanel .filters.filters-grid {
+          grid-template-columns:
+            minmax(185px, .95fr)
+            minmax(205px, 1.02fr)
+            minmax(90px, .45fr)
+            minmax(112px, .55fr)
+            minmax(720px, 4.2fr) !important;
+        }
+        #controlsPanel .filters.filters-grid > .compact-search-cluster,
+        #controlsPanel .filters.filters-grid > .filters-cluster.compact-search-cluster {
+          grid-template-columns:
+            minmax(230px, 2.1fr)
+            minmax(140px, 1fr)
+            minmax(90px, .58fr)
+            minmax(126px, .78fr)
+            minmax(118px, .72fr) !important;
+        }
+      }
+
+      @media (max-width: 1179px) {
+        #controlsPanel .episode-range-filter {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+          gap: 6px !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function enforceCompactFilterPlacement() {
+    const grid = document.querySelector('#controlsPanel .filters.filters-grid');
+    if (!grid) return;
+
+    const desktop = window.matchMedia('(min-width: 1180px)').matches;
+    const items = Array.from(grid.children);
+    const cluster = grid.querySelector('.compact-search-cluster');
+
+    if (!desktop) {
+      grid.removeAttribute('style');
+      items.forEach((item) => {
+        item.style.removeProperty('grid-column');
+        item.style.removeProperty('grid-row');
+        item.style.removeProperty('width');
+      });
+      return;
+    }
+
+    grid.style.setProperty('display', 'grid', 'important');
+    grid.style.setProperty('grid-template-columns', 'minmax(160px,.9fr) minmax(170px,1fr) minmax(82px,.45fr) minmax(100px,.55fr) minmax(610px,4fr)', 'important');
+    grid.style.setProperty('gap', '8px 10px', 'important');
+    grid.style.setProperty('align-items', 'start', 'important');
+    grid.style.setProperty('align-content', 'start', 'important');
+
+    [[0, '1'], [1, '2'], [2, '3'], [3, '4']].forEach(([index, column]) => {
+      if (!items[index]) return;
+      items[index].style.setProperty('grid-column', column, 'important');
+      items[index].style.setProperty('grid-row', '1', 'important');
+      items[index].style.setProperty('min-width', '0', 'important');
+    });
+
+    if (cluster) {
+      cluster.style.setProperty('grid-column', '5', 'important');
+      cluster.style.setProperty('grid-row', '1', 'important');
+      cluster.style.setProperty('width', '100%', 'important');
+      cluster.style.setProperty('min-width', '0', 'important');
+      cluster.style.setProperty('display', 'grid', 'important');
+      cluster.style.setProperty('grid-template-columns', 'minmax(190px,2fr) minmax(120px,.9fr) minmax(78px,.55fr) minmax(112px,.75fr) minmax(114px,.72fr)', 'important');
+      cluster.style.setProperty('gap', '8px 10px', 'important');
+      cluster.style.setProperty('align-items', 'start', 'important');
+    }
+  }
+
   function patchFilterFunctions() {
     if (window.__wnmuEpisodeFilterPatched) return;
     window.__wnmuEpisodeFilterPatched = true;
@@ -237,7 +445,10 @@
   patchFilterFunctions();
 
   document.addEventListener('DOMContentLoaded', () => {
+    installCompactFilterLayout();
     installEpisodeFilterUi();
+    enforceCompactFilterPlacement();
+    window.addEventListener('resize', enforceCompactFilterPlacement);
     installNewProgramButtonOverride();
     installBroadcastListener();
   });
