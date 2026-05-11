@@ -1,4 +1,4 @@
-// v1.5.53 targeted workflow helpers
+// v1.5.54 targeted workflow helpers
 // Adds: main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
@@ -191,11 +191,27 @@
   }
 
 
+  function installClearAllButtonInCluster() {
+    const cluster = document.querySelector('#controlsPanel .compact-search-cluster');
+    const button = document.getElementById('resetFiltersBtn');
+    if (!cluster || !button) return;
+
+    let holder = cluster.querySelector('.cluster-clear-all');
+    if (!holder) {
+      holder = document.createElement('div');
+      holder.className = 'filter-box cluster-clear-all';
+      cluster.appendChild(holder);
+    }
+    if (button.parentElement !== holder) holder.appendChild(button);
+
+    const foot = document.querySelector('#controlsPanel .filter-foot');
+    if (foot) foot.classList.add('hidden');
+  }
 
   function installCompactFilterLayout() {
-    if (document.getElementById('wnmuCompactFilterLayoutV153')) return;
+    if (document.getElementById('wnmuCompactFilterLayoutV154')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuCompactFilterLayoutV153';
+    style.id = 'wnmuCompactFilterLayoutV154';
     style.textContent = `
       @media (min-width: 1180px) {
         #controlsPanel.controls.compact-controls {
@@ -204,11 +220,11 @@
         #controlsPanel .filters.filters-grid {
           display: grid !important;
           grid-template-columns:
-            minmax(160px, .9fr)
-            minmax(170px, 1fr)
-            minmax(82px, .45fr)
-            minmax(100px, .55fr)
-            minmax(610px, 4fr) !important;
+            minmax(158px, .85fr)
+            minmax(166px, .95fr)
+            minmax(110px, .52fr)
+            minmax(128px, .6fr)
+            minmax(520px, 3fr) !important;
           gap: 8px 10px !important;
           align-items: start !important;
           align-content: start !important;
@@ -242,11 +258,12 @@
           min-width: 0 !important;
           display: grid !important;
           grid-template-columns:
-            minmax(190px, 2fr)
-            minmax(120px, .9fr)
-            minmax(78px, .55fr)
-            minmax(112px, .75fr)
-            minmax(114px, .72fr) !important;
+            minmax(100px, 1.2fr)
+            minmax(75px, .75fr)
+            minmax(78px, .75fr)
+            minmax(68px, .58fr)
+            minmax(78px, .72fr)
+            minmax(72px, .62fr) !important;
           gap: 8px 10px !important;
           align-items: start !important;
           align-content: start !important;
@@ -263,6 +280,12 @@
           grid-column: 4 !important;
           grid-row: 1 !important;
         }
+        #controlsPanel .cluster-episodes {
+          grid-column: 5 / span 2 !important;
+          grid-row: 1 !important;
+          align-self: start !important;
+          min-width: 0 !important;
+        }
         #controlsPanel .cluster-search-in {
           grid-column: 1 / span 2 !important;
           grid-row: 2 !important;
@@ -275,11 +298,20 @@
           grid-column: 4 !important;
           grid-row: 2 !important;
         }
-        #controlsPanel .cluster-episodes {
-          grid-column: 5 !important;
-          grid-row: 1 / span 2 !important;
-          align-self: stretch !important;
+        #controlsPanel .cluster-clear-all {
+          grid-column: 5 / span 2 !important;
+          grid-row: 2 !important;
+          align-self: end !important;
+          display: flex !important;
+          justify-content: flex-end !important;
+          align-items: end !important;
           min-width: 0 !important;
+        }
+        #controlsPanel .cluster-clear-all .reset-all {
+          margin-left: 0 !important;
+          width: 100% !important;
+          max-width: 160px !important;
+          white-space: nowrap !important;
         }
         #controlsPanel .filter-box.wide,
         #controlsPanel .filters-cluster {
@@ -304,7 +336,7 @@
           display: grid !important;
           grid-template-columns: minmax(48px, 1fr) minmax(48px, 1fr) !important;
           gap: 6px !important;
-          max-width: 118px !important;
+          max-width: 138px !important;
         }
         #controlsPanel #episodeMinFilter,
         #controlsPanel #episodeMaxFilter {
@@ -316,31 +348,29 @@
         #controlsPanel .filter-help {
           line-height: 1.15 !important;
         }
-        #controlsPanel .filter-foot {
-          display: flex !important;
-          justify-content: flex-end !important;
-          margin-top: 0 !important;
-          padding-right: 0 !important;
+        #controlsPanel .filter-foot.hidden {
+          display: none !important;
         }
       }
 
       @media (min-width: 1550px) {
         #controlsPanel .filters.filters-grid {
           grid-template-columns:
-            minmax(185px, .95fr)
-            minmax(205px, 1.02fr)
-            minmax(90px, .45fr)
-            minmax(112px, .55fr)
-            minmax(720px, 4.2fr) !important;
+            minmax(175px, .88fr)
+            minmax(195px, .98fr)
+            minmax(120px, .54fr)
+            minmax(140px, .62fr)
+            minmax(640px, 3.35fr) !important;
         }
         #controlsPanel .filters.filters-grid > .compact-search-cluster,
         #controlsPanel .filters.filters-grid > .filters-cluster.compact-search-cluster {
           grid-template-columns:
-            minmax(230px, 2.1fr)
-            minmax(140px, 1fr)
-            minmax(90px, .58fr)
-            minmax(126px, .78fr)
-            minmax(118px, .72fr) !important;
+            minmax(120px, 1.2fr)
+            minmax(88px, .75fr)
+            minmax(88px, .75fr)
+            minmax(78px, .58fr)
+            minmax(92px, .72fr)
+            minmax(84px, .62fr) !important;
         }
       }
 
@@ -374,7 +404,7 @@
     }
 
     grid.style.setProperty('display', 'grid', 'important');
-    grid.style.setProperty('grid-template-columns', 'minmax(160px,.9fr) minmax(170px,1fr) minmax(82px,.45fr) minmax(100px,.55fr) minmax(610px,4fr)', 'important');
+    grid.style.setProperty('grid-template-columns', 'minmax(158px,.85fr) minmax(166px,.95fr) minmax(110px,.52fr) minmax(128px,.6fr) minmax(520px,3fr)', 'important');
     grid.style.setProperty('gap', '8px 10px', 'important');
     grid.style.setProperty('align-items', 'start', 'important');
     grid.style.setProperty('align-content', 'start', 'important');
@@ -392,7 +422,7 @@
       cluster.style.setProperty('width', '100%', 'important');
       cluster.style.setProperty('min-width', '0', 'important');
       cluster.style.setProperty('display', 'grid', 'important');
-      cluster.style.setProperty('grid-template-columns', 'minmax(190px,2fr) minmax(120px,.9fr) minmax(78px,.55fr) minmax(112px,.75fr) minmax(114px,.72fr)', 'important');
+      cluster.style.setProperty('grid-template-columns', 'minmax(100px,1.2fr) minmax(75px,.75fr) minmax(78px,.75fr) minmax(68px,.58fr) minmax(78px,.72fr) minmax(72px,.62fr)', 'important');
       cluster.style.setProperty('gap', '8px 10px', 'important');
       cluster.style.setProperty('align-items', 'start', 'important');
     }
@@ -447,6 +477,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     installCompactFilterLayout();
     installEpisodeFilterUi();
+    installClearAllButtonInCluster();
     enforceCompactFilterPlacement();
     window.addEventListener('resize', enforceCompactFilterPlacement);
     installNewProgramButtonOverride();

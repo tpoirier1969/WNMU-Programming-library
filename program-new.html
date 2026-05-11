@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.51 · Add Program</title>
+  <title>WNMU TV Programming Library v1.5.54 · Add Program</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
   <link rel="stylesheet" href="styles.css?v=1.5.51" />
@@ -53,9 +53,39 @@
       .standalone-topbar { padding: 14px; }
       .standalone-brand img { width: 52px; height: 52px; }
     }
+
+    .new-program-core-row,
+    .new-program-distribution-row,
+    .new-program-rights-row,
+    .new-program-airing-row {
+      display: grid;
+      gap: 10px 12px;
+      align-items: end;
+    }
+    .new-program-core-row { grid-template-columns: minmax(170px, .85fr) minmax(170px, .85fr) minmax(190px, 1fr) minmax(230px, 1.2fr); }
+    .new-program-distribution-row { grid-template-columns: minmax(240px, 1.25fr) minmax(150px, .75fr) minmax(170px, .85fr); }
+    .new-program-rights-row { grid-template-columns: minmax(190px, .9fr) minmax(190px, .9fr) minmax(280px, 1.4fr); }
+    .new-program-airing-row { grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) minmax(260px, 1fr); }
+    .new-program-airing-row .editor-rating-row { margin-top: 0; }
+    .new-program-airing-row .rating-field { min-width: 0; }
+    .new-program-airing-row .editor-star-rating { width: 100%; }
+    @media (max-width: 940px) {
+      .new-program-core-row,
+      .new-program-distribution-row,
+      .new-program-rights-row,
+      .new-program-airing-row { grid-template-columns: 1fr 1fr; }
+      .new-program-rights-row .rights-notes-field,
+      .new-program-airing-row .editor-rating-row { grid-column: 1 / -1; }
+    }
+    @media (max-width: 620px) {
+      .new-program-core-row,
+      .new-program-distribution-row,
+      .new-program-rights-row,
+      .new-program-airing-row { grid-template-columns: 1fr; }
+    }
   </style>
   <script defer src="js/program-new.js?v=1.5.47"></script>
-  <script defer src="js/program-new-bridge.js?v=1.5.51"></script>
+  <script defer src="js/program-new-bridge.js?v=1.5.54"></script>
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
 </head>
 <body class="standalone-page">
@@ -74,7 +104,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Add New Program</h1>
-            <span class="version-pill">v1.5.51</span>
+            <span class="version-pill">v1.5.54</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -103,19 +133,6 @@
           <a href="index.html" class="secondary">Open main library</a>
         </div>
         <div id="authMessage" class="standalone-auth-message"></div>
-      </section>
-
-      <section class="standalone-card">
-        <div class="list-title">Copy details from existing</div>
-        <p class="standalone-mini">Search by title, then load one result to prefill the form. It keeps the fast lane fast without loading the entire library into this page.</p>
-        <div class="standalone-inline-grid">
-          <label>Find existing title
-            <input id="templateSearchInput" type="search" placeholder="Type 3 or more characters" />
-          </label>
-          <button type="button" id="templateSearchBtn">Find</button>
-        </div>
-        <div id="templateFeedback" class="standalone-feedback info"></div>
-        <div id="templateResults" class="standalone-results"></div>
       </section>
 
       <section class="standalone-card">
@@ -165,28 +182,44 @@
               <textarea name="notes" rows="4"></textarea>
             </label>
 
-            <div class="editor-rating-row span-full">
-              <label class="rating-field">Rating
-                <input name="rating" type="hidden" />
-                <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
-                  <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
-                  <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
-                  <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
-                  <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
-                  <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
-                  <span class="rating-value-label">Not rated</span>
-                </div>
-                <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
-              </label>
-            </div>
-
-            <div class="program-rights-row span-full">
+            <div class="new-program-core-row span-full">
               <label>Program or series
                 <select name="program_type"></select>
               </label>
               <label>Season / Episode
                 <input name="episode_season" type="text" placeholder="100's / 8" />
               </label>
+              <label>Topic
+                <select name="topic"></select>
+              </label>
+              <label class="secondary-topic-field">Secondary topic
+                <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
+                <datalist id="secondaryTopicList"></datalist>
+              </label>
+            </div>
+
+            <div class="new-program-distribution-row span-full">
+              <label class="distributor-field">Distributor
+                <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
+                <datalist id="distributorList"></datalist>
+              </label>
+              <label>Source
+                <select name="server_tape"></select>
+              </label>
+              <label>Package type
+                <select name="package_type"></select>
+              </label>
+              <label class="hidden-field" id="voteFieldWrap">Vote
+                <select name="vote">
+                  <option value=""></option>
+                  <option value="Y">Y</option>
+                  <option value="N">N</option>
+                  <option value="M">M</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="new-program-rights-row span-full">
               <label class="compact-rights">Rights begin
                 <div class="date-entry-wrap">
                   <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
@@ -201,44 +234,32 @@
                   <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
                 </div>
               </label>
-            </div>
-
-            <label>Topic
-              <select name="topic"></select>
-            </label>
-            <label class="secondary-topic-field">Secondary topic
-              <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
-              <datalist id="secondaryTopicList"></datalist>
-            </label>
-
-            <div class="compact-form-row span-full compact-form-row-rights">
-              <label class="compact-field rights-notes-field">Rights notes
+              <label class="rights-notes-field">Rights notes
                 <textarea name="rights_notes" rows="2"></textarea>
               </label>
-              <label class="compact-field distributor-field">Distributor
-                <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
-                <datalist id="distributorList"></datalist>
-              </label>
-              <label class="compact-field" id="voteFieldWrap">Vote
-                <select name="vote">
-                  <option value=""></option>
-                  <option value="Y">Y</option>
-                  <option value="N">N</option>
-                  <option value="M">M</option>
-                </select>
-              </label>
-              <label class="compact-field">Package type
-                <select name="package_type"></select>
-              </label>
-              <label class="compact-field">Source
-                <select name="server_tape"></select>
-              </label>
-              <label class="compact-field compact-airing">Aired on 13.1
+            </div>
+
+            <div class="new-program-airing-row span-full">
+              <label>Aired on 13.1
                 <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
               </label>
-              <label class="compact-field compact-airing">Aired on 13.3
+              <label>Aired on 13.3
                 <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
               </label>
+              <div class="editor-rating-row">
+                <label class="rating-field">Rating
+                  <input name="rating" type="hidden" />
+                  <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
+                    <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
+                    <span class="rating-value-label">Not rated</span>
+                  </div>
+                  <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -246,8 +267,7 @@
           <div id="successBox" class="standalone-success hidden"></div>
 
           <div class="drawer-actions standalone-actions-row">
-            <button type="submit" id="saveBtn" class="primary" data-submit-action="save">Save program</button>
-            <button type="submit" id="saveAnotherBtn" class="secondary" data-submit-action="another">Save and start another</button>
+            <button type="submit" id="saveAnotherBtn" class="primary" data-submit-action="another">Save and start another</button>
             <button type="button" id="clearFormBtn" class="ghost">Clear form</button>
             <a href="index.html" class="ghost">Open library</a>
           </div>
