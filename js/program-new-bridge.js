@@ -1,11 +1,21 @@
 // v1.5.51 standalone Add Program helper
-// Sends a one-time notice to the Library tab after a successful save.
+// Sends a one-time notice to the Library tab after a successful save
+// and returns to the original Library tab when possible.
 
 (function () {
   const CHANNEL_NAME = 'wnmu-program-library';
 
   function text(value) {
     return (value ?? '').toString().trim();
+  }
+
+  function getLastSavedId() {
+    try {
+      if (typeof state === 'undefined') return null;
+      return state?.lastSavedId ?? null;
+    } catch {
+      return null;
+    }
   }
 
   function returnToLibrary(event) {
@@ -50,9 +60,9 @@
 
     saveProgram = async function patchedSaveProgram(event) {
       const titleBeforeSave = text(document.querySelector('#programForm [name="title"]')?.value);
-      const previousSavedId = state?.lastSavedId ?? null;
+      const previousSavedId = getLastSavedId();
       const result = await originalSaveProgram.apply(this, arguments);
-      const nextSavedId = state?.lastSavedId ?? null;
+      const nextSavedId = getLastSavedId();
       if (nextSavedId && String(nextSavedId) !== String(previousSavedId || '')) {
         sendProgramCreated(nextSavedId, titleBeforeSave);
       }
@@ -61,5 +71,5 @@
   }
 
   document.addEventListener('click', returnToLibrary, true);
-  document.addEventListener('DOMContentLoaded', patchSaveHandler);
+  patchSaveHandler();
 })();

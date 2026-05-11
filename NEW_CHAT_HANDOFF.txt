@@ -1,0 +1,56 @@
+New chat handoff — WNMU Programming Library v1.5.51
+
+Project/repo:
+- WNMU-Programming-library
+- Do NOT confuse with WNMU-monthly-schedules.
+- Do NOT touch config.js.
+
+Current safe baseline:
+- User was on v1.5.50 and it was working.
+- A previous attempt added two helper files directly in the repo but did not wire them into HTML:
+  - js/library-workflow.js
+  - js/program-new-bridge.js
+- Working files were not changed by that failed/glitched attempt.
+
+Requested v1.5.51 changes:
+1. Main Library page: add episode-count filter.
+   - Use Min / Max episode inputs.
+   - Blank = no limit.
+   - Max only supports “equal or less than X.”
+   - Min + Max supports range.
+   - Applies to series only.
+   - Episode count is already displayed under series titles and is derived from episode_season by existing logic.
+
+2. New Program workflow:
+   - New Program should open as standalone program-new.html in a reusable new tab/window.
+   - The user often works through stacks of ~50 program offers and wants to keep entering multiple programs from that same Add Program page.
+   - Do not force a return to Library after each save.
+   - After a save, use BroadcastChannel to notify the original Library tab one time.
+   - No polling loop. No continual rereading.
+   - Return/Open Library behavior should focus the original Library tab and close the Add Program tab when possible, with fallback to navigating current tab to index.html.
+
+Package provided:
+- WNMU-Programming-library-v1.5.51-upload-package.zip
+- Contains:
+  - js/library-workflow.js
+  - js/program-new-bridge.js
+  - apply_v1_5_51_patch.ps1
+  - apply_v1_5_51_patch.bat
+  - README_UPLOAD.txt
+
+Patch behavior:
+- Patcher modifies index.html and program-new.html only by adding script tags and bumping visible/cache versions to v1.5.51.
+- It creates backups:
+  - index.html.bak-v1.5.50
+  - program-new.html.bak-v1.5.50
+- After running patcher, upload/commit only:
+  - index.html
+  - program-new.html
+  - js/library-workflow.js
+  - js/program-new-bridge.js
+
+Important separate issue — Pledge app, not Programming Library:
+- User also reported this Pledge timing error:
+  Could not find the 'act_offset_seconds' column of 'pledge_program_timings_v2' in the schema cache
+- That belongs to the Pledge Programming app, not Monthly Media and not the main WNMU Programming Library work.
+- Desired Pledge fix: remove act_offset_seconds from save payload unless DB truly has/needs it. Users should enter act/break durations; app should calculate start/end/cumulative times internally from 0:00 and display those calculated values read-only.
