@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.57 · Add Program</title>
+  <title>WNMU TV Programming Library v1.5.58 · Add Program</title>
   <link rel="icon" type="image/svg+xml" href="program-new-tab-icon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="program-new-tab-icon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="program-new-tab-icon-16.png" />
   <link rel="shortcut icon" href="program-new-tab-icon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="program-new-tab-icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.51" />
+  <link rel="stylesheet" href="styles.css?v=1.5.58" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <style>
@@ -50,6 +50,7 @@
     .standalone-actions-row { display:flex; gap:10px; flex-wrap:wrap; }
     .muted-block { color:#5f7386; font-size:.92rem; }
     .hidden { display:none !important; }
+    .visually-hidden-auth { display:none !important; }
     @media (max-width: 760px) {
       .standalone-shell { padding: 12px; }
       .standalone-inline-grid { grid-template-columns: 1fr; }
@@ -87,8 +88,7 @@
       .new-program-airing-row { grid-template-columns: 1fr; }
     }
 
-
-    /* v1.5.57 compact Add Program layout */
+    /* v1.5.57 compact Add Program layout, carried forward in v1.5.58 */
     body.standalone-page {
       font-size: 14px;
       line-height: 1.25;
@@ -122,6 +122,7 @@
       border-radius: 18px;
     }
     .pbs-import-card.hidden { display: none !important; }
+    .pbs-import-card:has(.pbs-import-panel.hidden) { display: none !important; }
     .pbs-import-card:not(.hidden) { padding: 12px 16px; }
     .pbs-import-panel:not(.hidden) { display: grid; gap: 8px; }
     .pbs-import-field textarea { min-height: 120px; }
@@ -200,11 +201,10 @@
       .standalone-topbar { padding-top: 8px; padding-bottom: 8px; }
       .standalone-card { padding-top: 12px; padding-bottom: 12px; }
     }
-
   </style>
-  <script defer src="js/program-new.js?v=1.5.47"></script>
-  <script defer src="js/program-new-bridge.js?v=1.5.57"></script>
-  <script defer src="js/import-pbs.js?v=1.5.47"></script>
+  <script defer src="js/program-new.js?v=1.5.58"></script>
+  <script defer src="js/program-new-bridge.js?v=1.5.58"></script>
+  <script defer src="js/import-pbs.js?v=1.5.58"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -222,9 +222,13 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Add New Program</h1>
-            <span class="version-pill">v1.5.57</span>
+            <span class="version-pill">v1.5.58</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
+          <div class="visually-hidden-auth" aria-hidden="true">
+            <span id="authStateText"></span>
+            <span id="authMessage"></span>
+          </div>
         </div>
       </div>
       <div class="standalone-actions">
@@ -238,7 +242,7 @@
     </header>
 
     <div class="standalone-grid">
-      <section id="pbsImportCard" class="standalone-card pbs-import-card hidden">
+      <section id="pbsImportCard" class="standalone-card pbs-import-card">
         <div id="pbsImportPanel" class="pbs-import-panel hidden">
           <label class="pbs-import-field">PBS offer text
             <textarea id="pbsOfferInput" rows="8" placeholder="Paste the PBS program offer here."></textarea>
@@ -280,7 +284,11 @@
 
             <div class="new-program-core-row span-full">
               <label>Program or series
-                <select name="program_type"></select>
+                <select name="program_type">
+                  <option value=""></option>
+                  <option value="Program">Program</option>
+                  <option value="Series">Series</option>
+                </select>
               </label>
               <label>Season / Episode
                 <input name="episode_season" type="text" placeholder="100's / 8" />
@@ -370,5 +378,46 @@
       </section>
     </div>
   </div>
+
+  <script>
+    // v1.5.58 defensive Add Program hotfix:
+    // Keep Program/Series usable even if lookup loading is delayed or the lookup table returns empty.
+    (function ensureProgramSeriesDropdown() {
+      const desiredOptions = ['Program', 'Series'];
+      function normalize(value) {
+        return String(value || '').trim().toLowerCase();
+      }
+      function applyFallbackOptions() {
+        const select = document.querySelector('#programForm select[name="program_type"]');
+        if (!select) return;
+        if (!select.options.length) {
+          const blank = document.createElement('option');
+          blank.value = '';
+          blank.textContent = '';
+          select.appendChild(blank);
+        }
+        desiredOptions.forEach((label) => {
+          const exists = Array.from(select.options).some((option) => normalize(option.value || option.textContent) === normalize(label));
+          if (!exists) {
+            const option = document.createElement('option');
+            option.value = label;
+            option.textContent = label;
+            select.appendChild(option);
+          }
+        });
+      }
+      document.addEventListener('DOMContentLoaded', applyFallbackOptions);
+      window.addEventListener('load', applyFallbackOptions);
+      window.setTimeout(applyFallbackOptions, 700);
+      window.setTimeout(applyFallbackOptions, 1800);
+      window.setTimeout(applyFallbackOptions, 3500);
+      document.addEventListener('focusin', (event) => {
+        if (event.target?.matches?.('#programForm select[name="program_type"]')) applyFallbackOptions();
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (event.target?.matches?.('#programForm select[name="program_type"]')) applyFallbackOptions();
+      }, true);
+    })();
+  </script>
 </body>
 </html>
