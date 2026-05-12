@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.55 · Add Program</title>
+  <title>WNMU TV Programming Library v1.5.57 · Add Program</title>
   <link rel="icon" type="image/svg+xml" href="program-new-tab-icon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="program-new-tab-icon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="program-new-tab-icon-16.png" />
@@ -86,9 +86,124 @@
       .new-program-rights-row,
       .new-program-airing-row { grid-template-columns: 1fr; }
     }
+
+
+    /* v1.5.57 compact Add Program layout */
+    body.standalone-page {
+      font-size: 14px;
+      line-height: 1.25;
+    }
+    .standalone-shell {
+      max-width: 1260px;
+      padding: 10px 14px;
+    }
+    .standalone-topbar {
+      padding: 10px 18px;
+      margin-bottom: 10px;
+      border-radius: 18px;
+      gap: 12px;
+    }
+    .standalone-brand { gap: 10px; }
+    .standalone-brand img { width: 52px; height: 52px; }
+    .standalone-brand .brand-name { font-size: 1.05rem; }
+    .standalone-brand h1 { font-size: 1.85rem; line-height: 1; }
+    .standalone-actions { gap: 8px; align-items: center; }
+    .standalone-actions a,
+    .standalone-actions button,
+    .drawer-actions button,
+    .drawer-actions a {
+      padding: 8px 12px;
+      min-height: 36px;
+    }
+    .compact-pbs-btn { min-width: 0; }
+    .standalone-grid { gap: 10px; }
+    .standalone-card {
+      padding: 14px 18px;
+      border-radius: 18px;
+    }
+    .pbs-import-card.hidden { display: none !important; }
+    .pbs-import-card:not(.hidden) { padding: 12px 16px; }
+    .pbs-import-panel:not(.hidden) { display: grid; gap: 8px; }
+    .pbs-import-field textarea { min-height: 120px; }
+    .program-form .form-grid { gap: 8px 12px; }
+    .program-form label { font-size: .91rem; }
+    .standalone-page input,
+    .standalone-page select,
+    .standalone-page textarea {
+      font-size: .95rem;
+    }
+    .standalone-page input,
+    .standalone-page select {
+      min-height: 36px;
+      padding-top: 7px;
+      padding-bottom: 7px;
+    }
+    .standalone-page textarea {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .standalone-page textarea[name="notes"] {
+      min-height: 74px;
+    }
+    .new-program-core-row,
+    .new-program-distribution-row,
+    .new-program-rights-row,
+    .new-program-airing-row {
+      gap: 8px 12px;
+    }
+    .new-program-core-row {
+      grid-template-columns: minmax(185px, .82fr) minmax(185px, .82fr) minmax(220px, .98fr) minmax(270px, 1.18fr);
+    }
+    .new-program-distribution-row {
+      grid-template-columns: minmax(320px, 1.15fr) minmax(200px, .78fr) minmax(220px, .86fr);
+    }
+    .new-program-rights-row {
+      grid-template-columns: minmax(210px, .82fr) minmax(210px, .82fr) minmax(260px, 1fr);
+      align-items: end;
+    }
+    .new-program-airing-row {
+      grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr) minmax(300px, .95fr);
+      align-items: end;
+    }
+    .rights-notes-field input {
+      width: 100%;
+      min-height: 36px;
+    }
+    .new-program-airing-row .editor-rating-row,
+    .new-program-airing-row .rating-field {
+      margin: 0;
+    }
+    .new-program-airing-row .editor-star-rating {
+      min-height: 36px;
+      padding: 5px 10px;
+      align-items: center;
+    }
+    .new-program-airing-row .star-rating-btn {
+      font-size: 1.24rem;
+      line-height: 1;
+      padding: 0 3px;
+    }
+    .new-program-airing-row .rating-value-label {
+      font-size: .9rem;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+    .standalone-feedback {
+      min-height: 1rem;
+      margin-top: 6px;
+      font-size: 1rem;
+    }
+    .standalone-success { margin-top: 8px; padding: 8px 10px; }
+    .standalone-actions-row { margin-top: 8px; }
+    @media (max-height: 850px) and (min-width: 940px) {
+      .standalone-page textarea[name="notes"] { min-height: 60px; }
+      .standalone-topbar { padding-top: 8px; padding-bottom: 8px; }
+      .standalone-card { padding-top: 12px; padding-bottom: 12px; }
+    }
+
   </style>
   <script defer src="js/program-new.js?v=1.5.47"></script>
-  <script defer src="js/program-new-bridge.js?v=1.5.54"></script>
+  <script defer src="js/program-new-bridge.js?v=1.5.57"></script>
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
 </head>
 <body class="standalone-page">
@@ -107,7 +222,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Add New Program</h1>
-            <span class="version-pill">v1.5.55</span>
+            <span class="version-pill">v1.5.57</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -116,39 +231,17 @@
         <a href="index.html" class="ghost" id="backToLibraryTop">Back to library</a>
         <a href="monthly-media.html" class="ghost">Monthly media</a>
         <a href="holidays-calendar.html" class="ghost">Holidays / events</a>
+        <button type="button" id="togglePbsImportBtn" class="secondary compact-pbs-btn">Paste PBS offer</button>
         <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
         <button type="button" id="logoutBtn" class="hidden">Sign out</button>
       </div>
     </header>
 
     <div class="standalone-grid">
-      <section class="standalone-card">
-        <p class="standalone-note">This is the lean add page. It avoids hauling the whole program table, filters, and drawer state into the same room while you enter a new record.</p>
-        <p class="standalone-mini">Edit and browse still live in the main library. This page is for fast entry.</p>
-      </section>
-
-      <section class="standalone-card" id="authCard">
-        <div class="standalone-auth-row">
-          <div>
-            <div class="list-title">Admin access</div>
-            <div id="authStateText" class="muted-block">Checking sign-in status…</div>
-          </div>
-          <a href="index.html" class="secondary">Open main library</a>
-        </div>
-        <div id="authMessage" class="standalone-auth-message"></div>
-      </section>
-
-      <section class="standalone-card">
-        <div class="pbs-import-head">
-          <div>
-            <div class="pbs-import-title">PBS Paste / Import</div>
-            <div class="pbs-import-note">Paste a PBS offer, preview the mapping, then fill the new draft without hauling the full main page along for the ride.</div>
-          </div>
-          <button type="button" id="togglePbsImportBtn" class="secondary">Paste PBS offer</button>
-        </div>
+      <section id="pbsImportCard" class="standalone-card pbs-import-card hidden">
         <div id="pbsImportPanel" class="pbs-import-panel hidden">
           <label class="pbs-import-field">PBS offer text
-            <textarea id="pbsOfferInput" rows="12" placeholder="Paste the PBS program offer here."></textarea>
+            <textarea id="pbsOfferInput" rows="8" placeholder="Paste the PBS program offer here."></textarea>
           </label>
           <div class="pbs-import-controls">
             <label class="pbs-import-mode-field">Draft style
@@ -182,7 +275,7 @@
             </label>
 
             <label class="span-full">Description
-              <textarea name="notes" rows="4"></textarea>
+              <textarea name="notes" rows="3"></textarea>
             </label>
 
             <div class="new-program-core-row span-full">
@@ -238,7 +331,7 @@
                 </div>
               </label>
               <label class="rights-notes-field">Rights notes
-                <textarea name="rights_notes" rows="2"></textarea>
+                <input name="rights_notes" type="text" />
               </label>
             </div>
 
@@ -260,7 +353,6 @@
                     <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
                     <span class="rating-value-label">Not rated</span>
                   </div>
-                  <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
                 </label>
               </div>
             </div>

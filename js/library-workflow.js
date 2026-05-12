@@ -1,9 +1,10 @@
-// v1.5.54 targeted workflow helpers
+// v1.5.57 targeted workflow helpers
 // Adds: main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
 (function () {
   const CHANNEL_NAME = 'wnmu-program-library';
+  const STORAGE_EVENT_KEY = 'wnmu-program-library-program-created';
   const PROGRAM_NEW_WINDOW_NAME = 'wnmu-program-new';
 
   function asNumber(value) {
@@ -149,6 +150,7 @@
     if (existingIndex >= 0) state.programs[existingIndex] = program;
     else state.programs.unshift(program);
 
+    if (typeof sortProgramsInPlace === 'function') sortProgramsInPlace();
     if (typeof updateProgramDerived === 'function') updateProgramDerived(program);
     else if (typeof recacheProgramDerived === 'function') recacheProgramDerived(state.programs);
     if (state) state.templateSourceDirty = true;
@@ -156,6 +158,7 @@
     if (typeof renderFilters === 'function') renderFilters();
     if (typeof renderTable === 'function') renderTable();
     try { if (typeof persistProgramsCache === 'function') persistProgramsCache(); } catch {}
+    try { if (typeof snapshotViewState === 'function') state.lastAppliedViewState = snapshotViewState(); } catch {}
   }
 
   async function handleProgramCreatedMessage(message) {
@@ -171,17 +174,35 @@
     }
   }
 
-  function installBroadcastListener() {
-    if (!('BroadcastChannel' in window)) return;
-    try {
-      const channel = new BroadcastChannel(CHANNEL_NAME);
-      channel.addEventListener('message', (event) => {
-        void handleProgramCreatedMessage(event.data);
-      });
-      window.__wnmuProgramLibraryChannel = channel;
-    } catch (error) {
-      console.warn('BroadcastChannel unavailable:', error);
+  function installProgramCreatedListeners() {
+    if ('BroadcastChannel' in window && !window.__wnmuProgramLibraryChannel) {
+      try {
+        const channel = new BroadcastChannel(CHANNEL_NAME);
+        channel.addEventListener('message', (event) => {
+          void handleProgramCreatedMessage(event.data);
+        });
+        window.__wnmuProgramLibraryChannel = channel;
+      } catch (error) {
+        console.warn('BroadcastChannel unavailable:', error);
+      }
     }
+
+    if (!window.__wnmuProgramCreatedStorageListener) {
+      window.__wnmuProgramCreatedStorageListener = true;
+      window.addEventListener('storage', (event) => {
+        if (event.key !== STORAGE_EVENT_KEY || !event.newValue) return;
+        try {
+          const message = JSON.parse(event.newValue);
+          void handleProgramCreatedMessage(message);
+        } catch (error) {
+          console.warn('Could not read Add Program storage notice:', error);
+        }
+      });
+    }
+  }
+
+  function installBroadcastListener() {
+    installProgramCreatedListeners();
   }
 
   function installNewProgramButtonOverride() {
