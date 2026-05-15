@@ -20,7 +20,7 @@
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
   <script defer src="js/lookup.js?v=1.5.47"></script>
   <script defer src="js/events.js?v=1.5.47"></script>
-  <script defer src="js/library-workflow.js?v=1.5.57"></script>
+  <script defer src="js/library-workflow.js?v=1.5.59"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -59,7 +59,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.57</span>
+            <span id="appVersion" class="version-pill">v1.5.59</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -157,6 +157,17 @@
           <div class="filter-box cluster-type">
             <label class="filter-label" for="programTypeFilter">Type</label>
             <select id="programTypeFilter"><option value="">All types</option></select>
+          </div>
+          <div id="episodeFilterBox" class="filter-box cluster-episodes">
+            <div class="filter-label-row">
+              <label class="filter-label" for="episodeMinFilter">Episodes</label>
+              <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
+            </div>
+            <div class="episode-range-filter">
+              <input id="episodeMinFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Min" aria-label="Minimum episode count" />
+              <input id="episodeMaxFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Max" aria-label="Maximum episode count" />
+            </div>
+            <div class="filter-help">Series only · blank = no limit</div>
           </div>
           <div class="filter-box cluster-search-in">
             <label class="filter-label" for="searchFieldSelect">Search in</label>

@@ -1,5 +1,5 @@
-// v1.5.57 targeted workflow helpers
-// Adds: main Library episode-count range filter, Add Program new-tab workflow,
+// v1.5.59 targeted workflow helpers
+// Adds/keeps: visible main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
 (function () {
@@ -83,27 +83,10 @@
     if (!options.silent) triggerLibraryFilterUpdate();
   }
 
-  function installEpisodeFilterUi() {
-    if (document.getElementById('episodeFilterBox')) return;
-    const ratingBox = document.querySelector('.cluster-rating') || document.querySelector('.compact-search-cluster');
-    if (!ratingBox?.parentElement) return;
-
-    const box = document.createElement('div');
-    box.id = 'episodeFilterBox';
-    box.className = 'filter-box cluster-episodes';
-    box.innerHTML = `
-      <div class="filter-label-row">
-        <label class="filter-label" for="episodeMinFilter">Episodes</label>
-        <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
-      </div>
-      <div class="episode-range-filter" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;">
-        <input id="episodeMinFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Min" aria-label="Minimum episode count" />
-        <input id="episodeMaxFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Max" aria-label="Maximum episode count" />
-      </div>
-      <div class="filter-help" style="font-size:.76rem;color:#5d7184;margin-top:4px;">Series only · blank = no limit</div>
-    `;
-
-    ratingBox.insertAdjacentElement('afterend', box);
+  function bindEpisodeFilterUi() {
+    const box = document.getElementById('episodeFilterBox');
+    if (!box || box.dataset.episodeFilterBound === 'true') return;
+    box.dataset.episodeFilterBound = 'true';
 
     ['episodeMinFilter', 'episodeMaxFilter'].forEach((id) => {
       const input = document.getElementById(id);
@@ -117,6 +100,32 @@
     });
 
     document.getElementById('clearEpisodeFilter')?.addEventListener('click', () => clearEpisodeFields());
+  }
+
+  function installEpisodeFilterUi() {
+    if (!document.getElementById('episodeFilterBox')) {
+      const ratingBox = document.querySelector('.cluster-rating') || document.querySelector('.compact-search-cluster');
+      if (!ratingBox?.parentElement) return;
+
+      const box = document.createElement('div');
+      box.id = 'episodeFilterBox';
+      box.className = 'filter-box cluster-episodes';
+      box.innerHTML = `
+        <div class="filter-label-row">
+          <label class="filter-label" for="episodeMinFilter">Episodes</label>
+          <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
+        </div>
+        <div class="episode-range-filter">
+          <input id="episodeMinFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Min" aria-label="Minimum episode count" />
+          <input id="episodeMaxFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Max" aria-label="Maximum episode count" />
+        </div>
+        <div class="filter-help">Series only · blank = no limit</div>
+      `;
+
+      ratingBox.insertAdjacentElement('afterend', box);
+    }
+
+    bindEpisodeFilterUi();
   }
 
   function openStandaloneAddProgram(event) {
@@ -211,7 +220,6 @@
     button.addEventListener('click', openStandaloneAddProgram, true);
   }
 
-
   function installClearAllButtonInCluster() {
     const cluster = document.querySelector('#controlsPanel .compact-search-cluster');
     const button = document.getElementById('resetFiltersBtn');
@@ -230,9 +238,9 @@
   }
 
   function installCompactFilterLayout() {
-    if (document.getElementById('wnmuCompactFilterLayoutV154')) return;
+    if (document.getElementById('wnmuCompactFilterLayoutV159')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuCompactFilterLayoutV154';
+    style.id = 'wnmuCompactFilterLayoutV159';
     style.textContent = `
       @media (min-width: 1180px) {
         #controlsPanel.controls.compact-controls {
@@ -367,6 +375,9 @@
           padding-right: 7px !important;
         }
         #controlsPanel .filter-help {
+          font-size: .76rem !important;
+          color: #5d7184 !important;
+          margin-top: 4px !important;
           line-height: 1.15 !important;
         }
         #controlsPanel .filter-foot.hidden {
@@ -400,6 +411,11 @@
           display: grid !important;
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
           gap: 6px !important;
+        }
+        #controlsPanel .filter-help {
+          font-size: .76rem !important;
+          color: #5d7184 !important;
+          margin-top: 4px !important;
         }
       }
     `;
