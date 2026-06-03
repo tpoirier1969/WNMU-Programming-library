@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.68
+// WNMU Programming Library Schedule Planner test helper v1.5.69
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.68-labeled-candidate-score';
+  const VERSION = 'v1.5.69-manual-use-blocked-rotation-candidates';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -32,7 +32,7 @@
     activeCell: null,
     loading: false,
     plannerDataReady: false,
-    candidatePreview: { target: null, iso: '', singles: new Map(), pairs: new Map() }
+    candidatePreview: { target: null, iso: '', singles: new Map(), pairs: new Map(), excluded: new Map() }
   };
 
   const els = {};
@@ -1271,7 +1271,7 @@
     const preview = document.getElementById('candidatePreview');
     if (!preview) return;
     const isRotation = target.slotBehavior === 'required_rotation';
-    state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map() };
+    state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map(), excluded: new Map() };
     const candidateMarkup = candidates.slice(0, 10).map((entry, index) => {
       const key = candidateKey(entry.program, index);
       state.candidatePreview.singles.set(key, entry);
@@ -1281,6 +1281,11 @@
       const key = `pair_${index}_${candidateKey(pair.a.program, index)}_${candidateKey(pair.b.program, index + 50)}`;
       state.candidatePreview.pairs.set(key, pair);
       return pairCard(pair, key, target, iso);
+    }).join('');
+    const excludedMarkup = excluded.slice(0, 12).map((entry, index) => {
+      const key = `excluded_${candidateKey(entry.program, index)}`;
+      state.candidatePreview.excluded.set(key, entry);
+      return excludedCandidateCard(entry, key);
     }).join('');
     preview.innerHTML = `
       <div class="candidate-grid">
@@ -1297,8 +1302,8 @@
       ${isRotation && excluded.length ? `
         <section class="candidate-section">
           <h3>Pool matches not currently eligible</h3>
-          <p class="small-note">These match the required pool but were filtered by repeat gap, freshness, rights, archive, length, rating, or other slot rules.</p>
-          <div class="excluded-candidate-list">${excluded.slice(0, 12).map(excludedCandidateCard).join('')}</div>
+          <p class="small-note">These match the required pool but were not recommended by helper rules such as repeat gap, freshness, rights, archive, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
+          <div class="excluded-candidate-list">${excludedMarkup}</div>
         </section>` : ''}
     `;
     bindCandidatePreviewEvents(preview);
@@ -1539,7 +1544,7 @@
     `;
   }
 
-  function excludedCandidateCard(entry) {
+  function excludedCandidateCard(entry, key) {
     const p = entry.program;
     const description = programDescription(p);
     const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 6).join(' · ');
@@ -1547,8 +1552,9 @@
       <div class="candidate-card candidate-card--blocked excluded-candidate" title="${escapeHtml(description || programTitle(p))}">
         <div class="candidate-title" title="${escapeHtml(description || programTitle(p))}">${escapeHtml(programTitle(p))}</div>
         <div class="candidate-detail-grid">${candidateDetailRows(p, state.channel, null)}</div>
-        <div class="candidate-why"><strong>Blocked:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
+        <div class="candidate-why"><strong>Not recommended:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
         ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : ''}
+        <div class="candidate-actions"><button type="button" class="candidate-use-btn" data-candidate-kind="excluded" data-candidate-key="${escapeHtml(key)}">Use anyway for this date/time</button></div>
       </div>
     `;
   }
@@ -1598,13 +1604,15 @@
         updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with a 30 + 30 planner override pair.`);
         return;
       }
-      const entry = preview.singles.get(key);
+      const isExcludedPick = kind === 'excluded';
+      const entry = isExcludedPick ? preview.excluded.get(key) : preview.singles.get(key);
       if (!entry) throw new Error('Candidate is no longer available. Refresh the preview and try again.');
       const length = entry.length || parseLength(entry.program.length_minutes) || target.lengthMinutes || STEP;
-      await saveCandidateOverride(entry.program, target, iso, target.startMinutes, length);
+      await saveCandidateOverride(entry.program, target, iso, target.startMinutes, length, isExcludedPick ? entry : null);
       closeModal();
       render();
-      updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with ${programTitle(entry.program)} in the scheduler test override table.`);
+      const suffix = isExcludedPick ? ' as a manual exact-schedule override, bypassing helper eligibility warnings' : ' in the scheduler test override table';
+      updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with ${programTitle(entry.program)}${suffix}.`);
     } catch (error) {
       console.error(error);
       alert(`Candidate fill failed: ${error.message}`);
@@ -1612,7 +1620,7 @@
     }
   }
 
-  async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes) {
+  async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes, bypassEntry) {
     const existing = findExistingOverrideForSlot(iso, slot.channel || state.channel, startMinutes);
     const pTitle = programTitle(program);
     const pNola = programNola(program);
@@ -1639,7 +1647,7 @@
       selectedProgramRecordId: pId,
       selectedProgramTitle: pTitle,
       selectedProgramNola: pNola,
-      notes: candidateOverrideNotes(program, slot)
+      notes: candidateOverrideNotes(program, slot, bypassEntry)
     };
     const payload = overrideToDb(override);
     if (existing?.id) {
@@ -1661,8 +1669,9 @@
     }) || null;
   }
 
-  function candidateOverrideNotes(program, slot) {
-    const parts = ['Filled from Schedule Planner candidate preview.'];
+  function candidateOverrideNotes(program, slot, bypassEntry) {
+    const parts = [bypassEntry ? 'Manual exact-schedule fill from a candidate that helper rules marked not recommended.' : 'Filled from Schedule Planner candidate preview.'];
+    if (bypassEntry?.why?.length) parts.push(`Bypassed helper warning: ${bypassEntry.why.join(' · ')}.`);
     const nola = programNola(program);
     if (nola) parts.push(`NOLA: ${nola}.`);
     const rights = rightsDisplay(program);
