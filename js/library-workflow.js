@@ -1,4 +1,4 @@
-// v1.5.59 targeted workflow helpers
+// v1.5.60 targeted workflow helpers
 // Adds/keeps: visible main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
@@ -520,4 +520,71 @@
     installNewProgramButtonOverride();
     installBroadcastListener();
   });
+})();
+
+// v1.5.60 Schedule Planner test-page launcher
+(function () {
+  const PLANNER_PAGE = 'programming-calendar.html';
+  const PLANNER_WINDOW_NAME = 'wnmu-programming-schedule-planner';
+
+  function canShowPlannerButton() {
+    try {
+      if (typeof canEdit === 'function') return canEdit();
+      return Boolean(window.state && window.state.session);
+    } catch {
+      return false;
+    }
+  }
+
+  function ensurePlannerButton() {
+    if (document.getElementById('schedulePlannerBtn')) return document.getElementById('schedulePlannerBtn');
+    const reference = document.getElementById('newProgramBtn') || document.getElementById('monthlyMediaBtn') || document.getElementById('adminBtn');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = 'schedulePlannerBtn';
+    button.className = 'primary hidden';
+    button.textContent = 'Schedule planner';
+    button.title = 'Open the login-only Schedule Planner test page in a separate tab.';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const opened = window.open(PLANNER_PAGE, PLANNER_WINDOW_NAME);
+      if (opened) {
+        try { opened.focus(); } catch {}
+        return;
+      }
+      window.location.href = PLANNER_PAGE;
+    });
+    if (reference?.parentElement) reference.insertAdjacentElement('afterend', button);
+    else document.body.appendChild(button);
+    return button;
+  }
+
+  function syncPlannerButton() {
+    const button = ensurePlannerButton();
+    button.classList.toggle('hidden', !canShowPlannerButton());
+  }
+
+  function patchModeUi() {
+    if (window.__wnmuSchedulePlannerModePatch) return;
+    window.__wnmuSchedulePlannerModePatch = true;
+    if (typeof updateModeUI === 'function') {
+      const originalUpdateModeUI = updateModeUI;
+      updateModeUI = function patchedUpdateModeUI(...args) {
+        const result = originalUpdateModeUI.apply(this, args);
+        syncPlannerButton();
+        return result;
+      };
+    }
+  }
+
+  function bootSchedulePlannerLauncher() {
+    patchModeUi();
+    syncPlannerButton();
+    setTimeout(syncPlannerButton, 250);
+    setTimeout(syncPlannerButton, 1200);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootSchedulePlannerLauncher);
+  else bootSchedulePlannerLauncher();
 })();
