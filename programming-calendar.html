@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.62"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.63"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -210,6 +210,14 @@
     .candidate-title { font-weight: 800; }
     .candidate-meta, .candidate-why { font-size: .82rem; color: var(--muted); margin-top: 3px; }
     .candidate-score { float: right; font-weight: 850; color: var(--accent); }
+    .nola-match-results { grid-column: 1 / -1; display: grid; gap: 6px; margin-top: -2px; }
+    .nola-match-empty { color: var(--muted); font-size: .82rem; }
+    .nola-match-list { display: grid; gap: 6px; }
+    .nola-match-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+    .nola-match-option:hover { border-color: rgba(25,95,127,.6); background: #f0f8fc; }
+    .nola-match-title { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nola-match-meta { color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nola-chip { display: inline-flex; align-items: center; border-radius: 999px; background: #e7f2f8; color: var(--accent-dark); padding: 2px 7px; font-size: .76rem; font-weight: 800; white-space: nowrap; }
     .small-note { color: var(--muted); font-size: .83rem; }
     .danger-note { color: var(--danger); }
     @media (max-width: 1100px) {
@@ -233,7 +241,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.62 rotation/pool test</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.63 NOLA pool test</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

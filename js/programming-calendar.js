@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.62
+// WNMU Programming Library Schedule Planner test helper v1.5.63
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.62-rotation-pool-test';
+  const VERSION = 'v1.5.63-nola-pool-test';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -135,10 +135,10 @@
       ]);
       if (programResult.error) throw programResult.error;
       if (holidayResult.error) console.warn('Holiday/event read skipped:', holidayResult.error);
-      if (templateResult.error) throw new Error(`Planner template table read failed: ${templateResult.error.message}. Run the v1.5.61 planner SQL and then the v1.5.62 migration SQL.`);
-      if (overrideResult.error) throw new Error(`Planner override table read failed: ${overrideResult.error.message}. Run the v1.5.61 planner SQL and then the v1.5.62 migration SQL.`);
-      if (poolResult.error) throw new Error(`Planner program-pool table read failed: ${poolResult.error.message}. Run the v1.5.62 migration SQL.`);
-      if (poolItemResult.error) throw new Error(`Planner pool-item table read failed: ${poolItemResult.error.message}. Run the v1.5.62 migration SQL.`);
+      if (templateResult.error) throw new Error(`Planner template table read failed: ${templateResult.error.message}. Run the v1.5.61 planner SQL, then the v1.5.62 and v1.5.63 migration SQL.`);
+      if (overrideResult.error) throw new Error(`Planner override table read failed: ${overrideResult.error.message}. Run the v1.5.61 planner SQL, then the v1.5.62 and v1.5.63 migration SQL.`);
+      if (poolResult.error) throw new Error(`Planner program-pool table read failed: ${poolResult.error.message}. Run the v1.5.62 and v1.5.63 migration SQL.`);
+      if (poolItemResult.error) throw new Error(`Planner pool-item table read failed: ${poolItemResult.error.message}. Run the v1.5.62 and v1.5.63 migration SQL.`);
       state.programs = Array.isArray(programResult.data) ? programResult.data : [];
       state.holidays = Array.isArray(holidayResult.data) ? holidayResult.data : [];
       state.pools = (poolResult.data || []).map(poolFromDb);
@@ -172,6 +172,7 @@
       poolType: row.pool_type || 'title_text',
       matchMode: row.match_mode || 'title_text',
       titleMatchText: row.title_match_text || '',
+      nolaMatchText: row.nola_match_text || '',
       avoidBackToBack: row.avoid_back_to_back !== false,
       repeatGapDays: Number(row.repeat_gap_days || 0),
       rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
@@ -186,6 +187,7 @@
       poolId: row.pool_id || '',
       itemLabel: row.item_label || '',
       titleMatchText: row.title_match_text || '',
+      nolaMatchText: row.nola_match_text || '',
       programRecordId: row.program_record_id || '',
       programTitle: row.program_title || '',
       seasonLabel: row.season_label || '',
@@ -363,14 +365,33 @@
   }
 
   function poolMatchFromForm(data) {
-    return text(data.poolMatchText || data.titleTopic || data.poolName || data.requiredPoolName);
+    return text(data.poolNolaText || data.poolSelectedProgramNola || data.poolMatchText || data.titleTopic || data.poolName || data.requiredPoolName);
+  }
+
+  function poolNolaFromForm(data) {
+    return text(data.poolSelectedProgramNola || data.poolNolaText || '');
+  }
+
+  function poolItemLabelFromForm(data) {
+    const selectedTitle = text(data.poolSelectedProgramTitle);
+    const selectedNola = poolNolaFromForm(data);
+    if (selectedTitle && selectedNola) return `${selectedTitle} · ${selectedNola}`;
+    return selectedTitle || text(data.poolMatchText || data.poolNolaText || data.titleTopic || data.poolName || data.requiredPoolName);
+  }
+
+  function poolNolaTextForSlot(slot) {
+    const items = poolItemsForPool(slot?.requiredPoolId);
+    const nolas = items.map((item) => item.nolaMatchText).filter(Boolean);
+    if (nolas.length) return nolas.join('; ');
+    const pool = getPool(slot?.requiredPoolId);
+    return pool?.nolaMatchText || '';
   }
 
   function poolMatchTextForSlot(slot) {
     const items = poolItemsForPool(slot?.requiredPoolId);
-    if (items.length) return items.map((item) => item.titleMatchText || item.itemLabel).filter(Boolean).join('; ');
+    if (items.length) return items.map((item) => item.nolaMatchText || item.titleMatchText || item.itemLabel).filter(Boolean).join('; ');
     const pool = getPool(slot?.requiredPoolId);
-    return pool?.titleMatchText || slot?.titleTopic || '';
+    return pool?.nolaMatchText || pool?.titleMatchText || slot?.titleTopic || '';
   }
 
   async function attachPoolToPlannerItem(item, data) {
@@ -386,24 +407,32 @@
 
     let poolId = text(data.requiredPoolId);
     const poolName = poolNameFromForm(data);
+    let nolaText = poolNolaFromForm(data);
     let matchText = poolMatchFromForm(data);
+    const itemLabel = poolItemLabelFromForm(data);
+    const selectedProgramId = text(data.poolSelectedProgramId);
+    const selectedProgramTitle = text(data.poolSelectedProgramTitle);
+
     if (!poolId && !poolName) throw new Error('Required rotation slots need a program pool name.');
-    if (!matchText && poolId && poolItemsForPool(poolId).length) {
+
+    if (!nolaText && !matchText && poolId && poolItemsForPool(poolId).length) {
       item.requiredPoolId = poolId;
       return item;
     }
-    if (!matchText && poolId) {
+    if (!nolaText && !matchText && poolId) {
       const existingPool = getPool(poolId);
+      nolaText = text(existingPool?.nolaMatchText || '');
       matchText = text(existingPool?.titleMatchText || existingPool?.poolName);
     }
-    if (!matchText) throw new Error('Required rotation slots need title-match text, such as WAI LANA YOGA.');
+    if (!nolaText && !matchText) throw new Error('Required rotation slots need a NOLA prefix/code or selected pool item.');
 
     if (!poolId) {
       const payload = {
         pool_name: poolName,
-        pool_type: 'title_text',
-        match_mode: 'title_text',
-        title_match_text: matchText,
+        pool_type: nolaText ? 'nola_prefix' : 'title_text',
+        match_mode: nolaText ? 'nola_prefix' : 'title_text',
+        title_match_text: matchText || poolName,
+        nola_match_text: nolaText || null,
         avoid_back_to_back: item.avoidBackToBack !== false,
         repeat_gap_days: Number(item.repeatGapDays || 0),
         rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
@@ -420,19 +449,24 @@
       poolId = pool.id;
     }
 
-    const itemPayload = {
-      pool_id: poolId,
-      item_label: matchText,
-      title_match_text: matchText,
-      active: true
-    };
-    const { data: poolItemRow, error: itemError } = await state.supabase
-      .from(POOL_ITEM_TABLE)
-      .upsert(itemPayload, { onConflict: 'pool_id,title_match_text' })
-      .select('*')
-      .single();
-    if (itemError) throw itemError;
-    upsertInMemory(state.poolItems, poolItemFromDb(poolItemRow));
+    if (nolaText || matchText) {
+      const itemPayload = {
+        pool_id: poolId,
+        item_label: itemLabel || nolaText || matchText,
+        title_match_text: selectedProgramTitle && nolaText ? `${selectedProgramTitle} · ${nolaText}` : (matchText || nolaText),
+        nola_match_text: nolaText || null,
+        program_record_id: selectedProgramId || null,
+        program_title: selectedProgramTitle || null,
+        active: true
+      };
+      const { data: poolItemRow, error: itemError } = await state.supabase
+        .from(POOL_ITEM_TABLE)
+        .upsert(itemPayload, { onConflict: 'pool_id,title_match_text' })
+        .select('*')
+        .single();
+      if (itemError) throw itemError;
+      upsertInMemory(state.poolItems, poolItemFromDb(poolItemRow));
+    }
 
     item.requiredPoolId = poolId;
     return item;
@@ -629,7 +663,7 @@
             </select>
           </label>
           <label>Length minutes
-            <input name="lengthMinutes" type="number" min="5" step="5" value="60" required />
+            <select name="lengthMinutes">${lengthOptions(60)}</select>
           </label>
           <label>Purpose
             <select name="purpose">
@@ -675,9 +709,13 @@
           <label class="span-2">Pool name
             <input name="poolName" type="text" placeholder="WAI LANA YOGA seasons" />
           </label>
-          <label class="span-2">Pool title match text
-            <input name="poolMatchText" type="text" placeholder="WAI LANA YOGA" />
+          <label class="span-2">Pool NOLA match / allowed program
+            <input name="poolNolaText" type="text" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input />
           </label>
+          <input name="poolSelectedProgramId" type="hidden" />
+          <input name="poolSelectedProgramTitle" type="hidden" />
+          <input name="poolSelectedProgramNola" type="hidden" />
+          <div class="nola-match-results" data-pool-nola-results></div>
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox" checked /> Avoid same season back-to-back</label>
           <label>Repeat gap days
             <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="0" />
@@ -786,11 +824,85 @@
       event.preventDefault();
       void saveTemplateFromForm(form, iso);
     });
+    if (form) bindPoolNolaSearch(form);
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
     document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
     document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
     document.getElementById('editTemplateBtn')?.addEventListener('click', () => renderEditTemplateForm(context.current, iso));
     document.getElementById('deleteTemplateBtn')?.addEventListener('click', () => { void deleteTemplate(context.current); });
+  }
+
+  function bindPoolNolaSearch(form) {
+    const input = form.querySelector('[data-pool-nola-input]');
+    const results = form.querySelector('[data-pool-nola-results]');
+    if (!input || !results) return;
+    const hiddenId = form.elements.poolSelectedProgramId;
+    const hiddenTitle = form.elements.poolSelectedProgramTitle;
+    const hiddenNola = form.elements.poolSelectedProgramNola;
+
+    const renderForValue = () => {
+      if (hiddenId) hiddenId.value = '';
+      if (hiddenTitle) hiddenTitle.value = '';
+      if (hiddenNola) hiddenNola.value = '';
+      renderNolaMatchResults(input.value, results, form);
+    };
+
+    input.addEventListener('input', renderForValue);
+    input.addEventListener('focus', () => renderNolaMatchResults(input.value, results, form));
+    results.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-pool-program-id]');
+      if (!button) return;
+      const program = state.programs.find((item) => String(item.id || item.program_id || item.record_id) === String(button.dataset.poolProgramId));
+      if (!program) return;
+      const title = programTitle(program);
+      const nola = programNola(program);
+      if (input) input.value = nola;
+      if (hiddenId) hiddenId.value = text(program.id || program.program_id || program.record_id);
+      if (hiddenTitle) hiddenTitle.value = title;
+      if (hiddenNola) hiddenNola.value = nola;
+      results.innerHTML = `<div class="nola-match-empty">Selected: <strong>${escapeHtml(title)}</strong>${nola ? ` · ${escapeHtml(nola)}` : ''}</div>`;
+      const poolNameInput = form.elements.poolName;
+      if (poolNameInput && !text(poolNameInput.value)) poolNameInput.value = title;
+    });
+  }
+
+  function renderNolaMatchResults(rawQuery, results, form) {
+    const query = normalizeNola(rawQuery);
+    if (!query || query.length < 2) {
+      results.innerHTML = '<div class="nola-match-empty">Type at least 2 NOLA characters to search loaded Library programs.</div>';
+      return;
+    }
+    const matches = findNolaMatches(query).slice(0, 12);
+    if (!matches.length) {
+      results.innerHTML = '<div class="nola-match-empty">No NOLA matches found in the loaded Library program records.</div>';
+      return;
+    }
+    results.innerHTML = `
+      <div class="nola-match-list">
+        ${matches.map(({ program }) => {
+          const title = programTitle(program);
+          const nola = programNola(program);
+          const id = text(program.id || program.program_id || program.record_id);
+          const meta = [nola || 'No NOLA', parseLength(program.length_minutes) ? `${parseLength(program.length_minutes)}m` : '', program.program_type, program.rights_end ? `rights end ${normalizeDateish(program.rights_end) || program.rights_end}` : ''].filter(Boolean).join(' · ');
+          return `<button type="button" class="nola-match-option" data-pool-program-id="${escapeHtml(id)}"><span><span class="nola-match-title">${escapeHtml(title)}</span><span class="nola-match-meta">${escapeHtml(meta)}</span></span><span class="nola-chip">${escapeHtml(nola || 'pick')}</span></button>`;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function findNolaMatches(query) {
+    return state.programs
+      .map((program) => {
+        const nola = normalizeNola(programNola(program));
+        if (!nola) return null;
+        const starts = nola.startsWith(query);
+        const includes = !starts && nola.includes(query);
+        if (!starts && !includes) return null;
+        const activeBonus = program.is_archived ? -50 : 0;
+        return { program, score: (starts ? 50 : 20) + Math.min(query.length, 12) + activeBonus };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || programNola(a.program).localeCompare(programNola(b.program)) || programTitle(a.program).localeCompare(programTitle(b.program)));
   }
 
   async function saveTemplateFromForm(form, iso) {
@@ -829,7 +941,7 @@
     const purpose = data.purpose || 'standalone';
     return {
       startMinutes: state.selectedMinutes,
-      lengthMinutes: saneNumber(data.lengthMinutes, 60),
+      lengthMinutes: saneLengthMinutes(data.lengthMinutes, 60),
       purpose,
       isPbsFeed: purpose === 'pbs_feed',
       titleTopic: data.titleTopic || purposeLabel(purpose),
@@ -917,7 +1029,7 @@
         <h3>Edit scheduler test template</h3>
         <p class="small-note">This edits Supabase table <strong>${TEMPLATE_TABLE}</strong> only. It does not alter Library program records.</p>
         <div class="form-grid">
-          <label>Length minutes<input name="lengthMinutes" type="number" min="5" step="5" value="${escapeHtml(current.lengthMinutes)}" required /></label>
+          <label>Length minutes<select name="lengthMinutes">${lengthOptions(current.lengthMinutes)}</select></label>
           <label>Purpose
             <select name="purpose">${purposeOptions(current.purpose)}</select>
           </label>
@@ -938,7 +1050,11 @@
           <label>Slot behavior<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open candidate search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
           <label>Existing pool<select name="requiredPoolId">${poolOptions(current.requiredPoolId || '')}</select></label>
           <label class="span-2">Pool name<input name="poolName" type="text" value="${escapeHtml(current.poolName || '')}" placeholder="WAI LANA YOGA seasons" /></label>
-          <label class="span-2">Pool title match text<input name="poolMatchText" type="text" value="${escapeHtml(poolMatchTextForSlot(current))}" placeholder="WAI LANA YOGA" /></label>
+          <label class="span-2">Pool NOLA match / allowed program<input name="poolNolaText" type="text" value="${escapeHtml(poolNolaTextForSlot(current))}" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input /></label>
+          <input name="poolSelectedProgramId" type="hidden" />
+          <input name="poolSelectedProgramTitle" type="hidden" />
+          <input name="poolSelectedProgramNola" type="hidden" />
+          <div class="nola-match-results" data-pool-nola-results></div>
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox"${current.avoidBackToBack !== false ? ' checked' : ''} /> Avoid same season back-to-back</label>
           <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(current.repeatGapDays || 0)}" /></label>
           <label>Rights urgency<select name="rightsUrgencyMonths"><option value="0"${!Number(current.rightsUrgencyMonths)?' selected':''}>Off</option><option value="3"${Number(current.rightsUrgencyMonths)===3?' selected':''}>Rights end in 3 months</option><option value="6"${Number(current.rightsUrgencyMonths)===6?' selected':''}>Rights end in 6 months</option><option value="12"${Number(current.rightsUrgencyMonths)===12?' selected':''}>Rights end in 12 months</option></select></label>
@@ -956,10 +1072,12 @@
         <div class="action-row"><button type="submit" class="primary">Save template edits</button></div>
       </form>
     `;
-    document.getElementById('editTemplateForm')?.addEventListener('submit', (event) => {
+    const editForm = document.getElementById('editTemplateForm');
+    editForm?.addEventListener('submit', (event) => {
       event.preventDefault();
       void saveTemplateEdit(event.currentTarget, current, iso);
     });
+    if (editForm) bindPoolNolaSearch(editForm);
   }
 
   async function saveTemplateEdit(form, current, iso) {
@@ -1020,7 +1138,7 @@
         <section class="candidate-section">
           <h3>${isRotation ? 'Required-rotation pool candidates' : 'Best single-program fits'}</h3>
           ${isRotation ? `<p class="small-note">Pool: ${escapeHtml(target.poolName || poolLabel(target.requiredPoolId) || 'not selected')} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months</p>` : ''}
-          ${candidates.slice(0, 10).map(candidateCard).join('') || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool title-match text.' : 'No single-program matches found.'}</p>`}
+          ${candidates.slice(0, 10).map(candidateCard).join('') || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA code/prefix or selected pool items.' : 'No single-program matches found.'}</p>`}
         </section>
         <section class="candidate-section">
           <h3>Best 30 + 30 fits</h3>
@@ -1072,9 +1190,17 @@
       why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'required pool match');
     }
 
-    if (slot.lengthMinutes && length && length !== Number(slot.lengthMinutes)) return { ok: false, program, length, score: -200, why: ['wrong length'] };
+    if (slot.lengthMinutes && length && length !== Number(slot.lengthMinutes)) {
+      if (slot.slotBehavior === 'required_rotation') {
+        score -= 60;
+        warnings.push(`${length}m program in ${slot.lengthMinutes}m slot`);
+      } else {
+        return { ok: false, program, length, score: -200, why: ['wrong length'] };
+      }
+    }
     if (slot.lengthMinutes && !length) warnings.push('missing length');
-    if (slot.purpose === 'series' && !isSeries) return { ok: false, program, length, score: -200, why: ['not series'] };
+    if (slot.purpose === 'series' && !isSeries && slot.slotBehavior !== 'required_rotation') return { ok: false, program, length, score: -200, why: ['not series'] };
+    if (slot.purpose === 'series' && !isSeries && slot.slotBehavior === 'required_rotation') { score += 4; warnings.push('not marked as series'); }
     if (slot.slotBehavior !== 'required_rotation' && ['standalone', 'holiday', 'local'].includes(slot.purpose) && isSeries) return { ok: false, program, length, score: -120, why: ['series excluded'] };
     if (slot.slotBehavior === 'required_rotation' && isSeries) { score += 8; why.push('series allowed by required rotation'); }
 
@@ -1136,8 +1262,8 @@
   function rotationPoolMatch(program, slot) {
     const pool = getPool(slot.requiredPoolId);
     const items = poolItemsForPool(slot.requiredPoolId);
-    const fallbackTerm = text(pool?.titleMatchText || slot.titleTopic || slot.templateGroupName);
-    const candidates = items.length ? items : (fallbackTerm ? [{ titleMatchText: fallbackTerm, itemLabel: fallbackTerm, priorityWeight: 0, active: true }] : []);
+    const fallbackTerm = text(pool?.nolaMatchText || pool?.titleMatchText || slot.titleTopic || slot.templateGroupName);
+    const candidates = items.length ? items : (fallbackTerm ? [{ titleMatchText: fallbackTerm, nolaMatchText: pool?.nolaMatchText || '', itemLabel: fallbackTerm, priorityWeight: 0, active: true }] : []);
     let best = null;
     candidates.forEach((item) => {
       const match = programMatchesPoolItem(program, item);
@@ -1150,7 +1276,13 @@
 
   function programMatchesPoolItem(program, item) {
     const ids = programRecordIds(program);
-    if (item.programRecordId && ids.has(text(item.programRecordId))) return { ok: true, score: 80 };
+    if (item.programRecordId && ids.has(text(item.programRecordId))) return { ok: true, score: 90, label: item.itemLabel || item.programTitle || 'selected record' };
+
+    const programNolaNorm = normalizeNola(programNola(program));
+    const nolaTerms = text(item.nolaMatchText).split(/[,;|\s]+/).map(normalizeNola).filter((term) => term.length >= 2);
+    const nolaMatched = nolaTerms.find((term) => programNolaNorm && (programNolaNorm.startsWith(term) || programNolaNorm.includes(term)));
+    if (nolaMatched) return { ok: true, score: Math.min(85, 42 + nolaMatched.length * 3), label: item.itemLabel || item.nolaMatchText };
+
     const terms = text(item.titleMatchText || item.programTitle || item.itemLabel).toLowerCase().split(/[,;|]/).map((term) => term.trim()).filter(Boolean);
     if (!terms.length) return { ok: false, score: 0 };
     const haystack = text([program.title, program.program_title, program.series_title, program.notes, program.topic, program.secondary_topic].join(' ')).toLowerCase();
@@ -1159,7 +1291,7 @@
   }
 
   function programRecordIds(program) {
-    return new Set([program.id, program.program_id, program.record_id, program.nola_code, program.nola, program.slug].map(text).filter(Boolean));
+    return new Set([program.id, program.program_id, program.record_id, program.nola_eidr, program.nola_code, program.nola, program.legacy_code, program.slug].map(text).filter(Boolean));
   }
 
   function daysSinceLastAired(program, channel, iso) {
@@ -1191,7 +1323,7 @@
   function candidateCard(entry) {
     const p = entry.program;
     const title = programTitle(p);
-    const meta = [entry.length ? `${entry.length}m` : 'length?', p.program_type, p.topic, p.distributor].filter(Boolean).join(' · ');
+    const meta = [entry.length ? `${entry.length}m` : 'length?', programNola(p), p.program_type, p.topic, p.distributor].filter(Boolean).join(' · ');
     return `
       <div class="candidate-card">
         <div class="candidate-title"><span class="candidate-score">${entry.score}</span>${escapeHtml(title)}</div>
@@ -1219,6 +1351,12 @@
   function fillOptions(current) {
     const opts = [['single','Single program only'],['two_half_hours','Two half-hours allowed'],['single_or_two','Either single or two half-hours']];
     return opts.map(([value,label]) => `<option value="${value}"${value===current?' selected':''}>${label}</option>`).join('');
+  }
+
+  function lengthOptions(current) {
+    const allowed = [30, 60, 90, 120, 150, 180, 210, 240];
+    const normalized = Number(current) || 60;
+    return allowed.map((value) => `<option value="${value}"${value === normalized ? ' selected' : ''}>${value}</option>`).join('');
   }
 
   function timeOptions(current) {
@@ -1431,8 +1569,15 @@
   }
 
   function programTitle(program) { return text(program.title || program.program_title || '(untitled)'); }
+  function programNola(program) { return text(program.nola_eidr || program.nola_code || program.nola || ''); }
+  function normalizeNola(value) { return text(value).toLowerCase().replace(/[^a-z0-9]/g, ''); }
   function text(value) { return (value ?? '').toString().trim(); }
   function saneNumber(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+  function saneLengthMinutes(value, fallback = 60) {
+    const allowed = [30, 60, 90, 120, 150, 180, 210, 240];
+    const n = Number(value);
+    return allowed.includes(n) ? n : fallback;
+  }
   function saneNullableNumber(value) { const n = Number(value); return Number.isFinite(n) && n > 0 ? n : null; }
   function newId() { return `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
   function firstOfMonth(date) { return new Date(date.getFullYear(), date.getMonth(), 1); }
