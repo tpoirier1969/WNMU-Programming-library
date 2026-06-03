@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.72"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.73"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -168,15 +168,19 @@
       grid-template-rows: minmax(0, auto) auto;
       gap: 0;
     }
+    .context-row.faded { display: flex; align-items: center; }
     .context-row.faded { opacity: .50; }
     .context-row.current { border-color: rgba(25,95,127,.65); background: #eaf5fa; opacity: 1; }
     .context-row.empty-current { border-style: dashed; background: #fbfdff; color: var(--muted); }
     .slot-line { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: flex-start; gap: 4px; align-items: start; min-width: 0; width: 100%; max-width: 100%; overflow: hidden; }
-    .slot-time { font-size: .60rem; color: var(--muted); font-weight: 750; white-space: nowrap; }
-    .slot-title { font-size: .68rem; font-weight: 780; line-height: 1.08; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; display: block; }
+    .slot-line.compact-title-only { display: block; }
+    .slot-time { font-size: .58rem; color: var(--muted); font-weight: 750; white-space: nowrap; }
+    .slot-title { font-size: .70rem; font-weight: 780; line-height: 1.08; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; display: block; }
+    .current .slot-title { font-size: .74rem; white-space: normal; line-height: 1.08; }
     .slot-meta { font-size: .58rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; }
     .status-pbs .slot-title::before { content: 'PBS · '; color: #536170; }
     .status-override .slot-title::before { content: 'OVERRIDE · '; color: #995300; }
+    .manual-candidate.status-override .slot-title::before { content: ''; }
     .status-fundraiser .slot-title::before { content: 'FUNDRAISER · '; color: #854d0e; }
     .status-local .slot-title::before { content: 'LOCAL · '; color: #1c6d3a; }
     .status-rotation .slot-title::before { content: 'ROTATION · '; color: #3b5b8a; }
@@ -252,7 +256,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.72 candidate display refresh</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.73 series cascade display fit</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.72
+// WNMU Programming Library Schedule Planner test helper v1.5.73
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.72-candidate-display-refresh';
+  const VERSION = 'v1.5.73-series-cascade-display-fit';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -557,13 +557,25 @@
   }
 
   function renderContextRow(item, role) {
-    if (!item) return `<div class="context-row faded"><div class="slot-line"><span class="slot-time">—</span><span class="slot-title">No nearby item</span></div></div>`;
+    if (!item) return `<div class="context-row faded"><div class="slot-line compact-title-only"><span class="slot-title">No nearby item</span></div></div>`;
     const empty = item.kind === 'empty';
+    const manualCandidate = hasSelectedCandidateProgram(item);
     const statusClass = item.status ? ` status-${item.status}` : '';
-    const classes = ['context-row', role, empty && role === 'current' ? 'empty-current' : '', statusClass].filter(Boolean).join(' ');
+    const classes = ['context-row', role, empty && role === 'current' ? 'empty-current' : '', statusClass, manualCandidate ? 'manual-candidate' : ''].filter(Boolean).join(' ');
+    const title = item.title || item.label || 'Open slot';
+    if (role !== 'current' && !empty) {
+      return `
+        <div class="${classes}">
+          <div class="slot-line compact-title-only"><span class="slot-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span></div>
+        </div>
+      `;
+    }
+    const titleLine = manualCandidate
+      ? `<div class="slot-line compact-title-only"><span class="slot-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span></div>`
+      : `<div class="slot-line"><span class="slot-time">${escapeHtml(formatTime(item.startMinutes))}</span><span class="slot-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span></div>`;
     return `
       <div class="${classes}">
-        <div class="slot-line"><span class="slot-time">${escapeHtml(formatTime(item.startMinutes))}</span><span class="slot-title">${escapeHtml(item.title || item.label || 'Open slot')}</span></div>
+        ${titleLine}
         <div class="slot-meta">${escapeHtml(itemMeta(item))}</div>
       </div>
     `;
@@ -578,12 +590,10 @@
     // when Tod is recreating a known schedule.
     if (hasSelectedCandidateProgram(item)) {
       const bits = [];
-      const episode = selectedProgramEpisodeLine(item);
-      if (episode) bits.push(episode);
-      if (item.selectedProgramNola) bits.push(`NOLA: ${item.selectedProgramNola}`);
-      if (item.lengthMinutes) bits.push(`${item.lengthMinutes}m`);
-      bits.push('manual pick');
-      return bits.join(' · ');
+      if (item.selectedProgramNola) bits.push(item.selectedProgramNola);
+      const episodeNumber = selectedProgramEpisodeNumber(item);
+      if (episodeNumber) bits.push(`Ep ${episodeNumber}`);
+      return bits.join(' · ') || 'manual pick';
     }
 
     const bits = [];
@@ -1642,6 +1652,16 @@
       const entry = isExcludedPick ? preview.excluded.get(key) : preview.singles.get(key);
       if (!entry) throw new Error('Candidate is no longer available. Refresh the preview and try again.');
       const length = entry.length || parseLength(entry.program.length_minutes) || target.lengthMinutes || STEP;
+      const seriesPlan = buildSeriesCascadePlan(entry.program, target, iso, length);
+      if (seriesPlan.shouldCascade) {
+        await saveCandidateSeriesCascade(entry.program, target, iso, length, isExcludedPick ? entry : null, seriesPlan);
+        await refreshPlannerRowsAfterCandidateFill();
+        closeModal();
+        render();
+        const suffix = isExcludedPick ? ' while bypassing helper eligibility warnings' : '';
+        updateSummary(`Filled ${seriesPlan.count} ${seriesPlan.dayLabel} slot${seriesPlan.count === 1 ? '' : 's'} starting ${formatLongDate(fromIsoDate(iso))} with ${seriesPlan.displayTitle}${suffix}.`);
+        return;
+      }
       await saveCandidateOverride(entry.program, target, iso, target.startMinutes, length, isExcludedPick ? entry : null);
       await refreshPlannerRowsAfterCandidateFill();
       closeModal();
@@ -1675,11 +1695,12 @@
     state.poolItems = (poolItemResult.data || []).map(poolItemFromDb);
   }
 
-  async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes, bypassEntry) {
+  async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes, bypassEntry, options = {}) {
     const existing = findExistingOverrideForSlot(iso, slot.channel || state.channel, startMinutes);
-    const pTitle = scheduledProgramTitle(program);
+    const pTitle = options.displayTitle || scheduledProgramTitle(program);
     const pNola = programNola(program);
     const pId = programStableId(program);
+    const episodeNumber = options.episodeNumber || '';
     const override = {
       ...slot,
       id: existing?.id || '',
@@ -1688,9 +1709,9 @@
       channel: slot.channel || state.channel,
       startDate: iso,
       endDate: iso,
-      overrideTemplateId: slot.kind === 'template' ? slot.id : (slot.overrideTemplateId || ''),
+      overrideTemplateId: options.templateId || (slot.kind === 'template' ? slot.id : (slot.overrideTemplateId || '')),
       pbsWasOverridden: Boolean(slot.status === 'pbs' || slot.pbsWasOverridden),
-      overrideReason: 'candidate_pick',
+      overrideReason: options.overrideReason || 'candidate_pick',
       startMinutes,
       lengthMinutes: Number(lengthMinutes || slot.lengthMinutes || STEP),
       purpose: looksLikeSeries(program) ? 'series' : (slot.purpose === 'flex' ? 'flex' : 'standalone'),
@@ -1699,10 +1720,12 @@
       fillStrategy: 'single',
       seriesPattern: looksLikeSeries(program) ? (slot.seriesPattern || 'weekly_one_day') : 'none',
       templateGroupName: slot.templateGroupName || slot.poolName || '',
+      episodeMin: episodeNumber || slot.episodeMin || null,
+      episodeMax: episodeNumber || slot.episodeMax || null,
       selectedProgramRecordId: pId,
       selectedProgramTitle: pTitle,
       selectedProgramNola: pNola,
-      notes: candidateOverrideNotes(program, slot, bypassEntry)
+      notes: candidateOverrideNotes(program, slot, bypassEntry, episodeNumber)
     };
     const payload = overrideToDb(override);
     if (existing?.id) {
@@ -1716,6 +1739,119 @@
     }
   }
 
+
+  async function saveCandidateSeriesCascade(program, slot, iso, lengthMinutes, bypassEntry, plan) {
+    const dates = buildSeriesCascadeDates(iso, plan);
+    for (let i = 0; i < dates.length; i += 1) {
+      const episodeNumber = plan.episodeNumbers[i] || '';
+      const matchingTemplate = findTemplateForCascadeDate(dates[i], slot, plan);
+      await saveCandidateOverride(program, matchingTemplate || slot, dates[i], slot.startMinutes, lengthMinutes, bypassEntry, {
+        displayTitle: plan.displayTitle,
+        episodeNumber,
+        templateId: matchingTemplate?.id || (slot.kind === 'template' ? slot.id : (slot.overrideTemplateId || '')),
+        overrideReason: 'candidate_series_cascade'
+      });
+    }
+  }
+
+  function buildSeriesCascadePlan(program, slot, iso, lengthMinutes) {
+    const count = extractEpisodeCount(program) || 0;
+    if (!looksLikeSeries(program) || count <= 1) {
+      return { shouldCascade: false, count: 1, displayTitle: scheduledProgramTitle(program), episodeNumbers: [], weekdays: [], dayLabel: 'selected' };
+    }
+    const pattern = text(slot.seriesPattern || slot.series_pattern || '').toLowerCase();
+    const startDow = fromIsoDate(iso).getDay();
+    let weekdays = matchingTemplateWeekdays(slot);
+    if (!weekdays.length) weekdays = (pattern.includes('consecutive') || pattern.includes('across')) ? [1,2,3,4,5] : [startDow];
+    if (!(pattern.includes('consecutive') || pattern.includes('across'))) weekdays = [startDow];
+    const seasonNumber = seriesSeasonNumber(program);
+    const episodeNumbers = Array.from({ length: count }, (_, index) => seasonNumber ? String(seasonNumber * 100 + index + 1) : String(index + 1));
+    return {
+      shouldCascade: true,
+      count,
+      displayTitle: seriesDisplayTitle(program, seasonNumber),
+      episodeNumbers,
+      weekdays: Array.from(new Set(weekdays.map(Number))).sort((a,b) => a - b),
+      dayLabel: (pattern.includes('consecutive') || pattern.includes('across')) ? 'M-F/selected-weekday' : 'weekly'
+    };
+  }
+
+  function buildSeriesCascadeDates(startIso, plan) {
+    const dates = [];
+    let cursor = fromIsoDate(startIso);
+    let guard = 0;
+    const allowed = new Set((plan.weekdays || []).map(Number));
+    while (dates.length < plan.count && guard < 500) {
+      const iso = toIsoDate(cursor);
+      const dow = cursor.getDay();
+      if (iso >= startIso && allowed.has(dow)) dates.push(iso);
+      cursor = addDays(cursor, 1);
+      guard += 1;
+    }
+    return dates;
+  }
+
+  function matchingTemplateWeekdays(slot) {
+    const startMinutes = Number(slot.startMinutes || 0);
+    const channel = slot.channel || state.channel;
+    const poolId = text(slot.requiredPoolId || slot.required_pool_id);
+    const group = text(slot.templateGroupName || slot.template_group_name);
+    const candidates = state.templates.filter((item) => {
+      if ((item.channel || state.channel) !== channel) return false;
+      if (Number(item.startMinutes) !== startMinutes) return false;
+      if (poolId && text(item.requiredPoolId) === poolId) return true;
+      if (group && text(item.templateGroupName) === group) return true;
+      if (slot.id && String(item.id) === String(slot.id)) return true;
+      return false;
+    });
+    return candidates.map((item) => Number(item.dayOfWeek)).filter((dow) => Number.isInteger(dow) && dow >= 0 && dow <= 6);
+  }
+
+  function findTemplateForCascadeDate(iso, slot, plan) {
+    const date = fromIsoDate(iso);
+    const dow = date.getDay();
+    const startMinutes = Number(slot.startMinutes || 0);
+    const channel = slot.channel || state.channel;
+    const poolId = text(slot.requiredPoolId || slot.required_pool_id);
+    const group = text(slot.templateGroupName || slot.template_group_name);
+    return state.templates.find((item) => {
+      if ((item.channel || state.channel) !== channel) return false;
+      if (Number(item.dayOfWeek) !== dow) return false;
+      if (Number(item.startMinutes) !== startMinutes) return false;
+      if (!dateInRange(iso, item.startDate, item.endDate)) return false;
+      if (poolId && text(item.requiredPoolId) === poolId) return true;
+      if (group && text(item.templateGroupName) === group) return true;
+      return String(item.id) === String(slot.id);
+    }) || null;
+  }
+
+  function seriesSeasonNumber(program) {
+    const values = [programTitle(program), program?.season_label, program?.season, program?.episode_season, programNola(program)].map(text).filter(Boolean);
+    for (const value of values) {
+      const match = value.match(/(?:\bS\.?\s*|\bSeason\s*)(\d{1,2})\b/i) || value.match(/\bS(\d{1,2})\b/i);
+      if (match) return Number(match[1]);
+    }
+    return null;
+  }
+
+  function seriesDisplayTitle(program, seasonNumber) {
+    const rawTitle = programTitle(program) || scheduledProgramTitle(program);
+    if (!seasonNumber) return rawTitle;
+    const base = rawTitle
+      .replace(/\bS\.?\s*\d{1,2}\b/ig, '')
+      .replace(/\bSeason\s*\d{1,2}\b/ig, '')
+      .replace(/[-–—:]\s*$/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return `${base || rawTitle} ${seasonNumber}00s`;
+  }
+
+  function addDays(date, days) {
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
   function findExistingOverrideForSlot(iso, channel, startMinutes) {
     return state.overrides.find((item) => {
       if (item.channel !== channel) return false;
@@ -1724,15 +1860,14 @@
     }) || null;
   }
 
-  function candidateOverrideNotes(program, slot, bypassEntry) {
+  function candidateOverrideNotes(program, slot, bypassEntry, episodeNumber = '') {
     const parts = [bypassEntry ? 'Manual exact-schedule fill from a candidate that helper rules marked not recommended.' : 'Filled from Schedule Planner candidate preview.'];
     if (bypassEntry?.why?.length) parts.push(`Bypassed helper warning: ${bypassEntry.why.join(' · ')}.`);
     const nola = programNola(program);
     if (nola) parts.push(`NOLA: ${nola}.`);
+    if (episodeNumber) parts.push(`Episode: ${episodeNumber}.`);
     const rights = rightsDisplay(program);
     if (rights) parts.push(`Rights: ${rights}.`);
-    const episodes = extractEpisodeCount(program);
-    if (episodes) parts.push(`Episodes: ${episodes}.`);
     const existing = text(slot.notes);
     if (existing) parts.push(`Slot notes: ${existing}`);
     return parts.join(' ');
@@ -2050,6 +2185,23 @@
     return title;
   }
 
+
+  function selectedProgramEpisodeNumber(item) {
+    const explicit = text(item?.selectedProgramEpisode || item?.selected_program_episode || item?.episodeLabel || item?.episode_label);
+    const explicitNum = explicit.match(/\b\d{1,4}\b/);
+    if (explicitNum) return explicitNum[0];
+    const min = Number(item?.episodeMin ?? item?.episode_min);
+    const max = Number(item?.episodeMax ?? item?.episode_max);
+    if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && min === max) return String(min);
+    const selectedProgram = findSelectedProgramForPlannerItem(item);
+    const programEpisode = selectedProgram ? programSingleEpisodeNumber(selectedProgram) : '';
+    if (programEpisode) return programEpisode;
+    const nola = text(item?.selectedProgramNola || item?.selected_program_nola);
+    const nolaEpisode = nola.match(/(\d{3,4})\b/);
+    if (nolaEpisode) return nolaEpisode[1];
+    return '';
+  }
+
   function selectedProgramEpisodeLine(item) {
     const selectedProgram = findSelectedProgramForPlannerItem(item);
     if (selectedProgram) return programScheduleEpisodeLine(selectedProgram);
@@ -2067,6 +2219,7 @@
     if (nolaEpisode) return `Episode: ${nolaEpisode[1]}`;
     const min = Number(item?.episodeMin ?? item?.episode_min);
     const max = Number(item?.episodeMax ?? item?.episode_max);
+    if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max === min) return `Episode: ${min}`;
     if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) return `Episodes ${min}–${max}`;
     if (Number.isFinite(min) && min > 0) return `Episode ${min}+`;
     return '';
@@ -2083,8 +2236,6 @@
     if (nolaEpisode) return `Episode: ${nolaEpisode[1]}`;
     const tag = text(program.episode_season);
     if (tag && !looksLikeSeries(program)) return `Episode/season: ${tag}`;
-    const count = extractEpisodeCount(program);
-    if (count) return `${count} episode${count === 1 ? '' : 's'}`;
     return '';
   }
 
