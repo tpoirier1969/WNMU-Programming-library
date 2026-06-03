@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.63
+// WNMU Programming Library Schedule Planner test helper v1.5.64
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.63-nola-pool-test';
+  const VERSION = 'v1.5.64-full-nola-load-test';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -158,10 +158,31 @@
   }
 
   async function selectPrograms() {
-    const enriched = await state.supabase.from('programs_enriched').select('*');
+    const enriched = await selectAllProgramRows('programs_enriched');
     if (!enriched.error) return enriched;
     console.warn('programs_enriched read failed; falling back to programs:', enriched.error);
-    return state.supabase.from('programs').select('*');
+    return selectAllProgramRows('programs');
+  }
+
+  async function selectAllProgramRows(tableName) {
+    const pageSize = 1000;
+    const rows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await state.supabase
+        .from(tableName)
+        .select('*')
+        .range(from, from + pageSize - 1);
+      if (error) return { data: rows, error };
+      const page = Array.isArray(data) ? data : [];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+      from += pageSize;
+      if (from > 50000) {
+        return { data: rows, error: new Error(`Stopped loading ${tableName} after 50,000 rows. Narrow the Library data source before using planner search.`) };
+      }
+    }
+    return { data: rows, error: null };
   }
 
 
@@ -844,20 +865,20 @@
       if (hiddenId) hiddenId.value = '';
       if (hiddenTitle) hiddenTitle.value = '';
       if (hiddenNola) hiddenNola.value = '';
-      renderNolaMatchResults(input.value, results, form);
+      renderNolaMatchResults(input.value, results);
     };
 
     input.addEventListener('input', renderForValue);
-    input.addEventListener('focus', () => renderNolaMatchResults(input.value, results, form));
+    input.addEventListener('focus', () => renderNolaMatchResults(input.value, results));
     results.addEventListener('click', (event) => {
       const button = event.target.closest('[data-pool-program-id]');
       if (!button) return;
-      const program = state.programs.find((item) => String(item.id || item.program_id || item.record_id) === String(button.dataset.poolProgramId));
+      const program = findProgramByStableId(button.dataset.poolProgramId);
       if (!program) return;
       const title = programTitle(program);
       const nola = programNola(program);
       if (input) input.value = nola;
-      if (hiddenId) hiddenId.value = text(program.id || program.program_id || program.record_id);
+      if (hiddenId) hiddenId.value = programStableId(program);
       if (hiddenTitle) hiddenTitle.value = title;
       if (hiddenNola) hiddenNola.value = nola;
       results.innerHTML = `<div class="nola-match-empty">Selected: <strong>${escapeHtml(title)}</strong>${nola ? ` · ${escapeHtml(nola)}` : ''}</div>`;
@@ -866,15 +887,15 @@
     });
   }
 
-  function renderNolaMatchResults(rawQuery, results, form) {
+  function renderNolaMatchResults(rawQuery, results) {
     const query = normalizeNola(rawQuery);
     if (!query || query.length < 2) {
-      results.innerHTML = '<div class="nola-match-empty">Type at least 2 NOLA characters to search loaded Library programs.</div>';
+      results.innerHTML = '<div class="nola-match-empty">Type at least 2 NOLA characters to search all loaded Library programs.</div>';
       return;
     }
-    const matches = findNolaMatches(query).slice(0, 12);
+    const matches = findNolaMatches(query).slice(0, 20);
     if (!matches.length) {
-      results.innerHTML = '<div class="nola-match-empty">No NOLA matches found in the loaded Library program records.</div>';
+      results.innerHTML = `<div class="nola-match-empty">No NOLA matches found in ${state.programs.length.toLocaleString()} loaded Library program records.</div>`;
       return;
     }
     results.innerHTML = `
@@ -882,7 +903,7 @@
         ${matches.map(({ program }) => {
           const title = programTitle(program);
           const nola = programNola(program);
-          const id = text(program.id || program.program_id || program.record_id);
+          const id = programStableId(program);
           const meta = [nola || 'No NOLA', parseLength(program.length_minutes) ? `${parseLength(program.length_minutes)}m` : '', program.program_type, program.rights_end ? `rights end ${normalizeDateish(program.rights_end) || program.rights_end}` : ''].filter(Boolean).join(' · ');
           return `<button type="button" class="nola-match-option" data-pool-program-id="${escapeHtml(id)}"><span><span class="nola-match-title">${escapeHtml(title)}</span><span class="nola-match-meta">${escapeHtml(meta)}</span></span><span class="nola-chip">${escapeHtml(nola || 'pick')}</span></button>`;
         }).join('')}
@@ -891,18 +912,33 @@
   }
 
   function findNolaMatches(query) {
+    const seen = new Set();
     return state.programs
       .map((program) => {
-        const nola = normalizeNola(programNola(program));
-        if (!nola) return null;
-        const starts = nola.startsWith(query);
-        const includes = !starts && nola.includes(query);
+        const values = programNolaValues(program);
+        const normalizedValues = values.map(normalizeNola).filter(Boolean);
+        if (!normalizedValues.length) return null;
+        const starts = normalizedValues.some((nola) => nola.startsWith(query));
+        const includes = !starts && normalizedValues.some((nola) => nola.includes(query));
         if (!starts && !includes) return null;
+        const id = programStableId(program);
+        if (seen.has(id)) return null;
+        seen.add(id);
         const activeBonus = program.is_archived ? -50 : 0;
-        return { program, score: (starts ? 50 : 20) + Math.min(query.length, 12) + activeBonus };
+        const bestLength = Math.max(...normalizedValues.filter((nola) => nola.includes(query)).map((nola) => nola.length), query.length);
+        return { program, score: (starts ? 70 : 25) + Math.min(bestLength, 16) + activeBonus };
       })
       .filter(Boolean)
       .sort((a, b) => b.score - a.score || programNola(a.program).localeCompare(programNola(b.program)) || programTitle(a.program).localeCompare(programTitle(b.program)));
+  }
+
+  function findProgramByStableId(id) {
+    const needle = text(id);
+    return state.programs.find((program) => programRecordIds(program).has(needle)) || null;
+  }
+
+  function programStableId(program) {
+    return text(program.id || program.program_id || program.record_id || program.nola_eidr || program.nola_code || program.nola || program.legacy_code || program.slug);
   }
 
   async function saveTemplateFromForm(form, iso) {
@@ -1291,7 +1327,7 @@
   }
 
   function programRecordIds(program) {
-    return new Set([program.id, program.program_id, program.record_id, program.nola_eidr, program.nola_code, program.nola, program.legacy_code, program.slug].map(text).filter(Boolean));
+    return new Set([program.id, program.program_id, program.record_id, ...programNolaValues(program), program.legacy_code, program.slug].map(text).filter(Boolean));
   }
 
   function daysSinceLastAired(program, channel, iso) {
@@ -1569,7 +1605,21 @@
   }
 
   function programTitle(program) { return text(program.title || program.program_title || '(untitled)'); }
-  function programNola(program) { return text(program.nola_eidr || program.nola_code || program.nola || ''); }
+  function programNola(program) { return programNolaValues(program)[0] || ''; }
+  function programNolaValues(program) {
+    const values = [];
+    const directKeys = ['nola_eidr','nola_code','nola','nola_id','nolaId','nolaCode','program_nola','programNola','content_identifier','contentIdentifier','eidr','eidr_code'];
+    directKeys.forEach((key) => {
+      const value = text(program?.[key]);
+      if (value) values.push(value);
+    });
+    Object.keys(program || {}).forEach((key) => {
+      if (!/(nola|eidr)/i.test(key)) return;
+      const value = text(program[key]);
+      if (value) values.push(value);
+    });
+    return [...new Set(values)];
+  }
   function normalizeNola(value) { return text(value).toLowerCase().replace(/[^a-z0-9]/g, ''); }
   function text(value) { return (value ?? '').toString().trim(); }
   function saneNumber(value, fallback) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
