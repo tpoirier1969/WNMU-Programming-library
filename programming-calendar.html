@@ -207,6 +207,10 @@
     .candidate-section { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--soft); }
     .candidate-section h3 { margin: 0 0 8px; font-size: .98rem; }
     .candidate-card { border: 1px solid var(--line); border-radius: 12px; padding: 9px; background: #fff; margin-bottom: 8px; }
+    .candidate-card--blocked { border-style: dashed; background: #fbfcfd; }
+    .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; margin-top: 6px; }
+    .candidate-detail-line { font-size: .82rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+    .candidate-detail-line strong { color: var(--ink); }
     .candidate-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
     .candidate-use-btn { padding: 7px 10px; font-size: .82rem; }
     .candidate-description { margin-top: 6px; font-size: .82rem; color: var(--muted); }
@@ -214,7 +218,7 @@
     .candidate-description div { margin-top: 4px; line-height: 1.35; }
     .excluded-candidate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .excluded-candidate { opacity: .82; background: #fbfcfd; }
-    .candidate-title { font-weight: 800; }
+    .candidate-title { font-weight: 800; cursor: help; }
     .candidate-meta, .candidate-why { font-size: .82rem; color: var(--muted); margin-top: 3px; }
     .candidate-score { float: right; font-weight: 850; color: var(--accent); }
     .nola-match-results { grid-column: 1 / -1; display: grid; gap: 6px; margin-top: -2px; }
@@ -248,7 +252,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.66 candidate click fill</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.68 labeled candidate score</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

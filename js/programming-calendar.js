@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.66
+// WNMU Programming Library Schedule Planner test helper v1.5.68
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.66-candidate-click-fill';
+  const VERSION = 'v1.5.68-labeled-candidate-score';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -1477,7 +1477,7 @@
   }
 
   function rightsUrgencyInfo(program, iso, months) {
-    const end = normalizeDateish(program.rights_end);
+    const end = rightsEnd(program);
     if (!end || !months) return { urgent: false, monthsUntil: null };
     const monthsUntil = (fromIsoDate(end).getFullYear() - fromIsoDate(iso).getFullYear()) * 12 + (fromIsoDate(end).getMonth() - fromIsoDate(iso).getMonth());
     return { urgent: monthsUntil >= 0 && monthsUntil <= months, monthsUntil };
@@ -1497,26 +1497,25 @@
     return `${programStableId(program) || 'program'}_${index}`.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
+  function formatCandidateScore(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 'n/a';
+    return String(Math.round(numeric));
+  }
+
   function candidateCard(entry, key, slot, iso) {
     const p = entry.program;
     const title = programTitle(p);
-    const length = entry.length || parseLength(p.length_minutes);
-    const nola = programNola(p);
-    const episodeCount = extractEpisodeCount(p);
-    const rights = rightsDisplay(p);
-    const history = channelHistoryText(p, state.channel, iso);
     const description = programDescription(p);
-    const topMeta = [length ? `${length}m` : 'length?', nola, p.program_type, p.topic, p.distributor].filter(Boolean).join(' · ');
-    const why = [...entry.why, ...entry.warnings.map((w) => `warn: ${w}`)].slice(0, 6).join(' · ');
+    const details = candidateDetailRows(p, state.channel, iso);
+    const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 8).join(' · ');
     return `
       <div class="candidate-card" title="${escapeHtml(description || title)}">
-        <div class="candidate-title">${escapeHtml(title)}</div>
-        <div class="candidate-meta">${escapeHtml(topMeta)}</div>
-        <div class="candidate-meta"><strong>Rights:</strong> ${escapeHtml(rights)}</div>
-        ${episodeCount ? `<div class="candidate-meta"><strong>Episodes:</strong> ${escapeHtml(episodeCount)}</div>` : ''}
-        <div class="candidate-meta"><strong>${escapeHtml(state.channel)} history:</strong> ${escapeHtml(history)}</div>
+        <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(entry.score))}</div>
+        <div class="candidate-title" title="${escapeHtml(description || title)}">${escapeHtml(title)}</div>
+        <div class="candidate-detail-grid">${details}</div>
         <div class="candidate-why">${escapeHtml(why)}</div>
-        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : ''}
+        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : `<div class="candidate-meta"><strong>Description:</strong> none found in Library notes/description fields</div>`}
         <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="single" data-candidate-key="${escapeHtml(key)}">Use this candidate</button></div>
       </div>
     `;
@@ -1526,11 +1525,14 @@
     const aTitle = programTitle(pair.a.program);
     const bTitle = programTitle(pair.b.program);
     return `
-      <div class="candidate-card">
-        <div class="candidate-title">${escapeHtml(aTitle)}</div>
-        <div class="candidate-title" style="margin-top:4px;">+ ${escapeHtml(bTitle)}</div>
-        <div class="candidate-meta">30m + 30m · ${escapeHtml(programNola(pair.a.program) || 'first')} / ${escapeHtml(programNola(pair.b.program) || 'second')}</div>
-        <div class="candidate-meta"><strong>${escapeHtml(state.channel)} history:</strong> ${escapeHtml(channelHistoryText(pair.a.program, state.channel, iso))} · ${escapeHtml(channelHistoryText(pair.b.program, state.channel, iso))}</div>
+      <div class="candidate-card" title="${escapeHtml([programDescription(pair.a.program), programDescription(pair.b.program)].filter(Boolean).join('\n\n'))}">
+        <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(pair.score))}</div>
+        <div class="candidate-title" title="${escapeHtml(programDescription(pair.a.program) || aTitle)}">${escapeHtml(aTitle)}</div>
+        <div class="candidate-title" style="margin-top:4px;" title="${escapeHtml(programDescription(pair.b.program) || bTitle)}">+ ${escapeHtml(bTitle)}</div>
+        <div class="candidate-detail-grid">
+          ${candidateDetailRows(pair.a.program, state.channel, iso)}
+          ${candidateDetailRows(pair.b.program, state.channel, iso)}
+        </div>
         <div class="candidate-why">${escapeHtml(pair.why.join(' · '))}</div>
         <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="pair" data-candidate-key="${escapeHtml(key)}">Use this 30 + 30 pair</button></div>
       </div>
@@ -1539,15 +1541,36 @@
 
   function excludedCandidateCard(entry) {
     const p = entry.program;
-    const episodeCount = extractEpisodeCount(p);
-    const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 4).join(' · ');
+    const description = programDescription(p);
+    const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 6).join(' · ');
     return `
-      <div class="candidate-card excluded-candidate">
-        <div class="candidate-title">${escapeHtml(programTitle(p))}</div>
-        <div class="candidate-meta">${escapeHtml([parseLength(p.length_minutes) ? `${parseLength(p.length_minutes)}m` : '', programNola(p), episodeCount ? `${episodeCount} episodes` : '', rightsDisplay(p)].filter(Boolean).join(' · '))}</div>
-        <div class="candidate-why">${escapeHtml(why || 'Not eligible under current slot rules')}</div>
+      <div class="candidate-card candidate-card--blocked excluded-candidate" title="${escapeHtml(description || programTitle(p))}">
+        <div class="candidate-title" title="${escapeHtml(description || programTitle(p))}">${escapeHtml(programTitle(p))}</div>
+        <div class="candidate-detail-grid">${candidateDetailRows(p, state.channel, null)}</div>
+        <div class="candidate-why"><strong>Blocked:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
+        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : ''}
       </div>
     `;
+  }
+
+  function candidateDetailRows(program, channel, iso) {
+    const length = parseLength(program.length_minutes);
+    const nola = programNola(program) || 'none found';
+    const rights = rightsParts(program);
+    const episodeCount = extractEpisodeCount(program);
+    const episodeSeason = text(program.episode_season);
+    const history = channelHistoryText(program, channel, iso);
+    const rows = [
+      ['NOLA', nola],
+      ['Length', length ? `${length}m` : 'unknown'],
+      ['Type', [program.program_type, program.topic, program.distributor].filter(Boolean).join(' · ') || 'unknown'],
+      ['Rights begin', rights.begin || 'unknown'],
+      ['Rights end', rights.end || 'unknown'],
+      [`${channel} history`, history],
+      ['Episodes', episodeCount ? String(episodeCount) : (episodeSeason || 'unknown')],
+      ['Episode/season field', episodeSeason || 'blank']
+    ];
+    return rows.map(([label, value]) => `<div class="candidate-detail-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('');
   }
 
   function bindCandidatePreviewEvents(preview) {
@@ -1821,7 +1844,7 @@
   }
 
   function rightsStatus(program, iso) {
-    const end = normalizeDateish(program.rights_end);
+    const end = rightsEnd(program);
     if (!end) return { missing: true, expired: false };
     return { missing: false, expired: end < iso };
   }
@@ -1876,13 +1899,16 @@
   }
 
   function rightsDisplay(program) {
-    const begin = rightsBegin(program) || 'unknown begin';
-    const end = rightsEnd(program) || 'unknown end';
-    return `${begin} – ${end}`;
+    const parts = rightsParts(program);
+    return `${parts.begin || 'unknown begin'} – ${parts.end || 'unknown end'}`;
+  }
+
+  function rightsParts(program) {
+    return { begin: rightsBegin(program), end: rightsEnd(program) };
   }
 
   function rightsBegin(program) {
-    return firstDateField(program, ['rights_start', 'rights_begin', 'rights_begins', 'rights_start_date', 'rights_begin_date', 'rights_from', 'rights_from_date', 'license_start', 'license_begin']);
+    return firstDateField(program, ['rights_begin', 'rights_start', 'rights_begins', 'rights_start_date', 'rights_begin_date', 'rights_from', 'rights_from_date', 'license_start', 'license_begin']);
   }
 
   function rightsEnd(program) {
@@ -1899,8 +1925,12 @@
 
   function channelHistoryText(program, channel, iso) {
     const field = channel === '13.3' ? program.aired_13_3 : program.aired_13_1;
+    const raw = text(field);
     const dates = extractDates(field).filter((d) => !iso || d <= iso).sort();
-    if (!dates.length) return 'none found';
+    if (!dates.length) {
+      if (!raw || raw.toLowerCase() === 'no') return 'none found';
+      return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
+    }
     const latest = dates[dates.length - 1];
     const shown = dates.slice(-4).join(', ');
     const count = dates.length;
