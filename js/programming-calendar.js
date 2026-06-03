@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.69
+// WNMU Programming Library Schedule Planner test helper v1.5.70
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.69-manual-use-blocked-rotation-candidates';
+  const VERSION = 'v1.5.70-compact-month-grid';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;

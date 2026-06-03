@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.65"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.70"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -90,10 +90,10 @@
       font-size: .92rem;
     }
     .controls {
-      padding: 13px;
+      padding: 10px;
       display: grid;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .control-grid {
       display: grid;
@@ -122,7 +122,7 @@
       text-align: center;
       font-size: .88rem;
     }
-    .calendar-head div { padding: 9px 4px; border-right: 1px solid rgba(255,255,255,.12); }
+    .calendar-head div { padding: 6px 4px; border-right: 1px solid rgba(255,255,255,.12); }
     .month-grid {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -130,7 +130,7 @@
       border-top: 1px solid var(--line);
     }
     .day-cell {
-      height: 158px;
+      height: 126px;
       min-width: 0;
       width: 100%;
       max-width: 100%;
@@ -138,13 +138,13 @@
       text-align: left;
       border-right: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
-      padding: 7px;
+      padding: 5px;
       background: #fff;
       cursor: pointer;
       display: grid;
       grid-template-rows: auto repeat(3, minmax(0, 1fr));
       align-content: stretch;
-      gap: 5px;
+      gap: 4px;
       position: relative;
       contain: content;
     }
@@ -152,35 +152,35 @@
     .day-cell:hover { outline: 2px solid rgba(25,95,127,.22); outline-offset: -2px; }
     .day-cell.outside { background: #f1f5f8; color: #8a99a8; }
     .day-cell.today { box-shadow: inset 0 0 0 2px rgba(25,95,127,.35); }
-    .day-num { font-size: .82rem; font-weight: 800; display: flex; justify-content: space-between; gap: 4px; }
-    .holiday-chip { color: #854d0e; background: #fff2cf; border: 1px solid #eed08b; border-radius: 999px; padding: 1px 5px; font-size: .66rem; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .day-num { font-size: .76rem; font-weight: 800; display: flex; justify-content: space-between; gap: 4px; }
+    .holiday-chip { color: #854d0e; background: #fff2cf; border: 1px solid #eed08b; border-radius: 999px; padding: 0 4px; font-size: .60rem; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .context-row {
-      border-radius: 10px;
+      border-radius: 8px;
       min-width: 0;
       width: 100%;
       max-width: 100%;
       overflow: hidden;
       border: 1px solid var(--line);
-      padding: 5px 6px;
+      padding: 3px 5px;
       background: #f8fafc;
       min-height: 0;
       display: grid;
       grid-template-rows: minmax(0, auto) auto;
-      gap: 1px;
+      gap: 0;
     }
     .context-row.faded { opacity: .50; }
     .context-row.current { border-color: rgba(25,95,127,.65); background: #eaf5fa; opacity: 1; }
     .context-row.empty-current { border-style: dashed; background: #fbfdff; color: var(--muted); }
-    .slot-line { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: flex-start; gap: 5px; align-items: start; min-width: 0; width: 100%; max-width: 100%; overflow: hidden; }
-    .slot-time { font-size: .66rem; color: var(--muted); font-weight: 750; white-space: nowrap; }
-    .slot-title { font-size: .76rem; font-weight: 780; line-height: 1.12; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; display: block; }
-    .slot-meta { font-size: .66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; }
+    .slot-line { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: flex-start; gap: 4px; align-items: start; min-width: 0; width: 100%; max-width: 100%; overflow: hidden; }
+    .slot-time { font-size: .60rem; color: var(--muted); font-weight: 750; white-space: nowrap; }
+    .slot-title { font-size: .68rem; font-weight: 780; line-height: 1.08; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; display: block; }
+    .slot-meta { font-size: .58rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; }
     .status-pbs .slot-title::before { content: 'PBS · '; color: #536170; }
     .status-override .slot-title::before { content: 'OVERRIDE · '; color: #995300; }
     .status-fundraiser .slot-title::before { content: 'FUNDRAISER · '; color: #854d0e; }
     .status-local .slot-title::before { content: 'LOCAL · '; color: #1c6d3a; }
     .status-rotation .slot-title::before { content: 'ROTATION · '; color: #3b5b8a; }
-    .pool-note { font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pool-note { font-size: .66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .panel-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; align-items: start; }
     .side-panel { padding: 14px; position: sticky; top: 88px; }
     .side-panel h2 { margin: 0 0 8px; font-size: 1.05rem; }
@@ -241,9 +241,9 @@
       .topbar { align-items: start; flex-direction: column; }
       .control-grid, .form-grid { grid-template-columns: 1fr; }
       .span-2, .span-4 { grid-column: auto; }
-      .month-grid, .calendar-head { min-width: 980px; }
+      .month-grid, .calendar-head { min-width: 780px; }
       .calendar-card { overflow-x: auto; }
-      .day-cell { min-height: 145px; }
+      .day-cell { height: 116px; }
     }
   </style>
 </head>
@@ -252,7 +252,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.69 manual blocked-candidate use</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.70 compact month grid</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
