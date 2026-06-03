@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.71
+// WNMU Programming Library Schedule Planner test helper v1.5.72
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.71-selected-candidate-display';
+  const VERSION = 'v1.5.72-candidate-display-refresh';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -598,7 +598,7 @@
   }
 
   function resolveDayContext(date, selectedMinutes, channel) {
-    const items = resolvedItemsForDay(date, channel).sort((a, b) => a.startMinutes - b.startMinutes || b.lengthMinutes - a.lengthMinutes);
+    const items = resolvedItemsForDay(date, channel).sort((a, b) => a.startMinutes - b.startMinutes || b.lengthMinutes - a.lengthMinutes || plannerItemPriority(b) - plannerItemPriority(a));
     const current = findCurrentItem(items, selectedMinutes) || emptyItem(selectedMinutes);
     const currentStart = current.kind === 'empty' ? selectedMinutes : current.startMinutes;
     const currentEnd = current.kind === 'empty' ? selectedMinutes + STEP : current.startMinutes + current.lengthMinutes;
@@ -632,7 +632,17 @@
       .filter((item) => item.channel === channel && Number(item.dayOfWeek) === dow && dateInRange(iso, item.startDate, item.endDate))
       .filter((item) => !overriddenKeys.has(`${item.id}|${item.startMinutes}`) && !overriddenKeys.has(`${item.startMinutes}`))
       .map((item) => normalizePlannerItem(item, 'template'));
-    return [...templateItems, ...overrideItems];
+    // Overrides must win over templates at the same day/time. This matters
+    // after clicking a candidate: the manual pick should replace the generic
+    // required-rotation template in the visible calendar cell immediately.
+    return [...overrideItems, ...templateItems];
+  }
+
+  function plannerItemPriority(item) {
+    if (!item) return 0;
+    if (item.kind === 'override' || item.status === 'override') return 3;
+    if (item.kind === 'template') return 2;
+    return 1;
   }
 
   function normalizePlannerItem(raw, kind) {
@@ -1622,6 +1632,7 @@
         if (!pair) throw new Error('Candidate pair is no longer available. Refresh the preview and try again.');
         await saveCandidateOverride(pair.a.program, target, iso, target.startMinutes, 30);
         await saveCandidateOverride(pair.b.program, target, iso, target.startMinutes + 30, 30);
+        await refreshPlannerRowsAfterCandidateFill();
         closeModal();
         render();
         updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with a 30 + 30 planner override pair.`);
@@ -1632,6 +1643,7 @@
       if (!entry) throw new Error('Candidate is no longer available. Refresh the preview and try again.');
       const length = entry.length || parseLength(entry.program.length_minutes) || target.lengthMinutes || STEP;
       await saveCandidateOverride(entry.program, target, iso, target.startMinutes, length, isExcludedPick ? entry : null);
+      await refreshPlannerRowsAfterCandidateFill();
       closeModal();
       render();
       const suffix = isExcludedPick ? ' as a manual exact-schedule override, bypassing helper eligibility warnings' : ' in the scheduler test override table';
@@ -1641,6 +1653,26 @@
       alert(`Candidate fill failed: ${error.message}`);
       updateSummary(`Candidate fill failed: ${error.message}`);
     }
+  }
+
+  async function refreshPlannerRowsAfterCandidateFill() {
+    // Re-read planner rows after a candidate save so the calendar renders the
+    // actual database row, not a stale in-memory/template-only view. This also
+    // makes manual picks update immediately after the modal closes.
+    const [templateResult, overrideResult, poolResult, poolItemResult] = await Promise.all([
+      state.supabase.from(TEMPLATE_TABLE).select('*').order('channel').order('day_of_week').order('start_minutes'),
+      state.supabase.from(OVERRIDE_TABLE).select('*').order('start_date').order('start_minutes'),
+      state.supabase.from(POOL_TABLE).select('*').order('pool_name'),
+      state.supabase.from(POOL_ITEM_TABLE).select('*').order('item_label')
+    ]);
+    if (templateResult.error) throw templateResult.error;
+    if (overrideResult.error) throw overrideResult.error;
+    if (poolResult.error) throw poolResult.error;
+    if (poolItemResult.error) throw poolItemResult.error;
+    state.templates = (templateResult.data || []).map(templateFromDb);
+    state.overrides = (overrideResult.data || []).map(overrideFromDb);
+    state.pools = (poolResult.data || []).map(poolFromDb);
+    state.poolItems = (poolItemResult.data || []).map(poolItemFromDb);
   }
 
   async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes, bypassEntry) {
