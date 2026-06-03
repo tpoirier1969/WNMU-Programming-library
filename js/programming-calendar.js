@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.70
+// WNMU Programming Library Schedule Planner test helper v1.5.71
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.70-compact-month-grid';
+  const VERSION = 'v1.5.71-selected-candidate-display';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -571,6 +571,21 @@
 
   function itemMeta(item) {
     if (!item || item.kind === 'empty') return `Click to define · ${formatTime(state.selectedMinutes)}`;
+
+    // When a candidate has been manually placed, the calendar should read like
+    // a scheduled program, not like the generic required-rotation template that
+    // suggested it. Put episode/season clues first because that is what matters
+    // when Tod is recreating a known schedule.
+    if (hasSelectedCandidateProgram(item)) {
+      const bits = [];
+      const episode = selectedProgramEpisodeLine(item);
+      if (episode) bits.push(episode);
+      if (item.selectedProgramNola) bits.push(`NOLA: ${item.selectedProgramNola}`);
+      if (item.lengthMinutes) bits.push(`${item.lengthMinutes}m`);
+      bits.push('manual pick');
+      return bits.join(' · ');
+    }
+
     const bits = [];
     if (item.lengthMinutes) bits.push(`${item.lengthMinutes}m`);
     if (item.purposeLabel) bits.push(item.purposeLabel);
@@ -625,6 +640,11 @@
     const override = kind === 'override';
     const rotation = !pbs && (raw.slotBehavior === 'required_rotation' || raw.requiredPoolId);
     const status = override ? 'override' : (pbs ? 'pbs' : (rotation ? 'rotation' : purposeStatus(raw.purpose)));
+    const selectedProgram = findSelectedProgramForPlannerItem(raw);
+    const selectedTitle = text(raw.selectedProgramTitle || raw.selected_program_title || (selectedProgram ? scheduledProgramTitle(selectedProgram) : ''));
+    const selectedNola = text(raw.selectedProgramNola || raw.selected_program_nola || (selectedProgram ? programNola(selectedProgram) : ''));
+    const selectedEpisode = text(raw.selectedProgramEpisode || raw.selected_program_episode || (selectedProgram ? programScheduleEpisodeLine(selectedProgram) : plannerItemEpisodeLine(raw)));
+    const hasSelected = Boolean(selectedTitle || selectedNola || raw.overrideReason === 'candidate_pick');
     return {
       ...raw,
       kind,
@@ -632,8 +652,11 @@
       status,
       slotBehavior: rotation ? 'required_rotation' : (raw.slotBehavior || 'open_search'),
       poolName: poolLabel(raw.requiredPoolId),
-      title: raw.selectedProgramTitle || raw.titleTopic || raw.title || purposeLabel(raw.purpose),
-      purposeLabel: rotation ? 'Required rotation' : purposeLabel(raw.purpose),
+      selectedProgramTitle: selectedTitle || raw.selectedProgramTitle || '',
+      selectedProgramNola: selectedNola || raw.selectedProgramNola || '',
+      selectedProgramEpisode: selectedEpisode,
+      title: selectedTitle || raw.titleTopic || raw.title || purposeLabel(raw.purpose),
+      purposeLabel: hasSelected ? 'Manual pick' : (rotation ? 'Required rotation' : purposeLabel(raw.purpose)),
       startMinutes: Number(raw.startMinutes || 0),
       lengthMinutes: Number(raw.lengthMinutes || STEP),
       programmable: override ? true : (!pbs && raw.purpose !== 'hold' && raw.purpose !== 'fundraiser')
@@ -1622,7 +1645,7 @@
 
   async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes, bypassEntry) {
     const existing = findExistingOverrideForSlot(iso, slot.channel || state.channel, startMinutes);
-    const pTitle = programTitle(program);
+    const pTitle = scheduledProgramTitle(program);
     const pNola = programNola(program);
     const pId = programStableId(program);
     const override = {
@@ -1953,6 +1976,103 @@
       if (value && value.length > 8) return value;
     }
     return '';
+  }
+
+  function hasSelectedCandidateProgram(item) {
+    return Boolean(item && item.kind === 'override' && (item.selectedProgramTitle || item.selectedProgramNola || item.overrideReason === 'candidate_pick'));
+  }
+
+  function findSelectedProgramForPlannerItem(item) {
+    if (!item) return null;
+    const stableId = text(item.selectedProgramRecordId || item.selected_program_record_id);
+    if (stableId) {
+      const byId = state.programs.find((program) => programRecordIds(program).has(stableId));
+      if (byId) return byId;
+    }
+    const nola = normalizeNola(item.selectedProgramNola || item.selected_program_nola || item.titleTopic || item.title_topic);
+    if (nola) {
+      const byNola = state.programs.find((program) => programNolaValues(program).some((value) => {
+        const normalized = normalizeNola(value);
+        return normalized && normalized === nola;
+      }));
+      if (byNola) return byNola;
+    }
+    const title = text(item.selectedProgramTitle || item.selected_program_title || item.titleTopic || item.title_topic).toLowerCase();
+    if (title) {
+      return state.programs.find((program) => programTitle(program).toLowerCase() === title) || null;
+    }
+    return null;
+  }
+
+  function scheduledProgramTitle(program) {
+    const title = programTitle(program);
+    const episode = programSingleEpisodeNumber(program);
+    const nola = programNola(program);
+    // If the Library record has an explicit episode number but the title does not,
+    // add it to the display title. This avoids calendar cells that only say the
+    // generic season/pool name after an exact candidate is placed.
+    if (episode && title && !new RegExp(`\\b${escapeRegExp(String(episode))}\\b`).test(title)) {
+      return `${title} ${episode}`.trim();
+    }
+    if (!title && nola) return nola;
+    return title;
+  }
+
+  function selectedProgramEpisodeLine(item) {
+    const selectedProgram = findSelectedProgramForPlannerItem(item);
+    if (selectedProgram) return programScheduleEpisodeLine(selectedProgram);
+    return plannerItemEpisodeLine(item);
+  }
+
+  function plannerItemEpisodeLine(item) {
+    const explicit = text(item?.selectedProgramEpisode || item?.selected_program_episode || item?.episodeLabel || item?.episode_label);
+    if (explicit) return explicit;
+    const title = text(item?.selectedProgramTitle || item?.selected_program_title || item?.titleTopic || item?.title_topic || item?.title);
+    const block = title.match(/\b(\d{3,4})'?s\b/i);
+    if (block) return `Episode block: ${block[1]}s`;
+    const nola = text(item?.selectedProgramNola || item?.selected_program_nola);
+    const nolaEpisode = nola.match(/(\d{3,4})\b/);
+    if (nolaEpisode) return `Episode: ${nolaEpisode[1]}`;
+    const min = Number(item?.episodeMin ?? item?.episode_min);
+    const max = Number(item?.episodeMax ?? item?.episode_max);
+    if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) return `Episodes ${min}–${max}`;
+    if (Number.isFinite(min) && min > 0) return `Episode ${min}+`;
+    return '';
+  }
+
+  function programScheduleEpisodeLine(program) {
+    const episode = programSingleEpisodeNumber(program);
+    if (episode) return `Episode: ${episode}`;
+    const title = programTitle(program);
+    const block = title.match(/\b(\d{3,4})'?s\b/i);
+    if (block) return `Episode block: ${block[1]}s`;
+    const nola = programNola(program);
+    const nolaEpisode = nola.match(/(\d{3,4})\b/);
+    if (nolaEpisode) return `Episode: ${nolaEpisode[1]}`;
+    const tag = text(program.episode_season);
+    if (tag && !looksLikeSeries(program)) return `Episode/season: ${tag}`;
+    const count = extractEpisodeCount(program);
+    if (count) return `${count} episode${count === 1 ? '' : 's'}`;
+    return '';
+  }
+
+  function programSingleEpisodeNumber(program) {
+    const keys = ['episode_number','episode_no','episode_num','episode','episode_id','episode_code','program_episode','episode_label'];
+    for (const key of keys) {
+      const value = text(program?.[key]);
+      const match = value.match(/\b\d{1,4}\b/);
+      if (match) return match[0];
+    }
+    const tag = text(program?.episode_season);
+    if (tag && !looksLikeSeries(program)) {
+      const match = tag.match(/\b\d{1,4}\b/);
+      if (match) return match[0];
+    }
+    return '';
+  }
+
+  function escapeRegExp(value) {
+    return text(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function programTitle(program) { return text(program.title || program.program_title || '(untitled)'); }
