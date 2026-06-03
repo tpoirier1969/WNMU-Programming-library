@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.65
+// WNMU Programming Library Schedule Planner test helper v1.5.66
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.65-multi-day-edit-restore';
+  const VERSION = 'v1.5.66-candidate-click-fill';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -31,7 +31,8 @@
     selectedMinutes: DEFAULT_SELECTED_TIME,
     activeCell: null,
     loading: false,
-    plannerDataReady: false
+    plannerDataReady: false,
+    candidatePreview: { target: null, iso: '', singles: new Map(), pairs: new Map() }
   };
 
   const els = {};
@@ -248,6 +249,9 @@
       startDate: row.active_start_date || '',
       endDate: row.active_end_date || '',
       notes: row.notes || '',
+      selectedProgramRecordId: row.selected_program_record_id || '',
+      selectedProgramTitle: row.selected_program_title || '',
+      selectedProgramNola: row.selected_program_nola || '',
       createdAt: row.created_at || '',
       updatedAt: row.updated_at || ''
     };
@@ -285,6 +289,9 @@
       repeatGapDays: Number(row.repeat_gap_days || 0),
       rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
       notes: row.notes || '',
+      selectedProgramRecordId: row.selected_program_record_id || '',
+      selectedProgramTitle: row.selected_program_title || '',
+      selectedProgramNola: row.selected_program_nola || '',
       createdAt: row.created_at || '',
       updatedAt: row.updated_at || ''
     };
@@ -348,7 +355,10 @@
       avoid_back_to_back: item.avoidBackToBack !== false,
       repeat_gap_days: Number(item.repeatGapDays || 0),
       rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
-      notes: item.notes || ''
+      notes: item.notes || '',
+      selected_program_record_id: item.selectedProgramRecordId || null,
+      selected_program_title: item.selectedProgramTitle || null,
+      selected_program_nola: item.selectedProgramNola || null
     };
   }
 
@@ -566,6 +576,7 @@
     if (item.purposeLabel) bits.push(item.purposeLabel);
     if (item.fillStrategy && item.fillStrategy !== 'single') bits.push(fillStrategyLabel(item.fillStrategy));
     if (item.slotBehavior === 'required_rotation') bits.push(item.poolName ? `pool: ${item.poolName}` : 'pool required');
+    if (item.selectedProgramNola) bits.push(item.selectedProgramNola);
     if (item.status === 'pbs') bits.push('locked');
     if (item.status === 'override') bits.push('temporary');
     return bits.join(' · ') || 'Template';
@@ -621,7 +632,7 @@
       status,
       slotBehavior: rotation ? 'required_rotation' : (raw.slotBehavior || 'open_search'),
       poolName: poolLabel(raw.requiredPoolId),
-      title: raw.titleTopic || raw.title || purposeLabel(raw.purpose),
+      title: raw.selectedProgramTitle || raw.titleTopic || raw.title || purposeLabel(raw.purpose),
       purposeLabel: rotation ? 'Required rotation' : purposeLabel(raw.purpose),
       startMinutes: Number(raw.startMinutes || 0),
       lengthMinutes: Number(raw.lengthMinutes || STEP),
@@ -1256,22 +1267,41 @@
     const pairs = target.lengthMinutes === 60 && target.slotBehavior !== 'required_rotation' && ['two_half_hours', 'single_or_two', 'flex'].includes(target.fillStrategy || target.purpose)
       ? rankPairs(target, iso)
       : [];
+    const excluded = target.slotBehavior === 'required_rotation' ? rankExcludedPoolCandidates(target, iso, candidates) : [];
     const preview = document.getElementById('candidatePreview');
     if (!preview) return;
     const isRotation = target.slotBehavior === 'required_rotation';
+    state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map() };
+    const candidateMarkup = candidates.slice(0, 10).map((entry, index) => {
+      const key = candidateKey(entry.program, index);
+      state.candidatePreview.singles.set(key, entry);
+      return candidateCard(entry, key, target, iso);
+    }).join('');
+    const pairMarkup = pairs.slice(0, 8).map((pair, index) => {
+      const key = `pair_${index}_${candidateKey(pair.a.program, index)}_${candidateKey(pair.b.program, index + 50)}`;
+      state.candidatePreview.pairs.set(key, pair);
+      return pairCard(pair, key, target, iso);
+    }).join('');
     preview.innerHTML = `
       <div class="candidate-grid">
         <section class="candidate-section">
           <h3>${isRotation ? 'Required-rotation pool candidates' : 'Best single-program fits'}</h3>
           ${isRotation ? `<p class="small-note">Pool: ${escapeHtml(target.poolName || poolLabel(target.requiredPoolId) || 'not selected')} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months</p>` : ''}
-          ${candidates.slice(0, 10).map(candidateCard).join('') || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA code/prefix or selected pool items.' : 'No single-program matches found.'}</p>`}
+          ${candidateMarkup || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA code/prefix or selected pool items.' : 'No single-program matches found.'}</p>`}
         </section>
         <section class="candidate-section">
           <h3>Best 30 + 30 fits</h3>
-          ${pairs.slice(0, 8).map(pairCard).join('') || `<p class="small-note">${isRotation ? 'Required-rotation slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
+          ${pairMarkup || `<p class="small-note">${isRotation ? 'Required-rotation slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
         </section>
       </div>
+      ${isRotation && excluded.length ? `
+        <section class="candidate-section">
+          <h3>Pool matches not currently eligible</h3>
+          <p class="small-note">These match the required pool but were filtered by repeat gap, freshness, rights, archive, length, rating, or other slot rules.</p>
+          <div class="excluded-candidate-list">${excluded.slice(0, 12).map(excludedCandidateCard).join('')}</div>
+        </section>` : ''}
     `;
+    bindCandidatePreviewEvents(preview);
   }
 
   function rankCandidates(slot, iso) {
@@ -1280,6 +1310,23 @@
       .filter((entry) => entry.ok)
       .sort((a, b) => b.score - a.score || text(programTitle(a.program)).localeCompare(text(programTitle(b.program))))
       .slice(0, 80);
+  }
+
+
+  function rankExcludedPoolCandidates(slot, iso, includedCandidates) {
+    if (slot.slotBehavior !== 'required_rotation') return [];
+    const includedIds = new Set((includedCandidates || []).map((entry) => programStableId(entry.program)));
+    return state.programs
+      .map((program) => {
+        const poolMatch = rotationPoolMatch(program, slot);
+        if (!poolMatch.ok) return null;
+        if (includedIds.has(programStableId(program))) return null;
+        const scored = scoreProgram(program, slot, iso);
+        if (scored.ok) return null;
+        return { ...scored, poolLabel: poolMatch.label || 'pool match' };
+      })
+      .filter(Boolean)
+      .sort((a, b) => text(programTitle(a.program)).localeCompare(text(programTitle(b.program))));
   }
 
   function rankPairs(slot, iso) {
@@ -1446,28 +1493,162 @@
     });
   }
 
-  function candidateCard(entry) {
+  function candidateKey(program, index) {
+    return `${programStableId(program) || 'program'}_${index}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  function candidateCard(entry, key, slot, iso) {
     const p = entry.program;
     const title = programTitle(p);
-    const meta = [entry.length ? `${entry.length}m` : 'length?', programNola(p), p.program_type, p.topic, p.distributor].filter(Boolean).join(' · ');
+    const length = entry.length || parseLength(p.length_minutes);
+    const nola = programNola(p);
+    const episodeCount = extractEpisodeCount(p);
+    const rights = rightsDisplay(p);
+    const history = channelHistoryText(p, state.channel, iso);
+    const description = programDescription(p);
+    const topMeta = [length ? `${length}m` : 'length?', nola, p.program_type, p.topic, p.distributor].filter(Boolean).join(' · ');
+    const why = [...entry.why, ...entry.warnings.map((w) => `warn: ${w}`)].slice(0, 6).join(' · ');
     return `
-      <div class="candidate-card">
-        <div class="candidate-title"><span class="candidate-score">${entry.score}</span>${escapeHtml(title)}</div>
-        <div class="candidate-meta">${escapeHtml(meta)}</div>
-        <div class="candidate-why">${escapeHtml([...entry.why, ...entry.warnings.map((w) => `warn: ${w}`)].slice(0, 5).join(' · '))}</div>
+      <div class="candidate-card" title="${escapeHtml(description || title)}">
+        <div class="candidate-title">${escapeHtml(title)}</div>
+        <div class="candidate-meta">${escapeHtml(topMeta)}</div>
+        <div class="candidate-meta"><strong>Rights:</strong> ${escapeHtml(rights)}</div>
+        ${episodeCount ? `<div class="candidate-meta"><strong>Episodes:</strong> ${escapeHtml(episodeCount)}</div>` : ''}
+        <div class="candidate-meta"><strong>${escapeHtml(state.channel)} history:</strong> ${escapeHtml(history)}</div>
+        <div class="candidate-why">${escapeHtml(why)}</div>
+        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : ''}
+        <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="single" data-candidate-key="${escapeHtml(key)}">Use this candidate</button></div>
       </div>
     `;
   }
 
-  function pairCard(pair) {
+  function pairCard(pair, key, slot, iso) {
+    const aTitle = programTitle(pair.a.program);
+    const bTitle = programTitle(pair.b.program);
     return `
       <div class="candidate-card">
-        <div class="candidate-title"><span class="candidate-score">${pair.score}</span>${escapeHtml(programTitle(pair.a.program))}</div>
-        <div class="candidate-title" style="margin-top:4px;">+ ${escapeHtml(programTitle(pair.b.program))}</div>
-        <div class="candidate-meta">30m + 30m</div>
+        <div class="candidate-title">${escapeHtml(aTitle)}</div>
+        <div class="candidate-title" style="margin-top:4px;">+ ${escapeHtml(bTitle)}</div>
+        <div class="candidate-meta">30m + 30m · ${escapeHtml(programNola(pair.a.program) || 'first')} / ${escapeHtml(programNola(pair.b.program) || 'second')}</div>
+        <div class="candidate-meta"><strong>${escapeHtml(state.channel)} history:</strong> ${escapeHtml(channelHistoryText(pair.a.program, state.channel, iso))} · ${escapeHtml(channelHistoryText(pair.b.program, state.channel, iso))}</div>
         <div class="candidate-why">${escapeHtml(pair.why.join(' · '))}</div>
+        <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="pair" data-candidate-key="${escapeHtml(key)}">Use this 30 + 30 pair</button></div>
       </div>
     `;
+  }
+
+  function excludedCandidateCard(entry) {
+    const p = entry.program;
+    const episodeCount = extractEpisodeCount(p);
+    const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 4).join(' · ');
+    return `
+      <div class="candidate-card excluded-candidate">
+        <div class="candidate-title">${escapeHtml(programTitle(p))}</div>
+        <div class="candidate-meta">${escapeHtml([parseLength(p.length_minutes) ? `${parseLength(p.length_minutes)}m` : '', programNola(p), episodeCount ? `${episodeCount} episodes` : '', rightsDisplay(p)].filter(Boolean).join(' · '))}</div>
+        <div class="candidate-why">${escapeHtml(why || 'Not eligible under current slot rules')}</div>
+      </div>
+    `;
+  }
+
+  function bindCandidatePreviewEvents(preview) {
+    preview.querySelectorAll('[data-candidate-key]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        void useCandidateFromPreview(button.dataset.candidateKind, button.dataset.candidateKey);
+      });
+    });
+  }
+
+  async function useCandidateFromPreview(kind, key) {
+    const preview = state.candidatePreview || {};
+    const target = preview.target;
+    const iso = preview.iso;
+    if (!target || !iso) return;
+    try {
+      if (kind === 'pair') {
+        const pair = preview.pairs.get(key);
+        if (!pair) throw new Error('Candidate pair is no longer available. Refresh the preview and try again.');
+        await saveCandidateOverride(pair.a.program, target, iso, target.startMinutes, 30);
+        await saveCandidateOverride(pair.b.program, target, iso, target.startMinutes + 30, 30);
+        closeModal();
+        render();
+        updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with a 30 + 30 planner override pair.`);
+        return;
+      }
+      const entry = preview.singles.get(key);
+      if (!entry) throw new Error('Candidate is no longer available. Refresh the preview and try again.');
+      const length = entry.length || parseLength(entry.program.length_minutes) || target.lengthMinutes || STEP;
+      await saveCandidateOverride(entry.program, target, iso, target.startMinutes, length);
+      closeModal();
+      render();
+      updateSummary(`Filled ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)} with ${programTitle(entry.program)} in the scheduler test override table.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Candidate fill failed: ${error.message}`);
+      updateSummary(`Candidate fill failed: ${error.message}`);
+    }
+  }
+
+  async function saveCandidateOverride(program, slot, iso, startMinutes, lengthMinutes) {
+    const existing = findExistingOverrideForSlot(iso, slot.channel || state.channel, startMinutes);
+    const pTitle = programTitle(program);
+    const pNola = programNola(program);
+    const pId = programStableId(program);
+    const override = {
+      ...slot,
+      id: existing?.id || '',
+      kind: 'override',
+      status: 'override',
+      channel: slot.channel || state.channel,
+      startDate: iso,
+      endDate: iso,
+      overrideTemplateId: slot.kind === 'template' ? slot.id : (slot.overrideTemplateId || ''),
+      pbsWasOverridden: Boolean(slot.status === 'pbs' || slot.pbsWasOverridden),
+      overrideReason: 'candidate_pick',
+      startMinutes,
+      lengthMinutes: Number(lengthMinutes || slot.lengthMinutes || STEP),
+      purpose: looksLikeSeries(program) ? 'series' : (slot.purpose === 'flex' ? 'flex' : 'standalone'),
+      isPbsFeed: false,
+      titleTopic: pTitle,
+      fillStrategy: 'single',
+      seriesPattern: looksLikeSeries(program) ? (slot.seriesPattern || 'weekly_one_day') : 'none',
+      templateGroupName: slot.templateGroupName || slot.poolName || '',
+      selectedProgramRecordId: pId,
+      selectedProgramTitle: pTitle,
+      selectedProgramNola: pNola,
+      notes: candidateOverrideNotes(program, slot)
+    };
+    const payload = overrideToDb(override);
+    if (existing?.id) {
+      const { data, error } = await state.supabase.from(OVERRIDE_TABLE).update(payload).eq('id', existing.id).select('*').single();
+      if (error) throw error;
+      upsertInMemory(state.overrides, overrideFromDb(data));
+    } else {
+      const { data, error } = await state.supabase.from(OVERRIDE_TABLE).insert(payload).select('*').single();
+      if (error) throw error;
+      state.overrides.push(overrideFromDb(data));
+    }
+  }
+
+  function findExistingOverrideForSlot(iso, channel, startMinutes) {
+    return state.overrides.find((item) => {
+      if (item.channel !== channel) return false;
+      if (!dateInRange(iso, item.startDate, item.endDate)) return false;
+      return Number(item.startMinutes) === Number(startMinutes);
+    }) || null;
+  }
+
+  function candidateOverrideNotes(program, slot) {
+    const parts = ['Filled from Schedule Planner candidate preview.'];
+    const nola = programNola(program);
+    if (nola) parts.push(`NOLA: ${nola}.`);
+    const rights = rightsDisplay(program);
+    if (rights) parts.push(`Rights: ${rights}.`);
+    const episodes = extractEpisodeCount(program);
+    if (episodes) parts.push(`Episodes: ${episodes}.`);
+    const existing = text(slot.notes);
+    if (existing) parts.push(`Slot notes: ${existing}`);
+    return parts.join(' ');
   }
 
   function purposeOptions(current) {
@@ -1692,6 +1873,47 @@
     const aTopics = new Set(text([a.topic, a.secondary_topic].join(',')).toLowerCase().split(/[;,|]/).map((x) => x.trim()).filter(Boolean));
     const bTopics = text([b.topic, b.secondary_topic].join(',')).toLowerCase().split(/[;,|]/).map((x) => x.trim()).filter(Boolean);
     return bTopics.some((topic) => aTopics.has(topic));
+  }
+
+  function rightsDisplay(program) {
+    const begin = rightsBegin(program) || 'unknown begin';
+    const end = rightsEnd(program) || 'unknown end';
+    return `${begin} – ${end}`;
+  }
+
+  function rightsBegin(program) {
+    return firstDateField(program, ['rights_start', 'rights_begin', 'rights_begins', 'rights_start_date', 'rights_begin_date', 'rights_from', 'rights_from_date', 'license_start', 'license_begin']);
+  }
+
+  function rightsEnd(program) {
+    return firstDateField(program, ['rights_end', 'rights_ends', 'rights_end_date', 'rights_to', 'rights_to_date', 'license_end', 'license_expiration', 'expiration_date']);
+  }
+
+  function firstDateField(program, keys) {
+    for (const key of keys) {
+      const normalized = normalizeDateish(program?.[key]);
+      if (normalized) return normalized;
+    }
+    return '';
+  }
+
+  function channelHistoryText(program, channel, iso) {
+    const field = channel === '13.3' ? program.aired_13_3 : program.aired_13_1;
+    const dates = extractDates(field).filter((d) => !iso || d <= iso).sort();
+    if (!dates.length) return 'none found';
+    const latest = dates[dates.length - 1];
+    const shown = dates.slice(-4).join(', ');
+    const count = dates.length;
+    return `${count} airing${count === 1 ? '' : 's'}; latest ${latest}${count > 1 ? `; recent ${shown}` : ''}`;
+  }
+
+  function programDescription(program) {
+    const keys = ['description', 'program_description', 'short_description', 'long_description', 'synopsis', 'summary', 'episode_description', 'notes'];
+    for (const key of keys) {
+      const value = text(program?.[key]);
+      if (value && value.length > 8) return value;
+    }
+    return '';
   }
 
   function programTitle(program) { return text(program.title || program.program_title || '(untitled)'); }
