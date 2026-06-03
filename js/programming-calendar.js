@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.64
+// WNMU Programming Library Schedule Planner test helper v1.5.65
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.64-full-nola-load-test';
+  const VERSION = 'v1.5.65-multi-day-edit-restore';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -818,6 +818,59 @@
     `).join('');
   }
 
+
+  function editWeekdayCheckboxes(current) {
+    const activeDays = templateSiblingDays(current);
+    activeDays.add(Number(current?.dayOfWeek ?? 0));
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, index) => `
+      <label class="weekday-check"><input type="checkbox" name="weekdays" value="${index}"${activeDays.has(index) ? ' checked' : ''} /> ${label}</label>
+    `).join('');
+  }
+
+  function templateSiblingDays(current) {
+    const days = new Set();
+    matchingTemplateSiblings(current).forEach((item) => {
+      const day = Number(item.dayOfWeek);
+      if (Number.isInteger(day) && day >= 0 && day <= 6) days.add(day);
+    });
+    return days;
+  }
+
+  function matchingTemplateSiblings(current) {
+    if (!current) return [];
+    return state.templates.filter((item) => sameTemplateFamily(item, current));
+  }
+
+  function sameTemplateFamily(a, b) {
+    if (!a || !b) return false;
+    const norm = (value) => text(value).toLowerCase();
+    const channelA = text(a.channel || state.channel);
+    const channelB = text(b.channel || state.channel);
+    const groupA = norm(a.templateGroupName);
+    const groupB = norm(b.templateGroupName);
+    const titleA = norm(a.titleTopic || a.title);
+    const titleB = norm(b.titleTopic || b.title);
+
+    if (channelA !== channelB) return false;
+    if (Number(a.startMinutes) !== Number(b.startMinutes)) return false;
+    if (Number(a.lengthMinutes) !== Number(b.lengthMinutes)) return false;
+    if (text(a.startDate) !== text(b.startDate)) return false;
+    if (text(a.endDate) !== text(b.endDate)) return false;
+
+    if (groupA || groupB) {
+      if (groupA !== groupB) return false;
+    } else if (titleA !== titleB) {
+      return false;
+    }
+
+    if (text(a.purpose) !== text(b.purpose)) return false;
+    if (text(a.fillStrategy) !== text(b.fillStrategy)) return false;
+    if (text(a.seriesPattern) !== text(b.seriesPattern)) return false;
+    if (text(a.slotBehavior || 'open_search') !== text(b.slotBehavior || 'open_search')) return false;
+    if (text(a.requiredPoolId) !== text(b.requiredPoolId)) return false;
+    return true;
+  }
+
   function existingSlotMarkup(current, iso, flags) {
     const isPbs = flags.isPbs;
     const isOverride = flags.isOverride;
@@ -1075,9 +1128,13 @@
           <label>Start time
             <select name="startMinutes">${timeOptions(current.startMinutes)}</select>
           </label>
-          <label>Weekday
-            <select name="dayOfWeek">${weekdayOptions(current.dayOfWeek)}</select>
-          </label>
+          <div class="span-4">
+            <div class="field-label">Apply same template edit to weekdays</div>
+            <div class="weekday-picker">
+              ${editWeekdayCheckboxes(current)}
+            </div>
+            <div class="small-note">Checked days are updated or created as matching scheduler test templates. Unchecked matching days are left alone, not deleted.</div>
+          </div>
           <label>Series pattern
             <select name="seriesPattern">${seriesPatternOptions(current.seriesPattern)}</select>
           </label>
@@ -1117,22 +1174,55 @@
   }
 
   async function saveTemplateEdit(form, current, iso) {
-    const data = Object.fromEntries(new FormData(form).entries());
-    const updated = {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    const selectedDays = [...new Set(formData.getAll('weekdays')
+      .map(Number)
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))];
+    if (!selectedDays.includes(Number(current.dayOfWeek))) selectedDays.push(Number(current.dayOfWeek));
+    selectedDays.sort((a, b) => a - b);
+
+    const updatedBase = {
       ...current,
       ...plannerItemFromFormData(data, iso),
-      dayOfWeek: saneNumber(data.dayOfWeek, current.dayOfWeek),
-      startMinutes: saneNumber(data.startMinutes, current.startMinutes)
+      dayOfWeek: Number(current.dayOfWeek),
+      startMinutes: saneNumber(data.startMinutes, current.startMinutes),
+      channel: current.channel || state.channel
     };
+
     try {
-      await attachPoolToPlannerItem(updated, data);
-      const { data: row, error } = await state.supabase.from(TEMPLATE_TABLE).update(templateToDb(updated)).eq('id', current.id).select('*').single();
-      if (error) throw error;
-      const idx = state.templates.findIndex((item) => String(item.id) === String(current.id));
-      if (idx >= 0) state.templates[idx] = templateFromDb(row);
+      await attachPoolToPlannerItem(updatedBase, data);
+      const siblings = matchingTemplateSiblings(current);
+      const savedRows = [];
+
+      for (const day of selectedDays) {
+        const existing = siblings.find((item) => Number(item.dayOfWeek) === day) || (Number(current.dayOfWeek) === day ? current : null);
+        const itemForDay = { ...updatedBase, id: existing?.id || '', dayOfWeek: day, channel: current.channel || state.channel };
+
+        if (existing?.id) {
+          const { data: row, error } = await state.supabase
+            .from(TEMPLATE_TABLE)
+            .update(templateToDb(itemForDay))
+            .eq('id', existing.id)
+            .select('*')
+            .single();
+          if (error) throw error;
+          savedRows.push(row);
+        } else {
+          const { data: row, error } = await state.supabase
+            .from(TEMPLATE_TABLE)
+            .insert(templateToDb(itemForDay))
+            .select('*')
+            .single();
+          if (error) throw error;
+          savedRows.push(row);
+        }
+      }
+
+      savedRows.map(templateFromDb).forEach((saved) => upsertInMemory(state.templates, saved));
       closeModal();
       render();
-      updateSummary('Saved scheduler template edits.');
+      updateSummary(`Saved scheduler template edits for ${selectedDays.length} weekday${selectedDays.length === 1 ? '' : 's'}.`);
     } catch (error) {
       console.error(error);
       alert(`Template edit failed: ${error.message}`);
