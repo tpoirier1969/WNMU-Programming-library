@@ -1,9 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.61
+// WNMU Programming Library Schedule Planner test helper v1.5.62
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
+// Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.61-db-test';
+  const VERSION = 'v1.5.62-rotation-pool-test';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -11,6 +12,8 @@
   const LOCAL_PREF_KEY = 'wnmu_prog_sched_test_preferences_v1';
   const TEMPLATE_TABLE = 'wnmu_prog_sched_slot_templates';
   const OVERRIDE_TABLE = 'wnmu_prog_sched_slot_overrides';
+  const POOL_TABLE = 'wnmu_prog_sched_program_pools';
+  const POOL_ITEM_TABLE = 'wnmu_prog_sched_program_pool_items';
   const SCHED_TABLE_PREFIX = 'wnmu_prog_sched_';
 
   const $ = (selector) => document.querySelector(selector);
@@ -21,6 +24,8 @@
     holidays: [],
     templates: [],
     overrides: [],
+    pools: [],
+    poolItems: [],
     channel: '13.1',
     month: firstOfMonth(new Date()),
     selectedMinutes: DEFAULT_SELECTED_TIME,
@@ -60,7 +65,7 @@
 
   function cacheEls() {
     [
-      'plannerTopbar','lockedShell','plannerShell','lockedLibraryBtn','openLibraryBtn','refreshDataBtn','channelSelect','monthInput','timeDownBtn','timeUpBtn','timeDisplay','timeSelect','prevMonthBtn','thisMonthBtn','nextMonthBtn','monthGrid','sideTitle','sideSummary','metricPrograms','metricHolidays','metricTemplates','metricOverrides','clearLocalPlannerBtn','slotModalBackdrop','slotModalTitle','slotModalSub','slotModalBody','closeSlotModalBtn'
+      'plannerTopbar','lockedShell','plannerShell','lockedLibraryBtn','openLibraryBtn','refreshDataBtn','channelSelect','monthInput','timeDownBtn','timeUpBtn','timeDisplay','timeSelect','prevMonthBtn','thisMonthBtn','nextMonthBtn','monthGrid','sideTitle','sideSummary','metricPrograms','metricHolidays','metricTemplates','metricOverrides','metricPools','metricPoolItems','clearLocalPlannerBtn','slotModalBackdrop','slotModalTitle','slotModalSub','slotModalBody','closeSlotModalBtn'
     ].forEach((id) => { els[id] = document.getElementById(id); });
   }
 
@@ -120,22 +125,28 @@
     state.loading = true;
     updateSummary('Loading Library and planner data…');
     try {
-      const [programResult, holidayResult, templateResult, overrideResult] = await Promise.all([
+      const [programResult, holidayResult, templateResult, overrideResult, poolResult, poolItemResult] = await Promise.all([
         selectPrograms(),
         state.supabase.from('holiday_observances').select('*'),
         state.supabase.from(TEMPLATE_TABLE).select('*').order('channel').order('day_of_week').order('start_minutes'),
-        state.supabase.from(OVERRIDE_TABLE).select('*').order('start_date').order('start_minutes')
+        state.supabase.from(OVERRIDE_TABLE).select('*').order('start_date').order('start_minutes'),
+        state.supabase.from(POOL_TABLE).select('*').order('pool_name'),
+        state.supabase.from(POOL_ITEM_TABLE).select('*').order('item_label')
       ]);
       if (programResult.error) throw programResult.error;
       if (holidayResult.error) console.warn('Holiday/event read skipped:', holidayResult.error);
-      if (templateResult.error) throw new Error(`Planner template table read failed: ${templateResult.error.message}. Run the v1.5.61 planner SQL first.`);
-      if (overrideResult.error) throw new Error(`Planner override table read failed: ${overrideResult.error.message}. Run the v1.5.61 planner SQL first.`);
+      if (templateResult.error) throw new Error(`Planner template table read failed: ${templateResult.error.message}. Run the v1.5.61 planner SQL and then the v1.5.62 migration SQL.`);
+      if (overrideResult.error) throw new Error(`Planner override table read failed: ${overrideResult.error.message}. Run the v1.5.61 planner SQL and then the v1.5.62 migration SQL.`);
+      if (poolResult.error) throw new Error(`Planner program-pool table read failed: ${poolResult.error.message}. Run the v1.5.62 migration SQL.`);
+      if (poolItemResult.error) throw new Error(`Planner pool-item table read failed: ${poolItemResult.error.message}. Run the v1.5.62 migration SQL.`);
       state.programs = Array.isArray(programResult.data) ? programResult.data : [];
       state.holidays = Array.isArray(holidayResult.data) ? holidayResult.data : [];
+      state.pools = (poolResult.data || []).map(poolFromDb);
+      state.poolItems = (poolItemResult.data || []).map(poolItemFromDb);
       state.templates = (templateResult.data || []).map(templateFromDb);
       state.overrides = (overrideResult.data || []).map(overrideFromDb);
       state.plannerDataReady = true;
-      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs and ${state.templates.length.toLocaleString()} planner templates. Planner writes only to wnmu_prog_sched_* test tables.`);
+      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs, ${state.templates.length.toLocaleString()} planner templates, and ${state.pools.length.toLocaleString()} required-rotation pools. Planner writes only to wnmu_prog_sched_* test tables.`);
     } catch (error) {
       console.error(error);
       state.plannerDataReady = false;
@@ -153,6 +164,36 @@
     return state.supabase.from('programs').select('*');
   }
 
+
+  function poolFromDb(row) {
+    return {
+      id: row.id,
+      poolName: row.pool_name || '',
+      poolType: row.pool_type || 'title_text',
+      matchMode: row.match_mode || 'title_text',
+      titleMatchText: row.title_match_text || '',
+      avoidBackToBack: row.avoid_back_to_back !== false,
+      repeatGapDays: Number(row.repeat_gap_days || 0),
+      rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
+      active: row.active !== false,
+      notes: row.notes || ''
+    };
+  }
+
+  function poolItemFromDb(row) {
+    return {
+      id: row.id,
+      poolId: row.pool_id || '',
+      itemLabel: row.item_label || '',
+      titleMatchText: row.title_match_text || '',
+      programRecordId: row.program_record_id || '',
+      programTitle: row.program_title || '',
+      seasonLabel: row.season_label || '',
+      priorityWeight: Number(row.priority_weight || 0),
+      active: row.active !== false,
+      notes: row.notes || ''
+    };
+  }
 
   function templateFromDb(row) {
     return {
@@ -176,6 +217,11 @@
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
+      slotBehavior: row.slot_behavior || (row.required_pool_id ? 'required_rotation' : 'open_search'),
+      requiredPoolId: row.required_pool_id || '',
+      avoidBackToBack: row.avoid_back_to_back !== false,
+      repeatGapDays: Number(row.repeat_gap_days || 0),
+      rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
       startDate: row.active_start_date || '',
       endDate: row.active_end_date || '',
       notes: row.notes || '',
@@ -210,6 +256,11 @@
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
+      slotBehavior: row.slot_behavior || (row.required_pool_id ? 'required_rotation' : 'open_search'),
+      requiredPoolId: row.required_pool_id || '',
+      avoidBackToBack: row.avoid_back_to_back !== false,
+      repeatGapDays: Number(row.repeat_gap_days || 0),
+      rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
       notes: row.notes || '',
       createdAt: row.created_at || '',
       updatedAt: row.updated_at || ''
@@ -235,6 +286,11 @@
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
+      slot_behavior: item.slotBehavior || (item.requiredPoolId ? 'required_rotation' : 'open_search'),
+      required_pool_id: (item.slotBehavior === 'required_rotation' || item.requiredPoolId) ? (item.requiredPoolId || null) : null,
+      avoid_back_to_back: item.avoidBackToBack !== false,
+      repeat_gap_days: Number(item.repeatGapDays || 0),
+      rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
       active_start_date: item.startDate || null,
       active_end_date: item.endDate || null,
       notes: item.notes || ''
@@ -264,6 +320,11 @@
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
+      slot_behavior: item.slotBehavior || (item.requiredPoolId ? 'required_rotation' : 'open_search'),
+      required_pool_id: (item.slotBehavior === 'required_rotation' || item.requiredPoolId) ? (item.requiredPoolId || null) : null,
+      avoid_back_to_back: item.avoidBackToBack !== false,
+      repeat_gap_days: Number(item.repeatGapDays || 0),
+      rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
       notes: item.notes || ''
     };
   }
@@ -272,6 +333,115 @@
     if (value == null || value === '') return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function getPool(poolId) {
+    if (!poolId) return null;
+    return state.pools.find((pool) => String(pool.id) === String(poolId)) || null;
+  }
+
+  function poolLabel(poolId) {
+    const pool = getPool(poolId);
+    return pool?.poolName || '';
+  }
+
+  function poolItemsForPool(poolId) {
+    if (!poolId) return [];
+    return state.poolItems.filter((item) => item.active !== false && String(item.poolId) === String(poolId));
+  }
+
+  function poolOptions(currentPoolId) {
+    const options = ['<option value="">Create/use pool by name below</option>'];
+    state.pools.filter((pool) => pool.active !== false).forEach((pool) => {
+      options.push(`<option value="${escapeHtml(pool.id)}"${String(pool.id) === String(currentPoolId || '') ? ' selected' : ''}>${escapeHtml(pool.poolName)}</option>`);
+    });
+    return options.join('');
+  }
+
+  function poolNameFromForm(data) {
+    return text(data.poolName || data.requiredPoolName || data.templateGroupName || data.titleTopic);
+  }
+
+  function poolMatchFromForm(data) {
+    return text(data.poolMatchText || data.titleTopic || data.poolName || data.requiredPoolName);
+  }
+
+  function poolMatchTextForSlot(slot) {
+    const items = poolItemsForPool(slot?.requiredPoolId);
+    if (items.length) return items.map((item) => item.titleMatchText || item.itemLabel).filter(Boolean).join('; ');
+    const pool = getPool(slot?.requiredPoolId);
+    return pool?.titleMatchText || slot?.titleTopic || '';
+  }
+
+  async function attachPoolToPlannerItem(item, data) {
+    item.slotBehavior = data.slotBehavior || item.slotBehavior || 'open_search';
+    item.avoidBackToBack = data.avoidBackToBack === 'on' || data.avoidBackToBack === true;
+    item.repeatGapDays = saneNumber(data.repeatGapDays, 0);
+    item.rightsUrgencyMonths = saneNumber(data.rightsUrgencyMonths, 0);
+
+    if (item.slotBehavior !== 'required_rotation') {
+      item.requiredPoolId = '';
+      return item;
+    }
+
+    let poolId = text(data.requiredPoolId);
+    const poolName = poolNameFromForm(data);
+    let matchText = poolMatchFromForm(data);
+    if (!poolId && !poolName) throw new Error('Required rotation slots need a program pool name.');
+    if (!matchText && poolId && poolItemsForPool(poolId).length) {
+      item.requiredPoolId = poolId;
+      return item;
+    }
+    if (!matchText && poolId) {
+      const existingPool = getPool(poolId);
+      matchText = text(existingPool?.titleMatchText || existingPool?.poolName);
+    }
+    if (!matchText) throw new Error('Required rotation slots need title-match text, such as WAI LANA YOGA.');
+
+    if (!poolId) {
+      const payload = {
+        pool_name: poolName,
+        pool_type: 'title_text',
+        match_mode: 'title_text',
+        title_match_text: matchText,
+        avoid_back_to_back: item.avoidBackToBack !== false,
+        repeat_gap_days: Number(item.repeatGapDays || 0),
+        rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
+        active: true
+      };
+      const { data: poolRow, error } = await state.supabase
+        .from(POOL_TABLE)
+        .upsert(payload, { onConflict: 'pool_name' })
+        .select('*')
+        .single();
+      if (error) throw error;
+      const pool = poolFromDb(poolRow);
+      upsertInMemory(state.pools, pool);
+      poolId = pool.id;
+    }
+
+    const itemPayload = {
+      pool_id: poolId,
+      item_label: matchText,
+      title_match_text: matchText,
+      active: true
+    };
+    const { data: poolItemRow, error: itemError } = await state.supabase
+      .from(POOL_ITEM_TABLE)
+      .upsert(itemPayload, { onConflict: 'pool_id,title_match_text' })
+      .select('*')
+      .single();
+    if (itemError) throw itemError;
+    upsertInMemory(state.poolItems, poolItemFromDb(poolItemRow));
+
+    item.requiredPoolId = poolId;
+    return item;
+  }
+
+  function upsertInMemory(list, item) {
+    const idx = list.findIndex((existing) => String(existing.id) === String(item.id));
+    if (idx >= 0) list[idx] = item;
+    else list.push(item);
   }
 
   function render() {
@@ -340,6 +510,7 @@
     if (item.lengthMinutes) bits.push(`${item.lengthMinutes}m`);
     if (item.purposeLabel) bits.push(item.purposeLabel);
     if (item.fillStrategy && item.fillStrategy !== 'single') bits.push(fillStrategyLabel(item.fillStrategy));
+    if (item.slotBehavior === 'required_rotation') bits.push(item.poolName ? `pool: ${item.poolName}` : 'pool required');
     if (item.status === 'pbs') bits.push('locked');
     if (item.status === 'override') bits.push('temporary');
     return bits.join(' · ') || 'Template';
@@ -350,13 +521,19 @@
     const current = findCurrentItem(items, selectedMinutes) || emptyItem(selectedMinutes);
     const currentStart = current.kind === 'empty' ? selectedMinutes : current.startMinutes;
     const currentEnd = current.kind === 'empty' ? selectedMinutes + STEP : current.startMinutes + current.lengthMinutes;
-    const previous = [...items].reverse().find((item) => item.startMinutes + item.lengthMinutes <= currentStart || item.startMinutes < currentStart);
-    const next = items.find((item) => item.startMinutes >= currentEnd);
+    const previous = [...items].reverse().find((item) => !samePlannerItem(item, current) && item.startMinutes + item.lengthMinutes <= currentStart);
+    const next = items.find((item) => !samePlannerItem(item, current) && item.startMinutes >= currentEnd);
     return { previous, current, next };
   }
 
   function findCurrentItem(items, minutes) {
     return items.find((item) => minutes >= item.startMinutes && minutes < item.startMinutes + item.lengthMinutes) || null;
+  }
+
+  function samePlannerItem(a, b) {
+    if (!a || !b || a.kind === 'empty' || b.kind === 'empty') return false;
+    if (a.id && b.id) return String(a.id) === String(b.id);
+    return a.kind === b.kind && a.startMinutes === b.startMinutes && a.lengthMinutes === b.lengthMinutes && text(a.title) === text(b.title);
   }
 
   function emptyItem(minutes) {
@@ -380,16 +557,20 @@
   function normalizePlannerItem(raw, kind) {
     const pbs = Boolean(raw.isPbsFeed || raw.purpose === 'pbs_feed');
     const override = kind === 'override';
-    const status = override ? 'override' : (pbs ? 'pbs' : purposeStatus(raw.purpose));
+    const rotation = !pbs && (raw.slotBehavior === 'required_rotation' || raw.requiredPoolId);
+    const status = override ? 'override' : (pbs ? 'pbs' : (rotation ? 'rotation' : purposeStatus(raw.purpose)));
     return {
       ...raw,
       kind,
+      id: raw.id || raw.dbId || newId(),
       status,
+      slotBehavior: rotation ? 'required_rotation' : (raw.slotBehavior || 'open_search'),
+      poolName: poolLabel(raw.requiredPoolId),
       title: raw.titleTopic || raw.title || purposeLabel(raw.purpose),
-      purposeLabel: purposeLabel(raw.purpose),
-      lengthMinutes: Number(raw.lengthMinutes || 30),
+      purposeLabel: rotation ? 'Required rotation' : purposeLabel(raw.purpose),
       startMinutes: Number(raw.startMinutes || 0),
-      programmable: override ? true : !pbs && raw.purpose !== 'hold' && raw.purpose !== 'fundraiser'
+      lengthMinutes: Number(raw.lengthMinutes || STEP),
+      programmable: override ? true : (!pbs && raw.purpose !== 'hold' && raw.purpose !== 'fundraiser')
     };
   }
 
@@ -481,6 +662,33 @@
           </label>
           <label class="span-2">Title/topic label
             <input name="titleTopic" type="text" placeholder="Gardening, News, Yan Can Cook, Nature, Local, etc." />
+          </label>
+          <label>Slot behavior
+            <select name="slotBehavior">
+              <option value="open_search">Open candidate search</option>
+              <option value="required_rotation">Required rotation / pool</option>
+            </select>
+          </label>
+          <label>Existing pool
+            <select name="requiredPoolId">${poolOptions('')}</select>
+          </label>
+          <label class="span-2">Pool name
+            <input name="poolName" type="text" placeholder="WAI LANA YOGA seasons" />
+          </label>
+          <label class="span-2">Pool title match text
+            <input name="poolMatchText" type="text" placeholder="WAI LANA YOGA" />
+          </label>
+          <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox" checked /> Avoid same season back-to-back</label>
+          <label>Repeat gap days
+            <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="0" />
+          </label>
+          <label>Rights urgency
+            <select name="rightsUrgencyMonths">
+              <option value="0">Off</option>
+              <option value="3">Rights end in 3 months</option>
+              <option value="6" selected>Rights end in 6 months</option>
+              <option value="12">Rights end in 12 months</option>
+            </select>
           </label>
           <label>Series pattern
             <select name="seriesPattern">
@@ -592,6 +800,7 @@
     const date = fromIsoDate(iso);
     const base = plannerItemFromFormData(data, iso);
     try {
+      await attachPoolToPlannerItem(base, data);
       if (data.scope === 'date' || data.scope === 'range') {
         const start = data.scope === 'range' ? (data.startDate || iso) : iso;
         const end = data.scope === 'range' ? (data.endDate || start) : iso;
@@ -634,6 +843,11 @@
       freshnessMonths: saneNumber(data.freshnessMonths, 0),
       eventMode: data.eventMode || 'none',
       eventWindowDays: saneNumber(data.eventWindowDays, 5),
+      slotBehavior: data.slotBehavior || 'open_search',
+      requiredPoolId: text(data.requiredPoolId),
+      avoidBackToBack: data.avoidBackToBack === 'on' || data.avoidBackToBack === true,
+      repeatGapDays: saneNumber(data.repeatGapDays, 0),
+      rightsUrgencyMonths: saneNumber(data.rightsUrgencyMonths, 0),
       startDate: data.startDate || '',
       endDate: data.endDate || '',
       notes: data.notes || '',
@@ -653,6 +867,11 @@
       overrideReason: 'pbs_temporary_override',
       purpose: current.lengthMinutes === 60 ? 'flex' : 'standalone',
       fillStrategy: current.lengthMinutes === 60 ? 'single_or_two' : 'single',
+      slotBehavior: 'open_search',
+      requiredPoolId: '',
+      avoidBackToBack: false,
+      repeatGapDays: 0,
+      rightsUrgencyMonths: 0,
       titleTopic: `Local override for ${current.title || 'PBS feed'}`,
       programmable: true,
       startDate: iso,
@@ -716,6 +935,13 @@
           </label>
           <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || '')}" /></label>
           <label class="span-2">Title/topic label<input name="titleTopic" type="text" value="${escapeHtml(current.titleTopic || current.title || '')}" /></label>
+          <label>Slot behavior<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open candidate search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
+          <label>Existing pool<select name="requiredPoolId">${poolOptions(current.requiredPoolId || '')}</select></label>
+          <label class="span-2">Pool name<input name="poolName" type="text" value="${escapeHtml(current.poolName || '')}" placeholder="WAI LANA YOGA seasons" /></label>
+          <label class="span-2">Pool title match text<input name="poolMatchText" type="text" value="${escapeHtml(poolMatchTextForSlot(current))}" placeholder="WAI LANA YOGA" /></label>
+          <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox"${current.avoidBackToBack !== false ? ' checked' : ''} /> Avoid same season back-to-back</label>
+          <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(current.repeatGapDays || 0)}" /></label>
+          <label>Rights urgency<select name="rightsUrgencyMonths"><option value="0"${!Number(current.rightsUrgencyMonths)?' selected':''}>Off</option><option value="3"${Number(current.rightsUrgencyMonths)===3?' selected':''}>Rights end in 3 months</option><option value="6"${Number(current.rightsUrgencyMonths)===6?' selected':''}>Rights end in 6 months</option><option value="12"${Number(current.rightsUrgencyMonths)===12?' selected':''}>Rights end in 12 months</option></select></label>
           <label>Series episode min<input name="episodeMin" type="number" min="1" step="1" value="${escapeHtml(current.episodeMin || '')}" /></label>
           <label>Series episode max<input name="episodeMax" type="number" min="1" step="1" value="${escapeHtml(current.episodeMax || '')}" /></label>
           <label>Rating use<select name="ratingMode"><option value="boost"${current.ratingMode==='boost'?' selected':''}>Prefer higher-rated</option><option value="ignore"${current.ratingMode==='ignore'?' selected':''}>Ignore ratings</option><option value="minimum"${current.ratingMode==='minimum'?' selected':''}>Require minimum</option></select></label>
@@ -745,6 +971,7 @@
       startMinutes: saneNumber(data.startMinutes, current.startMinutes)
     };
     try {
+      await attachPoolToPlannerItem(updated, data);
       const { data: row, error } = await state.supabase.from(TEMPLATE_TABLE).update(templateToDb(updated)).eq('id', current.id).select('*').single();
       if (error) throw error;
       const idx = state.templates.findIndex((item) => String(item.id) === String(current.id));
@@ -780,21 +1007,24 @@
   function renderCandidatePreview(slot, iso) {
     const target = normalizePlannerItem({ ...slot, channel: state.channel }, slot.kind || 'template');
     if (target.status === 'pbs') return;
+    target._rotationContext = resolveDayContext(fromIsoDate(iso), target.startMinutes, target.channel || state.channel);
     const candidates = rankCandidates(target, iso);
-    const pairs = target.lengthMinutes === 60 && ['two_half_hours', 'single_or_two', 'flex'].includes(target.fillStrategy || target.purpose)
+    const pairs = target.lengthMinutes === 60 && target.slotBehavior !== 'required_rotation' && ['two_half_hours', 'single_or_two', 'flex'].includes(target.fillStrategy || target.purpose)
       ? rankPairs(target, iso)
       : [];
     const preview = document.getElementById('candidatePreview');
     if (!preview) return;
+    const isRotation = target.slotBehavior === 'required_rotation';
     preview.innerHTML = `
       <div class="candidate-grid">
         <section class="candidate-section">
-          <h3>Best single-program fits</h3>
-          ${candidates.slice(0, 10).map(candidateCard).join('') || '<p class="small-note">No single-program matches found.</p>'}
+          <h3>${isRotation ? 'Required-rotation pool candidates' : 'Best single-program fits'}</h3>
+          ${isRotation ? `<p class="small-note">Pool: ${escapeHtml(target.poolName || poolLabel(target.requiredPoolId) || 'not selected')} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months</p>` : ''}
+          ${candidates.slice(0, 10).map(candidateCard).join('') || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool title-match text.' : 'No single-program matches found.'}</p>`}
         </section>
         <section class="candidate-section">
           <h3>Best 30 + 30 fits</h3>
-          ${pairs.slice(0, 8).map(pairCard).join('') || '<p class="small-note">No 30 + 30 pairs for this slot.</p>'}
+          ${pairs.slice(0, 8).map(pairCard).join('') || `<p class="small-note">${isRotation ? 'Required-rotation slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
         </section>
       </div>
     `;
@@ -834,14 +1064,38 @@
     let score = 0;
 
     if (program.is_archived) return { ok: false, program, score: -999, why: ['archived'] };
+
+    if (slot.slotBehavior === 'required_rotation') {
+      const poolMatch = rotationPoolMatch(program, slot);
+      if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside required pool'] };
+      score += 45 + poolMatch.score;
+      why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'required pool match');
+    }
+
     if (slot.lengthMinutes && length && length !== Number(slot.lengthMinutes)) return { ok: false, program, length, score: -200, why: ['wrong length'] };
     if (slot.lengthMinutes && !length) warnings.push('missing length');
     if (slot.purpose === 'series' && !isSeries) return { ok: false, program, length, score: -200, why: ['not series'] };
-    if (['standalone', 'holiday', 'local'].includes(slot.purpose) && isSeries) return { ok: false, program, length, score: -120, why: ['series excluded'] };
+    if (slot.slotBehavior !== 'required_rotation' && ['standalone', 'holiday', 'local'].includes(slot.purpose) && isSeries) return { ok: false, program, length, score: -120, why: ['series excluded'] };
+    if (slot.slotBehavior === 'required_rotation' && isSeries) { score += 8; why.push('series allowed by required rotation'); }
 
     if (rights.expired) return { ok: false, program, length, score: -300, why: ['expired rights'] };
     if (rights.missing) warnings.push('missing rights end');
     else score += 15;
+
+    if (slot.slotBehavior === 'required_rotation') {
+      const gapDays = Number(slot.repeatGapDays || 0);
+      if (gapDays) {
+        const recent = daysSinceLastAired(program, state.channel, iso);
+        if (recent != null && recent < gapDays) return { ok: false, program, length, score: -180, why: [`aired ${recent} days ago`] };
+      }
+      const urgency = rightsUrgencyInfo(program, iso, Number(slot.rightsUrgencyMonths || 0));
+      if (urgency.urgent) { score += 55; why.push(`rights end in ${urgency.monthsUntil} months`); }
+      else if (Number(slot.rightsUrgencyMonths || 0) && !rights.missing) { score += 5; }
+      if (slot.avoidBackToBack !== false && nearbyTitleConflict(program, slot._rotationContext)) {
+        score -= 35;
+        warnings.push('nearby same title/season');
+      }
+    }
 
     if (length === Number(slot.lengthMinutes)) { score += 25; why.push(`${length}m length match`); }
     if (isSeries) {
@@ -877,6 +1131,61 @@
     }
 
     return { ok: true, program, length, rating, score, why, warnings };
+  }
+
+  function rotationPoolMatch(program, slot) {
+    const pool = getPool(slot.requiredPoolId);
+    const items = poolItemsForPool(slot.requiredPoolId);
+    const fallbackTerm = text(pool?.titleMatchText || slot.titleTopic || slot.templateGroupName);
+    const candidates = items.length ? items : (fallbackTerm ? [{ titleMatchText: fallbackTerm, itemLabel: fallbackTerm, priorityWeight: 0, active: true }] : []);
+    let best = null;
+    candidates.forEach((item) => {
+      const match = programMatchesPoolItem(program, item);
+      if (!match.ok) return;
+      const score = match.score + Number(item.priorityWeight || 0);
+      if (!best || score > best.score) best = { ...match, score, label: item.itemLabel || item.titleMatchText || item.programTitle || pool?.poolName || '' };
+    });
+    return best || { ok: false, score: 0, label: '' };
+  }
+
+  function programMatchesPoolItem(program, item) {
+    const ids = programRecordIds(program);
+    if (item.programRecordId && ids.has(text(item.programRecordId))) return { ok: true, score: 80 };
+    const terms = text(item.titleMatchText || item.programTitle || item.itemLabel).toLowerCase().split(/[,;|]/).map((term) => term.trim()).filter(Boolean);
+    if (!terms.length) return { ok: false, score: 0 };
+    const haystack = text([program.title, program.program_title, program.series_title, program.notes, program.topic, program.secondary_topic].join(' ')).toLowerCase();
+    const matched = terms.find((term) => haystack.includes(term));
+    return matched ? { ok: true, score: Math.min(55, 20 + matched.length), label: item.itemLabel || matched } : { ok: false, score: 0 };
+  }
+
+  function programRecordIds(program) {
+    return new Set([program.id, program.program_id, program.record_id, program.nola_code, program.nola, program.slug].map(text).filter(Boolean));
+  }
+
+  function daysSinceLastAired(program, channel, iso) {
+    const field = channel === '13.3' ? program.aired_13_3 : program.aired_13_1;
+    const target = fromIsoDate(iso).getTime();
+    const dates = extractDates(field).filter((d) => d <= iso).sort();
+    if (!dates.length) return null;
+    const latest = fromIsoDate(dates[dates.length - 1]).getTime();
+    return Math.max(0, Math.floor((target - latest) / 86400000));
+  }
+
+  function rightsUrgencyInfo(program, iso, months) {
+    const end = normalizeDateish(program.rights_end);
+    if (!end || !months) return { urgent: false, monthsUntil: null };
+    const monthsUntil = (fromIsoDate(end).getFullYear() - fromIsoDate(iso).getFullYear()) * 12 + (fromIsoDate(end).getMonth() - fromIsoDate(iso).getMonth());
+    return { urgent: monthsUntil >= 0 && monthsUntil <= months, monthsUntil };
+  }
+
+  function nearbyTitleConflict(program, context) {
+    if (!context) return false;
+    const title = programTitle(program).toLowerCase();
+    if (!title) return false;
+    return [context.previous, context.next].some((item) => {
+      const nearby = text(item?.title || item?.titleTopic).toLowerCase();
+      return nearby && (nearby === title || title.includes(nearby) || nearby.includes(title));
+    });
   }
 
   function candidateCard(entry) {
@@ -947,16 +1256,20 @@
 
   async function clearPlannerData() {
     try {
-      const [overrideResult, templateResult] = await Promise.all([
-        state.supabase.from(OVERRIDE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-        state.supabase.from(TEMPLATE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      ]);
+      const overrideResult = await state.supabase.from(OVERRIDE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (overrideResult.error) throw overrideResult.error;
+      const templateResult = await state.supabase.from(TEMPLATE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (templateResult.error) throw templateResult.error;
+      const poolItemResult = await state.supabase.from(POOL_ITEM_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (poolItemResult.error) throw poolItemResult.error;
+      const poolResult = await state.supabase.from(POOL_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (poolResult.error) throw poolResult.error;
       state.templates = [];
       state.overrides = [];
+      state.pools = [];
+      state.poolItems = [];
       render();
-      updateSummary('Cleared scheduler test templates and overrides from Supabase planner tables.');
+      updateSummary('Cleared scheduler test templates, overrides, and required-rotation pool records from Supabase planner tables.');
     } catch (error) {
       console.error(error);
       alert(`Clear planner data failed: ${error.message}`);
@@ -998,6 +1311,8 @@
     if (els.metricHolidays) els.metricHolidays.textContent = state.holidays.length.toLocaleString();
     if (els.metricTemplates) els.metricTemplates.textContent = state.templates.length.toLocaleString();
     if (els.metricOverrides) els.metricOverrides.textContent = state.overrides.length.toLocaleString();
+    if (els.metricPools) els.metricPools.textContent = state.pools.length.toLocaleString();
+    if (els.metricPoolItems) els.metricPoolItems.textContent = state.poolItems.length.toLocaleString();
   }
 
   function adjustTime(delta) {
