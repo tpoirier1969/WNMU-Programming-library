@@ -1,4 +1,4 @@
-// v1.5.60 targeted workflow helpers
+// v1.5.61 targeted workflow helpers
 // Adds/keeps: visible main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
@@ -522,7 +522,7 @@
   });
 })();
 
-// v1.5.60 Schedule Planner test-page launcher
+// v1.5.61 Schedule Planner test-page launcher
 (function () {
   const PLANNER_PAGE = 'programming-calendar.html';
   const PLANNER_WINDOW_NAME = 'wnmu-programming-schedule-planner';

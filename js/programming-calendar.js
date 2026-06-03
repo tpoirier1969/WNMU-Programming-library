@@ -1,16 +1,16 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.60
-// Read-only Supabase use: this file only SELECTs existing data. Test planner templates/overrides are localStorage-only.
+// WNMU Programming Library Schedule Planner test helper v1.5.61
+// Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.60-test';
+  const VERSION = 'v1.5.61-db-test';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
   const DEFAULT_SELECTED_TIME = 14 * 60;
-  const LOCAL_TEMPLATE_KEY = 'wnmu_prog_sched_test_slot_templates_v1';
-  const LOCAL_OVERRIDE_KEY = 'wnmu_prog_sched_test_slot_overrides_v1';
   const LOCAL_PREF_KEY = 'wnmu_prog_sched_test_preferences_v1';
+  const TEMPLATE_TABLE = 'wnmu_prog_sched_slot_templates';
+  const OVERRIDE_TABLE = 'wnmu_prog_sched_slot_overrides';
   const SCHED_TABLE_PREFIX = 'wnmu_prog_sched_';
 
   const $ = (selector) => document.querySelector(selector);
@@ -25,7 +25,8 @@
     month: firstOfMonth(new Date()),
     selectedMinutes: DEFAULT_SELECTED_TIME,
     activeCell: null,
-    loading: false
+    loading: false,
+    plannerDataReady: false
   };
 
   const els = {};
@@ -53,14 +54,13 @@
 
     state.session = data.session;
     showPlanner();
-    loadLocalPlannerData();
     await loadReadOnlyData();
     render();
   }
 
   function cacheEls() {
     [
-      'lockedShell','plannerShell','lockedLibraryBtn','openLibraryBtn','refreshDataBtn','channelSelect','monthInput','timeDownBtn','timeUpBtn','timeDisplay','timeSelect','prevMonthBtn','thisMonthBtn','nextMonthBtn','monthGrid','sideTitle','sideSummary','metricPrograms','metricHolidays','metricTemplates','metricOverrides','clearLocalPlannerBtn','slotModalBackdrop','slotModalTitle','slotModalSub','slotModalBody','closeSlotModalBtn'
+      'plannerTopbar','lockedShell','plannerShell','lockedLibraryBtn','openLibraryBtn','refreshDataBtn','channelSelect','monthInput','timeDownBtn','timeUpBtn','timeDisplay','timeSelect','prevMonthBtn','thisMonthBtn','nextMonthBtn','monthGrid','sideTitle','sideSummary','metricPrograms','metricHolidays','metricTemplates','metricOverrides','clearLocalPlannerBtn','slotModalBackdrop','slotModalTitle','slotModalSub','slotModalBody','closeSlotModalBtn'
     ].forEach((id) => { els[id] = document.getElementById(id); });
   }
 
@@ -88,12 +88,9 @@
     els.prevMonthBtn?.addEventListener('click', () => { state.month = addMonths(state.month, -1); persistPreferences(); syncControls(); render(); });
     els.nextMonthBtn?.addEventListener('click', () => { state.month = addMonths(state.month, 1); persistPreferences(); syncControls(); render(); });
     els.thisMonthBtn?.addEventListener('click', () => { state.month = firstOfMonth(new Date()); persistPreferences(); syncControls(); render(); });
-    els.clearLocalPlannerBtn?.addEventListener('click', () => {
-      if (!confirm('Clear local Schedule Planner test templates and overrides from this browser? Supabase data will not be touched.')) return;
-      state.templates = [];
-      state.overrides = [];
-      persistLocalPlannerData();
-      render();
+    els.clearLocalPlannerBtn?.addEventListener('click', async () => {
+      if (!confirm('Clear all Schedule Planner test templates and overrides from Supabase? This only affects wnmu_prog_sched_* planner test tables. Library program data will not be touched.')) return;
+      await clearPlannerData();
     });
     els.closeSlotModalBtn?.addEventListener('click', closeModal);
     els.slotModalBackdrop?.addEventListener('click', (event) => { if (event.target === els.slotModalBackdrop) closeModal(); });
@@ -105,6 +102,7 @@
   }
 
   function showLocked(message) {
+    els.plannerTopbar?.classList.add('hidden');
     els.lockedShell?.classList.remove('hidden');
     els.plannerShell?.classList.add('hidden');
     const p = els.lockedShell?.querySelector('p');
@@ -112,6 +110,7 @@
   }
 
   function showPlanner() {
+    els.plannerTopbar?.classList.remove('hidden');
     els.lockedShell?.classList.add('hidden');
     els.plannerShell?.classList.remove('hidden');
   }
@@ -119,20 +118,28 @@
   async function loadReadOnlyData() {
     if (!state.supabase || !state.session) return;
     state.loading = true;
-    updateSummary('Loading Library data…');
+    updateSummary('Loading Library and planner data…');
     try {
-      const [programResult, holidayResult] = await Promise.all([
+      const [programResult, holidayResult, templateResult, overrideResult] = await Promise.all([
         selectPrograms(),
-        state.supabase.from('holiday_observances').select('*')
+        state.supabase.from('holiday_observances').select('*'),
+        state.supabase.from(TEMPLATE_TABLE).select('*').order('channel').order('day_of_week').order('start_minutes'),
+        state.supabase.from(OVERRIDE_TABLE).select('*').order('start_date').order('start_minutes')
       ]);
       if (programResult.error) throw programResult.error;
       if (holidayResult.error) console.warn('Holiday/event read skipped:', holidayResult.error);
+      if (templateResult.error) throw new Error(`Planner template table read failed: ${templateResult.error.message}. Run the v1.5.61 planner SQL first.`);
+      if (overrideResult.error) throw new Error(`Planner override table read failed: ${overrideResult.error.message}. Run the v1.5.61 planner SQL first.`);
       state.programs = Array.isArray(programResult.data) ? programResult.data : [];
       state.holidays = Array.isArray(holidayResult.data) ? holidayResult.data : [];
-      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs. Scheduler remains read-only.`);
+      state.templates = (templateResult.data || []).map(templateFromDb);
+      state.overrides = (overrideResult.data || []).map(overrideFromDb);
+      state.plannerDataReady = true;
+      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs and ${state.templates.length.toLocaleString()} planner templates. Planner writes only to wnmu_prog_sched_* test tables.`);
     } catch (error) {
       console.error(error);
-      updateSummary(`Read-only data load failed: ${error.message}`);
+      state.plannerDataReady = false;
+      updateSummary(error.message || 'Planner data load failed.');
     } finally {
       state.loading = false;
       updateMetrics();
@@ -144,6 +151,127 @@
     if (!enriched.error) return enriched;
     console.warn('programs_enriched read failed; falling back to programs:', enriched.error);
     return state.supabase.from('programs').select('*');
+  }
+
+
+  function templateFromDb(row) {
+    return {
+      id: row.id,
+      dbId: row.id,
+      kind: 'template',
+      channel: row.channel || '13.1',
+      dayOfWeek: row.day_of_week,
+      startMinutes: Number(row.start_minutes || 0),
+      lengthMinutes: Number(row.length_minutes || 30),
+      purpose: row.purpose || 'standalone',
+      isPbsFeed: Boolean(row.is_pbs_feed),
+      titleTopic: row.title_topic || '',
+      fillStrategy: row.fill_strategy || 'single',
+      seriesPattern: row.series_pattern || 'none',
+      templateGroupName: row.template_group_name || '',
+      episodeMin: row.episode_min,
+      episodeMax: row.episode_max,
+      ratingMode: row.rating_mode || 'boost',
+      ratingMin: row.rating_min,
+      freshnessMonths: Number(row.freshness_months || 0),
+      eventMode: row.event_mode || 'none',
+      eventWindowDays: Number(row.event_window_days || 5),
+      startDate: row.active_start_date || '',
+      endDate: row.active_end_date || '',
+      notes: row.notes || '',
+      createdAt: row.created_at || '',
+      updatedAt: row.updated_at || ''
+    };
+  }
+
+  function overrideFromDb(row) {
+    return {
+      id: row.id,
+      dbId: row.id,
+      kind: 'override',
+      channel: row.channel || '13.1',
+      startDate: row.start_date || '',
+      endDate: row.end_date || row.start_date || '',
+      overrideTemplateId: row.override_template_id || '',
+      pbsWasOverridden: Boolean(row.pbs_was_overridden),
+      overrideReason: row.override_reason || 'manual',
+      startMinutes: Number(row.start_minutes || 0),
+      lengthMinutes: Number(row.length_minutes || 30),
+      purpose: row.purpose || 'standalone',
+      isPbsFeed: Boolean(row.is_pbs_feed),
+      titleTopic: row.title_topic || '',
+      fillStrategy: row.fill_strategy || 'single',
+      seriesPattern: row.series_pattern || 'none',
+      templateGroupName: row.template_group_name || '',
+      episodeMin: row.episode_min,
+      episodeMax: row.episode_max,
+      ratingMode: row.rating_mode || 'boost',
+      ratingMin: row.rating_min,
+      freshnessMonths: Number(row.freshness_months || 0),
+      eventMode: row.event_mode || 'none',
+      eventWindowDays: Number(row.event_window_days || 5),
+      notes: row.notes || '',
+      createdAt: row.created_at || '',
+      updatedAt: row.updated_at || ''
+    };
+  }
+
+  function templateToDb(item) {
+    return {
+      channel: item.channel || state.channel,
+      day_of_week: Number(item.dayOfWeek ?? 0),
+      start_minutes: Number(item.startMinutes ?? state.selectedMinutes),
+      length_minutes: Number(item.lengthMinutes || 30),
+      purpose: item.purpose || 'standalone',
+      is_pbs_feed: Boolean(item.isPbsFeed || item.purpose === 'pbs_feed'),
+      title_topic: item.titleTopic || '',
+      fill_strategy: item.fillStrategy || 'single',
+      series_pattern: item.seriesPattern || 'none',
+      template_group_name: item.templateGroupName || '',
+      episode_min: emptyToNull(item.episodeMin),
+      episode_max: emptyToNull(item.episodeMax),
+      rating_mode: item.ratingMode || 'boost',
+      rating_min: emptyToNull(item.ratingMin),
+      freshness_months: Number(item.freshnessMonths || 0),
+      event_mode: item.eventMode || 'none',
+      event_window_days: Number(item.eventWindowDays || 5),
+      active_start_date: item.startDate || null,
+      active_end_date: item.endDate || null,
+      notes: item.notes || ''
+    };
+  }
+
+  function overrideToDb(item) {
+    return {
+      channel: item.channel || state.channel,
+      start_date: item.startDate,
+      end_date: item.endDate || item.startDate,
+      override_template_id: item.overrideTemplateId || null,
+      pbs_was_overridden: Boolean(item.pbsWasOverridden),
+      override_reason: item.overrideReason || 'manual',
+      start_minutes: Number(item.startMinutes ?? state.selectedMinutes),
+      length_minutes: Number(item.lengthMinutes || 30),
+      purpose: item.purpose || 'standalone',
+      is_pbs_feed: Boolean(item.isPbsFeed || item.purpose === 'pbs_feed'),
+      title_topic: item.titleTopic || '',
+      fill_strategy: item.fillStrategy || 'single',
+      series_pattern: item.seriesPattern || 'none',
+      template_group_name: item.templateGroupName || '',
+      episode_min: emptyToNull(item.episodeMin),
+      episode_max: emptyToNull(item.episodeMax),
+      rating_mode: item.ratingMode || 'boost',
+      rating_min: emptyToNull(item.ratingMin),
+      freshness_months: Number(item.freshnessMonths || 0),
+      event_mode: item.eventMode || 'none',
+      event_window_days: Number(item.eventWindowDays || 5),
+      notes: item.notes || ''
+    };
+  }
+
+  function emptyToNull(value) {
+    if (value == null || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
   }
 
   function render() {
@@ -309,13 +437,14 @@
     const date = fromIsoDate(iso);
     return `
       <form id="slotTemplateForm" class="candidate-section">
-        <h3>Create local test template</h3>
-        <p class="small-note">Stored only in this browser under ${SCHED_TABLE_PREFIX} test keys. No Supabase write.</p>
+        <h3>Create database-backed test template</h3>
+        <p class="small-note">Saved to Supabase table <strong>${TEMPLATE_TABLE}</strong> or <strong>${OVERRIDE_TABLE}</strong>. Library program records and aired-history fields are not changed.</p>
         <div class="form-grid">
           <label>Applies to
             <select name="scope">
-              <option value="weekly">Every ${weekdayName(date.getDay())} at this time</option>
+              <option value="weekly">Selected weekdays every week</option>
               <option value="date">This date only as temporary override</option>
+              <option value="range">Date range temporary override</option>
             </select>
           </label>
           <label>Length minutes
@@ -340,14 +469,39 @@
               <option value="single_or_two">Either single or two half-hours</option>
             </select>
           </label>
+          <div class="span-4">
+            <div class="field-label">Weekdays for recurring template</div>
+            <div class="weekday-picker">
+              ${weekdayCheckboxes(date.getDay())}
+            </div>
+            <div class="small-note">Use this for blocks like M–F 4:30 PM cooking. It will create one template row per selected weekday.</div>
+          </div>
+          <label class="span-2">Template/group name
+            <input name="templateGroupName" type="text" placeholder="Weekday Cooking, Prime History, PBS News, etc." />
+          </label>
           <label class="span-2">Title/topic label
-            <input name="titleTopic" type="text" placeholder="Gardening, News, Nature, Local, etc." />
+            <input name="titleTopic" type="text" placeholder="Gardening, News, Yan Can Cook, Nature, Local, etc." />
+          </label>
+          <label>Series pattern
+            <select name="seriesPattern">
+              <option value="none">Not a series lane</option>
+              <option value="weekly_one_day">Weekly one-day series</option>
+              <option value="independent_by_weekday">M–F independent weekday series</option>
+              <option value="consecutive_across_days">M–F consecutive episodes across selected days</option>
+            </select>
           </label>
           <label>Series episode min
             <input name="episodeMin" type="number" min="1" step="1" placeholder="optional" />
           </label>
           <label>Series episode max
             <input name="episodeMax" type="number" min="1" step="1" placeholder="optional" />
+          </label>
+          <label>Freshness
+            <select name="freshnessMonths">
+              <option value="0">Any</option>
+              <option value="12">Not aired in 12 months</option>
+              <option value="24" selected>Not aired in 24 months</option>
+            </select>
           </label>
           <label>Rating use
             <select name="ratingMode">
@@ -364,13 +518,6 @@
               <option value="5">5</option>
             </select>
           </label>
-          <label>Freshness
-            <select name="freshnessMonths">
-              <option value="0">Any</option>
-              <option value="12">Not aired in 12 months</option>
-              <option value="24" selected>Not aired in 24 months</option>
-            </select>
-          </label>
           <label>Holiday/event match
             <select name="eventMode">
               <option value="none">None</option>
@@ -381,15 +528,27 @@
           <label>Event window days
             <input name="eventWindowDays" type="number" min="0" max="30" step="1" value="5" />
           </label>
+          <label>Start date / season start
+            <input name="startDate" type="date" />
+          </label>
+          <label>End date / season end
+            <input name="endDate" type="date" />
+          </label>
           <label class="span-4">Notes
-            <textarea name="notes" rows="2" placeholder="Test notes, PBS feed name, fundraiser notes, staff-off holiday notes, etc."></textarea>
+            <textarea name="notes" rows="2" placeholder="PBS feed name, fundraiser notes, staff-off holiday notes, etc."></textarea>
           </label>
         </div>
         <div class="action-row">
-          <button type="submit" class="primary">Save local test template</button>
+          <button type="submit" class="primary">Save planner test template</button>
         </div>
       </form>
     `;
+  }
+
+  function weekdayCheckboxes(selectedDay) {
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, index) => `
+      <label class="weekday-check"><input type="checkbox" name="weekdays" value="${index}"${index === selectedDay ? ' checked' : ''} /> ${label}</label>
+    `).join('');
   }
 
   function existingSlotMarkup(current, iso, flags) {
@@ -400,13 +559,13 @@
       <section class="candidate-section">
         <h3>Slot actions</h3>
         <p><strong>${escapeHtml(current.title || 'Slot')}</strong></p>
-        <p class="small-note">${escapeHtml(itemMeta(current))}</p>
+        <p class="small-note">${escapeHtml(itemMeta(current))}${current.templateGroupName ? ` · ${escapeHtml(current.templateGroupName)}` : ''}</p>
         <div class="action-row" style="justify-content:start;">
           ${canFind ? '<button type="button" id="findCandidatesBtn" class="primary">Preview matching programs</button>' : ''}
           ${isPbs ? '<button type="button" id="overridePbsBtn" class="primary">Override this date</button>' : ''}
           ${isOverride ? '<button type="button" id="removeOverrideBtn">Restore template/PBS feed</button>' : ''}
-          ${current.kind === 'template' ? '<button type="button" id="editTemplateBtn">Edit local template</button>' : ''}
-          ${current.kind === 'template' ? '<button type="button" id="deleteTemplateBtn" class="danger">Delete local template</button>' : ''}
+          ${current.kind === 'template' ? '<button type="button" id="editTemplateBtn">Edit template</button>' : ''}
+          ${current.kind === 'template' ? '<button type="button" id="deleteTemplateBtn" class="danger">Delete template</button>' : ''}
         </div>
         ${!canFind && isPbs ? '<p class="small-note">PBS feed slots are ignored by the helper until you override them.</p>' : ''}
       </section>
@@ -417,27 +576,44 @@
     const form = document.getElementById('slotTemplateForm');
     form?.addEventListener('submit', (event) => {
       event.preventDefault();
-      saveTemplateFromForm(form, iso);
+      void saveTemplateFromForm(form, iso);
     });
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
-    document.getElementById('overridePbsBtn')?.addEventListener('click', () => createPbsOverride(context.current, iso));
-    document.getElementById('removeOverrideBtn')?.addEventListener('click', () => removeOverride(context.current));
+    document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
+    document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
     document.getElementById('editTemplateBtn')?.addEventListener('click', () => renderEditTemplateForm(context.current, iso));
-    document.getElementById('deleteTemplateBtn')?.addEventListener('click', () => deleteTemplate(context.current));
+    document.getElementById('deleteTemplateBtn')?.addEventListener('click', () => { void deleteTemplate(context.current); });
   }
 
-  function saveTemplateFromForm(form, iso) {
-    const data = Object.fromEntries(new FormData(form).entries());
+  async function saveTemplateFromForm(form, iso) {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    const weekdays = formData.getAll('weekdays').map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
     const date = fromIsoDate(iso);
     const base = plannerItemFromFormData(data, iso);
-    if (data.scope === 'date') {
-      state.overrides.push({ ...base, id: newId(), kind: 'override', startDate: iso, endDate: iso, dayOfWeek: date.getDay(), channel: state.channel });
-    } else {
-      state.templates.push({ ...base, id: newId(), kind: 'template', startDate: '', endDate: '', dayOfWeek: date.getDay(), channel: state.channel });
+    try {
+      if (data.scope === 'date' || data.scope === 'range') {
+        const start = data.scope === 'range' ? (data.startDate || iso) : iso;
+        const end = data.scope === 'range' ? (data.endDate || start) : iso;
+        const payload = overrideToDb({ ...base, startDate: start, endDate: end, channel: state.channel, overrideReason: data.scope === 'range' ? 'date_range' : 'one_date' });
+        const { data: rows, error } = await state.supabase.from(OVERRIDE_TABLE).insert(payload).select('*').single();
+        if (error) throw error;
+        state.overrides.push(overrideFromDb(rows));
+      } else {
+        const selectedDays = weekdays.length ? weekdays : [date.getDay()];
+        const rows = selectedDays.map((day) => templateToDb({ ...base, dayOfWeek: day, channel: state.channel }));
+        const { data: inserted, error } = await state.supabase.from(TEMPLATE_TABLE).insert(rows).select('*');
+        if (error) throw error;
+        state.templates.push(...(inserted || []).map(templateFromDb));
+      }
+      closeModal();
+      render();
+      updateSummary('Saved planner test template/override to Supabase scheduler test tables.');
+    } catch (error) {
+      console.error(error);
+      alert(`Planner save failed: ${error.message}`);
+      updateSummary(`Planner save failed: ${error.message}`);
     }
-    persistLocalPlannerData();
-    closeModal();
-    render();
   }
 
   function plannerItemFromFormData(data, iso) {
@@ -449,6 +625,8 @@
       isPbsFeed: purpose === 'pbs_feed',
       titleTopic: data.titleTopic || purposeLabel(purpose),
       fillStrategy: data.fillStrategy || 'single',
+      seriesPattern: data.seriesPattern || 'none',
+      templateGroupName: data.templateGroupName || '',
       episodeMin: saneNullableNumber(data.episodeMin),
       episodeMax: saneNullableNumber(data.episodeMax),
       ratingMode: data.ratingMode || 'boost',
@@ -456,21 +634,25 @@
       freshnessMonths: saneNumber(data.freshnessMonths, 0),
       eventMode: data.eventMode || 'none',
       eventWindowDays: saneNumber(data.eventWindowDays, 5),
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
       notes: data.notes || '',
       createdAt: new Date().toISOString()
     };
   }
 
-  function createPbsOverride(current, iso) {
+  async function createPbsOverride(current, iso) {
     const override = {
       ...current,
-      id: newId(),
+      id: '',
       kind: 'override',
       status: 'override',
       isPbsFeed: false,
       pbsWasOverridden: true,
       overrideTemplateId: current.id || '',
+      overrideReason: 'pbs_temporary_override',
       purpose: current.lengthMinutes === 60 ? 'flex' : 'standalone',
+      fillStrategy: current.lengthMinutes === 60 ? 'single_or_two' : 'single',
       titleTopic: `Local override for ${current.title || 'PBS feed'}`,
       programmable: true,
       startDate: iso,
@@ -478,18 +660,34 @@
       notes: `Original PBS feed: ${current.title || current.titleTopic || ''}`.trim(),
       createdAt: new Date().toISOString()
     };
-    state.overrides.push(override);
-    persistLocalPlannerData();
-    closeModal();
-    render();
+    try {
+      const { data, error } = await state.supabase.from(OVERRIDE_TABLE).insert(overrideToDb(override)).select('*').single();
+      if (error) throw error;
+      state.overrides.push(overrideFromDb(data));
+      closeModal();
+      render();
+      updateSummary('Created temporary PBS override in scheduler test table.');
+    } catch (error) {
+      console.error(error);
+      alert(`PBS override failed: ${error.message}`);
+      updateSummary(`PBS override failed: ${error.message}`);
+    }
   }
 
-  function removeOverride(current) {
+  async function removeOverride(current) {
     if (!current?.id) return;
-    state.overrides = state.overrides.filter((item) => String(item.id) !== String(current.id));
-    persistLocalPlannerData();
-    closeModal();
-    render();
+    try {
+      const { error } = await state.supabase.from(OVERRIDE_TABLE).delete().eq('id', current.id);
+      if (error) throw error;
+      state.overrides = state.overrides.filter((item) => String(item.id) !== String(current.id));
+      closeModal();
+      render();
+      updateSummary('Removed planner override and restored the underlying template/PBS feed.');
+    } catch (error) {
+      console.error(error);
+      alert(`Remove override failed: ${error.message}`);
+      updateSummary(`Remove override failed: ${error.message}`);
+    }
   }
 
   function renderEditTemplateForm(current, iso) {
@@ -497,8 +695,8 @@
     if (!body || !current?.id) return;
     body.innerHTML = `
       <form id="editTemplateForm" class="candidate-section">
-        <h3>Edit local recurring template</h3>
-        <p class="small-note">This edits the local browser-only test template. No Supabase write.</p>
+        <h3>Edit scheduler test template</h3>
+        <p class="small-note">This edits Supabase table <strong>${TEMPLATE_TABLE}</strong> only. It does not alter Library program records.</p>
         <div class="form-grid">
           <label>Length minutes<input name="lengthMinutes" type="number" min="5" step="5" value="${escapeHtml(current.lengthMinutes)}" required /></label>
           <label>Purpose
@@ -510,41 +708,73 @@
           <label>Start time
             <select name="startMinutes">${timeOptions(current.startMinutes)}</select>
           </label>
+          <label>Weekday
+            <select name="dayOfWeek">${weekdayOptions(current.dayOfWeek)}</select>
+          </label>
+          <label>Series pattern
+            <select name="seriesPattern">${seriesPatternOptions(current.seriesPattern)}</select>
+          </label>
+          <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || '')}" /></label>
           <label class="span-2">Title/topic label<input name="titleTopic" type="text" value="${escapeHtml(current.titleTopic || current.title || '')}" /></label>
           <label>Series episode min<input name="episodeMin" type="number" min="1" step="1" value="${escapeHtml(current.episodeMin || '')}" /></label>
           <label>Series episode max<input name="episodeMax" type="number" min="1" step="1" value="${escapeHtml(current.episodeMax || '')}" /></label>
+          <label>Rating use<select name="ratingMode"><option value="boost"${current.ratingMode==='boost'?' selected':''}>Prefer higher-rated</option><option value="ignore"${current.ratingMode==='ignore'?' selected':''}>Ignore ratings</option><option value="minimum"${current.ratingMode==='minimum'?' selected':''}>Require minimum</option></select></label>
+          <label>Minimum rating<select name="ratingMin"><option value="">Any</option><option value="3"${Number(current.ratingMin)===3?' selected':''}>3+</option><option value="4"${Number(current.ratingMin)===4?' selected':''}>4+</option><option value="5"${Number(current.ratingMin)===5?' selected':''}>5</option></select></label>
           <label>Freshness<select name="freshnessMonths"><option value="0">Any</option><option value="12"${Number(current.freshnessMonths)===12?' selected':''}>Not aired in 12 months</option><option value="24"${Number(current.freshnessMonths)===24?' selected':''}>Not aired in 24 months</option></select></label>
           <label>Event match<select name="eventMode"><option value="none">None</option><option value="prefer"${current.eventMode==='prefer'?' selected':''}>Prefer nearby event</option><option value="require"${current.eventMode==='require'?' selected':''}>Require nearby event</option></select></label>
           <label>Event window days<input name="eventWindowDays" type="number" min="0" max="30" step="1" value="${escapeHtml(current.eventWindowDays || 5)}" /></label>
+          <label>Active start date<input name="startDate" type="date" value="${escapeHtml(current.startDate || '')}" /></label>
+          <label>Active end date<input name="endDate" type="date" value="${escapeHtml(current.endDate || '')}" /></label>
           <label class="span-4">Notes<textarea name="notes" rows="2">${escapeHtml(current.notes || '')}</textarea></label>
         </div>
-        <div class="action-row"><button type="submit" class="primary">Save local template edits</button></div>
+        <div class="action-row"><button type="submit" class="primary">Save template edits</button></div>
       </form>
     `;
     document.getElementById('editTemplateForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-      const idx = state.templates.findIndex((item) => String(item.id) === String(current.id));
-      if (idx < 0) return;
-      state.templates[idx] = {
-        ...state.templates[idx],
-        ...plannerItemFromFormData({ ...data, ratingMode: current.ratingMode || 'boost', ratingMin: current.ratingMin || '' }, iso),
-        startMinutes: saneNumber(data.startMinutes, current.startMinutes)
-      };
-      persistLocalPlannerData();
-      closeModal();
-      render();
+      void saveTemplateEdit(event.currentTarget, current, iso);
     });
   }
 
-  function deleteTemplate(current) {
+  async function saveTemplateEdit(form, current, iso) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    const updated = {
+      ...current,
+      ...plannerItemFromFormData(data, iso),
+      dayOfWeek: saneNumber(data.dayOfWeek, current.dayOfWeek),
+      startMinutes: saneNumber(data.startMinutes, current.startMinutes)
+    };
+    try {
+      const { data: row, error } = await state.supabase.from(TEMPLATE_TABLE).update(templateToDb(updated)).eq('id', current.id).select('*').single();
+      if (error) throw error;
+      const idx = state.templates.findIndex((item) => String(item.id) === String(current.id));
+      if (idx >= 0) state.templates[idx] = templateFromDb(row);
+      closeModal();
+      render();
+      updateSummary('Saved scheduler template edits.');
+    } catch (error) {
+      console.error(error);
+      alert(`Template edit failed: ${error.message}`);
+      updateSummary(`Template edit failed: ${error.message}`);
+    }
+  }
+
+  async function deleteTemplate(current) {
     if (!current?.id) return;
-    if (!confirm('Delete this local recurring test template? Supabase data will not be touched.')) return;
-    state.templates = state.templates.filter((item) => String(item.id) !== String(current.id));
-    state.overrides = state.overrides.filter((item) => String(item.overrideTemplateId || '') !== String(current.id));
-    persistLocalPlannerData();
-    closeModal();
-    render();
+    if (!confirm('Delete this scheduler test template? Matching planner overrides for this template will also be removed. Library program data will not be touched.')) return;
+    try {
+      const { error } = await state.supabase.from(TEMPLATE_TABLE).delete().eq('id', current.id);
+      if (error) throw error;
+      state.templates = state.templates.filter((item) => String(item.id) !== String(current.id));
+      state.overrides = state.overrides.filter((item) => String(item.overrideTemplateId || '') !== String(current.id));
+      closeModal();
+      render();
+      updateSummary('Deleted scheduler test template.');
+    } catch (error) {
+      console.error(error);
+      alert(`Delete template failed: ${error.message}`);
+      updateSummary(`Delete template failed: ${error.message}`);
+    }
   }
 
   function renderCandidatePreview(slot, iso) {
@@ -688,6 +918,23 @@
     return out.join('');
   }
 
+
+  function weekdayOptions(current) {
+    return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+      .map((label, index) => `<option value="${index}"${Number(current)===index?' selected':''}>${label}</option>`)
+      .join('');
+  }
+
+  function seriesPatternOptions(current) {
+    const opts = [
+      ['none', 'Not a series lane'],
+      ['weekly_one_day', 'Weekly one-day series'],
+      ['independent_by_weekday', 'M–F independent weekday series'],
+      ['consecutive_across_days', 'M–F consecutive episodes across selected days']
+    ];
+    return opts.map(([value, label]) => `<option value="${value}"${value===current?' selected':''}>${label}</option>`).join('');
+  }
+
   function purposeLabel(purpose) {
     return ({
       standalone: 'Standalone', series: 'Series run', flex: 'Flexible block', local: 'Local program', pbs_feed: 'PBS feed', fundraiser: 'Fundraiser', holiday: 'Holiday/event', hold: 'Manual hold', empty: 'Open slot'
@@ -698,15 +945,23 @@
     return ({ single: 'single', two_half_hours: '30+30', single_or_two: '60 or 30+30' })[value] || value;
   }
 
-  function loadLocalPlannerData() {
-    state.templates = readJson(LOCAL_TEMPLATE_KEY, []);
-    state.overrides = readJson(LOCAL_OVERRIDE_KEY, []);
-  }
-
-  function persistLocalPlannerData() {
-    window.localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(state.templates));
-    window.localStorage.setItem(LOCAL_OVERRIDE_KEY, JSON.stringify(state.overrides));
-    updateMetrics();
+  async function clearPlannerData() {
+    try {
+      const [overrideResult, templateResult] = await Promise.all([
+        state.supabase.from(OVERRIDE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        state.supabase.from(TEMPLATE_TABLE).delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      ]);
+      if (overrideResult.error) throw overrideResult.error;
+      if (templateResult.error) throw templateResult.error;
+      state.templates = [];
+      state.overrides = [];
+      render();
+      updateSummary('Cleared scheduler test templates and overrides from Supabase planner tables.');
+    } catch (error) {
+      console.error(error);
+      alert(`Clear planner data failed: ${error.message}`);
+      updateSummary(`Clear planner data failed: ${error.message}`);
+    }
   }
 
   function restorePreferences() {
