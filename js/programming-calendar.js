@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.87-direct-add-exact-program';
+  const VERSION = 'v1.5.88-direct-add-series-cascade';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -1332,7 +1332,7 @@
         alert('That program is no longer available in the loaded Library list. Refresh Library data and try again.');
         return;
       }
-      void useDirectProgram(program, current, iso);
+      void useDirectProgram(program, current, iso, button.dataset.directProgramMode || 'auto');
     });
   }
 
@@ -1351,7 +1351,7 @@
       return;
     }
     resultsEl.innerHTML = `
-      <div class="small-note">${matches.length.toLocaleString()} direct match${matches.length === 1 ? '' : 'es'} found. Click Add here to place one directly on this date/time.</div>
+      <div class="small-note">${matches.length.toLocaleString()} direct match${matches.length === 1 ? '' : 'es'} found. Click Add here for a single program, or Add series run for a series season.</div>
       ${matches.map((program) => directProgramCard(program, iso)).join('\n\n')}
     `;
   }
@@ -1375,21 +1375,34 @@
   function directProgramCard(program, iso) {
     const title = programTitle(program) || scheduledProgramTitle(program) || 'Untitled program';
     const description = programDescription(program) || title;
+    const isSeries = looksLikeSeries(program) && (extractEpisodeCount(program) || 0) > 1;
     return `
       <div class="direct-program-card" title="${escapeHtml(description)}">
         <div>
           <div class="direct-program-title">${escapeHtml(title)}</div>
           <div class="direct-program-meta">${escapeHtml(candidateQuickMeta(program, state.channel, iso))}</div>
         </div>
-        <button type="button" class="primary" data-direct-program-id="${escapeHtml(programStableId(program))}">Add here</button>
+        <div class="direct-program-actions">
+          ${isSeries ? `<button type="button" class="primary" data-direct-program-id="${escapeHtml(programStableId(program))}" data-direct-program-mode="series">Add series run</button><button type="button" data-direct-program-id="${escapeHtml(programStableId(program))}" data-direct-program-mode="single">Add one only</button>` : `<button type="button" class="primary" data-direct-program-id="${escapeHtml(programStableId(program))}" data-direct-program-mode="single">Add here</button>`}
+        </div>
       </div>
     `;
   }
 
-  async function useDirectProgram(program, current, iso) {
+  async function useDirectProgram(program, current, iso, mode = 'auto') {
     try {
       const target = directProgramTarget(current, program, iso);
       const length = parseLength(program.length_minutes) || target.lengthMinutes || STEP;
+      const seriesPlan = buildSeriesCascadePlan(program, target, iso, length);
+      const shouldCascade = mode !== 'single' && seriesPlan.shouldCascade;
+      if (shouldCascade) {
+        await saveCandidateSeriesCascade(program, target, iso, length, null, seriesPlan);
+        await refreshPlannerRowsAfterCandidateFill();
+        closeModal();
+        render();
+        updateSummary(`Direct-added ${seriesPlan.count} ${seriesPlan.dayLabel} slot${seriesPlan.count === 1 ? '' : 's'} starting ${formatLongDate(fromIsoDate(iso))} with ${seriesPlan.displayTitle}.`);
+        return;
+      }
       await saveCandidateOverride(program, target, iso, target.startMinutes, length, null, {
         overrideReason: 'direct_program_pick'
       });
