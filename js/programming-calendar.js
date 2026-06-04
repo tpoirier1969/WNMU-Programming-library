@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.80
+// WNMU Programming Library Schedule Planner test helper v1.5.81
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.80-pool-match-mode-fix';
+  const VERSION = 'v1.5.81-candidate-filter-compact-list';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -168,22 +168,53 @@
   async function selectAllProgramRows(tableName) {
     const pageSize = 1000;
     const rows = [];
+    let expectedCount = null;
     let from = 0;
     while (true) {
-      const { data, error } = await state.supabase
-        .from(tableName)
-        .select('*')
-        .range(from, from + pageSize - 1);
+      const result = await selectProgramPage(tableName, from, from + pageSize - 1, expectedCount == null);
+      const { data, error, count } = result;
       if (error) return { data: rows, error };
+      if (expectedCount == null && Number.isFinite(Number(count))) expectedCount = Number(count);
       const page = Array.isArray(data) ? data : [];
       rows.push(...page);
-      if (page.length < pageSize) break;
       from += pageSize;
+      if (expectedCount != null) {
+        if (rows.length >= expectedCount) break;
+        if (!page.length) {
+          console.warn(`${tableName} reported ${expectedCount} rows but only ${rows.length} could be paged from Supabase.`);
+          break;
+        }
+      } else if (page.length < pageSize) {
+        break;
+      }
       if (from > 50000) {
         return { data: rows, error: new Error(`Stopped loading ${tableName} after 50,000 rows. Narrow the Library data source before using planner search.`) };
       }
     }
-    return { data: rows, error: null };
+    return { data: dedupePrograms(rows), error: null, count: expectedCount };
+  }
+
+  async function selectProgramPage(tableName, from, to, withCount) {
+    const countOpt = withCount ? { count: 'exact' } : undefined;
+    let query = state.supabase.from(tableName).select('*', countOpt).range(from, to);
+    let result = await query;
+    // Keep this deliberately plain. Some views do not expose a stable sortable
+    // column through PostgREST, and a failed order() would block the planner.
+    // The range loop and exact count are the important parts: they prevent the
+    // browser-side Library list from quietly stopping at the first A-F chunk.
+    return result;
+  }
+
+  function dedupePrograms(rows) {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(rows) ? rows : []).forEach((program) => {
+      const key = programStableId(program) || `${programTitle(program).toLowerCase()}|${programNola(program).toLowerCase()}`;
+      if (key && seen.has(key)) return;
+      if (key) seen.add(key);
+      out.push(program);
+    });
+    return out.sort((a, b) => programTitle(a).localeCompare(programTitle(b)) || programNola(a).localeCompare(programNola(b)));
   }
 
 
@@ -388,7 +419,7 @@
     state.pools.filter((pool) => pool.active !== false).forEach((pool) => {
       options.push(`<option value="${escapeHtml(pool.id)}"${String(pool.id) === String(currentPoolId || '') ? ' selected' : ''}>${escapeHtml(pool.poolName)}</option>`);
     });
-    return options.join('');
+    return options.join('\n\n');
   }
 
   function poolNameFromForm(data) {
@@ -584,7 +615,7 @@
   function renderMonthGrid() {
     if (!els.monthGrid) return;
     const days = buildCalendarDays(state.month);
-    els.monthGrid.innerHTML = days.map((date) => renderDayCell(date)).join('');
+    els.monthGrid.innerHTML = days.map((date) => renderDayCell(date)).join('\n\n');
     els.monthGrid.querySelectorAll('[data-date]').forEach((cell) => {
       cell.addEventListener('click', () => openSlotModal(cell.dataset.date));
     });
@@ -611,7 +642,7 @@
     const empty = item.kind === 'empty';
     const manualCandidate = hasSelectedCandidateProgram(item);
     const statusClass = item.status ? ` status-${item.status}` : '';
-    const classes = ['context-row', role, empty && role === 'current' ? 'empty-current' : '', statusClass, manualCandidate ? 'manual-candidate' : ''].filter(Boolean).join(' ');
+    const classes = ['context-row', role, empty && role === 'current' ? 'empty-current' : '', statusClass, manualCandidate ? 'manual-candidate' : ''].filter(Boolean).join('\n\n');
     const title = item.title || item.label || 'Open slot';
     if (role !== 'current' && !empty) {
       return `
@@ -909,12 +940,13 @@
 
   function topicOptions(current) {
     const topics = availableLibraryTopics();
-    return topics.map((topic) => `<option value="${escapeHtml(topic)}"${topic === current ? ' selected' : ''}>${escapeHtml(topic)}</option>`).join('');
+    return topics.map((topic) => `<option value="${escapeHtml(topic)}"${topic === current ? ' selected' : ''}>${escapeHtml(topic)}</option>`).join('\n\n');
   }
 
   function availableLibraryTopics() {
     const set = new Set();
     state.programs.forEach((program) => {
+      if (isArchivedProgram(program)) return;
       [program.topic, program.secondary_topic, program.program_topic, program.category, program.subject].forEach((value) => {
         splitTopicValues(value).forEach((topic) => set.add(topic));
       });
@@ -1013,7 +1045,7 @@
   function weekdayCheckboxes(selectedDay) {
     return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, index) => `
       <label class="weekday-check"><input type="checkbox" name="weekdays" value="${index}"${index === selectedDay ? ' checked' : ''} /> ${label}</label>
-    `).join('');
+    `).join('\n\n');
   }
 
 
@@ -1022,7 +1054,7 @@
     activeDays.add(Number(current?.dayOfWeek ?? 0));
     return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, index) => `
       <label class="weekday-check"><input type="checkbox" name="weekdays" value="${index}"${activeDays.has(index) ? ' checked' : ''} /> ${label}</label>
-    `).join('');
+    `).join('\n\n');
   }
 
   function templateSiblingDays(current) {
@@ -1185,7 +1217,7 @@
         const label = rule.type === 'topic' ? `Topic: ${rule.topic}` : (rule.label || rule.title || rule.nola);
         const prefix = rule.type === 'topic' ? 'Topic' : rule.type === 'nola' ? 'NOLA' : 'Text';
         return `<span class="pool-rule-chip"><strong>${escapeHtml(prefix)}</strong> ${escapeHtml(label)} <button type="button" class="pool-rule-remove" data-remove-pool-rule="${index}" title="Remove">×</button></span>`;
-      }).join('');
+      }).join('\n\n');
     };
 
     list.addEventListener('click', (event) => {
@@ -1262,7 +1294,7 @@
           const id = programStableId(program);
           const meta = [nola || 'No NOLA', parseLength(program.length_minutes) ? `${parseLength(program.length_minutes)}m` : '', program.program_type, program.rights_end ? `rights end ${normalizeDateish(program.rights_end) || program.rights_end}` : ''].filter(Boolean).join(' · ');
           return `<button type="button" class="nola-match-option" data-pool-program-id="${escapeHtml(id)}"><span><span class="nola-match-title">${escapeHtml(title)}</span><span class="nola-match-meta">${escapeHtml(meta)}</span></span><span class="nola-chip">${escapeHtml(nola || 'pick')}</span></button>`;
-        }).join('')}
+        }).join('\n\n')}
       </div>
     `;
   }
@@ -1280,7 +1312,8 @@
         const id = programStableId(program);
         if (seen.has(id)) return null;
         seen.add(id);
-        const activeBonus = program.is_archived ? -50 : 0;
+        if (isArchivedProgram(program)) return null;
+        const activeBonus = 0;
         const bestLength = Math.max(...normalizedValues.filter((nola) => nola.includes(query)).map((nola) => nola.length), query.length);
         return { program, score: (starts ? 70 : 25) + Math.min(bestLength, 16) + activeBonus };
       })
@@ -1567,45 +1600,36 @@
     if (target.status === 'pbs') return;
     target._rotationContext = resolveDayContext(fromIsoDate(iso), target.startMinutes, target.channel || state.channel);
     const candidates = rankCandidates(target, iso);
-    const pairs = target.lengthMinutes === 60 && target.slotBehavior !== 'required_rotation' && ['two_half_hours', 'single_or_two', 'flex'].includes(target.fillStrategy || target.purpose)
-      ? rankPairs(target, iso)
-      : [];
-    const excluded = target.slotBehavior === 'required_rotation' ? rankExcludedPoolCandidates(target, iso, candidates) : [];
+    const excluded = slotUsesAllowedPool(target) ? rankExcludedPoolCandidates(target, iso, candidates) : [];
     const preview = document.getElementById('candidatePreview');
     if (!preview) return;
-    const isRotation = target.slotBehavior === 'required_rotation';
+    const isPoolConstrained = slotUsesAllowedPool(target);
     state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map(), excluded: new Map() };
-    const candidateMarkup = candidates.slice(0, 10).map((entry, index) => {
+    const displayCandidates = candidates.slice(0, 150);
+    const hiddenCount = Math.max(0, candidates.length - displayCandidates.length);
+    const candidateMarkup = displayCandidates.map((entry, index) => {
       const key = candidateKey(entry.program, index);
       state.candidatePreview.singles.set(key, entry);
       return candidateCard(entry, key, target, iso);
-    }).join('');
-    const pairMarkup = pairs.slice(0, 8).map((pair, index) => {
-      const key = `pair_${index}_${candidateKey(pair.a.program, index)}_${candidateKey(pair.b.program, index + 50)}`;
-      state.candidatePreview.pairs.set(key, pair);
-      return pairCard(pair, key, target, iso);
-    }).join('');
-    const excludedMarkup = excluded.slice(0, 12).map((entry, index) => {
+    }).join('\n\n');
+    const excludedMarkup = excluded.slice(0, 80).map((entry, index) => {
       const key = `excluded_${candidateKey(entry.program, index)}`;
       state.candidatePreview.excluded.set(key, entry);
       return excludedCandidateCard(entry, key);
-    }).join('');
+    }).join('\n\n');
+    const poolName = target.poolName || poolLabel(target.requiredPoolId) || 'not selected';
     preview.innerHTML = `
-      <div class="candidate-grid">
+      <div class="candidate-grid candidate-grid--single">
         <section class="candidate-section">
-          <h3>${isRotation ? 'Allowed-pool candidates' : 'Best single-program fits'}</h3>
-          ${isRotation ? `<p class="small-note">Pool: ${escapeHtml(target.poolName || poolLabel(target.requiredPoolId) || 'not selected')} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months</p>` : ''}
-          ${candidateMarkup || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA/programs or selected topics.' : 'No single-program matches found.'}</p>`}
-        </section>
-        <section class="candidate-section">
-          <h3>Best 30 + 30 fits</h3>
-          ${pairMarkup || `<p class="small-note">${isRotation ? 'Allowed-pool slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
+          <h3>${isPoolConstrained ? 'Allowed candidate programs' : 'Best candidate programs'}</h3>
+          ${isPoolConstrained ? `<p class="small-note">Pool: ${escapeHtml(poolName)} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months · ${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'}${hiddenCount ? ` · showing first ${displayCandidates.length.toLocaleString()}` : ''}</p>` : `<p class="small-note">${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'}${hiddenCount ? ` · showing first ${displayCandidates.length.toLocaleString()}` : ''}</p>`}
+          ${candidateMarkup || `<p class="small-note">${isPoolConstrained ? 'No allowed pool/topic/NOLA matches found. Check the selected allowed items.' : 'No single-program matches found.'}</p>`}
         </section>
       </div>
-      ${isRotation && excluded.length ? `
+      ${isPoolConstrained && excluded.length ? `
         <section class="candidate-section">
           <h3>Pool matches not currently eligible</h3>
-          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, freshness, rights, archive, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
+          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, rights, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
           <div class="excluded-candidate-list">${excludedMarkup}</div>
         </section>` : ''}
     `;
@@ -1616,13 +1640,20 @@
     return state.programs
       .map((program) => scoreProgram(program, slot, iso))
       .filter((entry) => entry.ok)
-      .sort((a, b) => b.score - a.score || text(programTitle(a.program)).localeCompare(text(programTitle(b.program))))
-      .slice(0, 80);
+      .sort((a, b) => b.score - a.score || text(programTitle(a.program)).localeCompare(text(programTitle(b.program))));
+  }
+
+  function slotUsesAllowedPool(slot) {
+    if (!slot) return false;
+    if (slot.slotBehavior === 'required_rotation') return true;
+    const poolId = text(slot.requiredPoolId);
+    if (!poolId) return false;
+    return Boolean(getPool(poolId) || poolItemsForPool(poolId).length);
   }
 
 
   function rankExcludedPoolCandidates(slot, iso, includedCandidates) {
-    if (slot.slotBehavior !== 'required_rotation') return [];
+    if (!slotUsesAllowedPool(slot)) return [];
     const includedIds = new Set((includedCandidates || []).map((entry) => programStableId(entry.program)));
     return state.programs
       .map((program) => {
@@ -1662,11 +1693,12 @@
     const rights = rightsStatus(program, iso, slot);
     let score = 0;
 
-    if (program.is_archived) return { ok: false, program, score: -999, why: ['archived'] };
+    if (isArchivedProgram(program)) return { ok: false, program, score: -999, why: ['archived/unavailable'] };
 
-    if (slot.slotBehavior === 'required_rotation') {
+    const enforceAllowedPool = slotUsesAllowedPool(slot);
+    if (enforceAllowedPool) {
       const poolMatch = rotationPoolMatch(program, slot);
-      if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside allowed pool'] };
+      if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside allowed pool/topic/NOLA'] };
       score += 45 + poolMatch.score;
       why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'allowed pool match');
     }
@@ -1772,18 +1804,21 @@
 
     const terms = text(item.titleMatchText || item.programTitle || item.itemLabel).toLowerCase().split(/[,;|]/).map((term) => term.trim()).filter(Boolean);
     if (!terms.length) return { ok: false, score: 0 };
-    const haystack = text([program.title, program.program_title, program.series_title, program.notes, program.topic, program.secondary_topic].join(' ')).toLowerCase();
+    const haystack = text([program.title, program.program_title, program.series_title, program.notes, program.topic, program.secondary_topic].join('\n\n')).toLowerCase();
     const matched = terms.find((term) => haystack.includes(term));
     return matched ? { ok: true, score: Math.min(55, 20 + matched.length), label: item.itemLabel || matched } : { ok: false, score: 0 };
   }
 
   function programMatchesTopic(program, topic) {
-    const wanted = text(topic).toLowerCase();
+    const wanted = normalizeTopic(topic);
     if (!wanted) return { ok: false };
-    const topics = programTopicValues(program).map((value) => value.toLowerCase());
+    const topics = programTopicValues(program).map(normalizeTopic).filter(Boolean);
     if (topics.some((value) => value === wanted)) return { ok: true, exact: true };
-    if (topics.some((value) => value.includes(wanted) || wanted.includes(value))) return { ok: true, exact: false };
     return { ok: false };
+  }
+
+  function normalizeTopic(value) {
+    return text(value).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
   }
 
   function programTopicValues(program) {
@@ -1842,12 +1877,17 @@
     const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 8).join(' · ');
     return `
       <div class="candidate-card" title="${escapeHtml(description || title)}">
-        <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(entry.score))}</div>
-        <div class="candidate-title" title="${escapeHtml(description || title)}">${escapeHtml(title)}</div>
-        <div class="candidate-detail-grid">${details}</div>
-        <div class="candidate-why">${escapeHtml(why)}</div>
-        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : `<div class="candidate-meta"><strong>Description:</strong> none found in Library notes/description fields</div>`}
-        <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="single" data-candidate-key="${escapeHtml(key)}">Use this candidate</button></div>
+        <div class="candidate-card-main">
+          <div class="candidate-title" title="${escapeHtml(description || title)}">${escapeHtml(title)}</div>
+          <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(entry.score))}</div>
+          <button type="button" class="candidate-use-btn primary" data-candidate-kind="single" data-candidate-key="${escapeHtml(key)}">Use</button>
+        </div>
+        <div class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, iso))}</div>
+        <details class="candidate-more">
+          <summary>Details</summary>
+          <div class="candidate-detail-grid">${details}</div>
+          <div class="candidate-why">${escapeHtml(why || 'matched current template rules')}</div>
+        </details>
       </div>
     `;
   }
@@ -1857,15 +1897,19 @@
     const bTitle = programTitle(pair.b.program);
     return `
       <div class="candidate-card" title="${escapeHtml([programDescription(pair.a.program), programDescription(pair.b.program)].filter(Boolean).join('\n\n'))}">
-        <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(pair.score))}</div>
-        <div class="candidate-title" title="${escapeHtml(programDescription(pair.a.program) || aTitle)}">${escapeHtml(aTitle)}</div>
-        <div class="candidate-title" style="margin-top:4px;" title="${escapeHtml(programDescription(pair.b.program) || bTitle)}">+ ${escapeHtml(bTitle)}</div>
-        <div class="candidate-detail-grid">
-          ${candidateDetailRows(pair.a.program, state.channel, iso)}
-          ${candidateDetailRows(pair.b.program, state.channel, iso)}
+        <div class="candidate-card-main">
+          <div class="candidate-title" title="${escapeHtml(programDescription(pair.a.program) || aTitle)}">${escapeHtml(aTitle)} + ${escapeHtml(bTitle)}</div>
+          <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(pair.score))}</div>
+          <button type="button" class="candidate-use-btn primary" data-candidate-kind="pair" data-candidate-key="${escapeHtml(key)}">Use pair</button>
         </div>
-        <div class="candidate-why">${escapeHtml(pair.why.join(' · '))}</div>
-        <div class="candidate-actions"><button type="button" class="candidate-use-btn primary" data-candidate-kind="pair" data-candidate-key="${escapeHtml(key)}">Use this 30 + 30 pair</button></div>
+        <details class="candidate-more">
+          <summary>Details</summary>
+          <div class="candidate-detail-grid">
+            ${candidateDetailRows(pair.a.program, state.channel, iso)}
+            ${candidateDetailRows(pair.b.program, state.channel, iso)}
+          </div>
+          <div class="candidate-why">${escapeHtml(pair.why.join(' · '))}</div>
+        </details>
       </div>
     `;
   }
@@ -1876,13 +1920,31 @@
     const why = [...(entry.why || []), ...(entry.warnings || []).map((w) => `warn: ${w}`)].slice(0, 6).join(' · ');
     return `
       <div class="candidate-card candidate-card--blocked excluded-candidate" title="${escapeHtml(description || programTitle(p))}">
-        <div class="candidate-title" title="${escapeHtml(description || programTitle(p))}">${escapeHtml(programTitle(p))}</div>
-        <div class="candidate-detail-grid">${candidateDetailRows(p, state.channel, null)}</div>
-        <div class="candidate-why"><strong>Not recommended:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
-        ${description ? `<details class="candidate-description"><summary>Description</summary><div>${escapeHtml(description)}</div></details>` : ''}
-        <div class="candidate-actions"><button type="button" class="candidate-use-btn" data-candidate-kind="excluded" data-candidate-key="${escapeHtml(key)}">Use anyway for this date/time</button></div>
+        <div class="candidate-card-main">
+          <div class="candidate-title" title="${escapeHtml(description || programTitle(p))}">${escapeHtml(programTitle(p))}</div>
+          <button type="button" class="candidate-use-btn" data-candidate-kind="excluded" data-candidate-key="${escapeHtml(key)}">Use anyway</button>
+        </div>
+        <div class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, null))}</div>
+        <details class="candidate-more">
+          <summary>Why not recommended / details</summary>
+          <div class="candidate-detail-grid">${candidateDetailRows(p, state.channel, null)}</div>
+          <div class="candidate-why"><strong>Not recommended:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
+        </details>
       </div>
     `;
+  }
+
+  function candidateQuickMeta(program, channel, iso) {
+    const parts = [];
+    const nola = programNola(program);
+    const length = parseLength(program.length_minutes);
+    const episode = programSingleEpisodeNumber(program) || programScheduleEpisodeLine(program).replace(/^Episode:\s*/i, '');
+    if (nola) parts.push(nola);
+    if (episode) parts.push(`Ep ${episode.replace(/^Episode\s*/i, '')}`);
+    if (length) parts.push(`${length}m`);
+    const rights = rightsEnd(program);
+    if (rights) parts.push(`rights end ${rights}`);
+    return parts.join(' · ');
   }
 
   function candidateDetailRows(program, channel, iso) {
@@ -1902,7 +1964,7 @@
       ['Episodes', episodeCount ? String(episodeCount) : (episodeSeason || 'unknown')],
       ['Episode/season field', episodeSeason || 'blank']
     ];
-    return rows.map(([label, value]) => `<div class="candidate-detail-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('');
+    return rows.map(([label, value]) => `<div class="candidate-detail-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('\n\n');
   }
 
   function bindCandidatePreviewEvents(preview) {
@@ -2178,37 +2240,37 @@
     if (rights) parts.push(`Rights: ${rights}.`);
     const existing = text(slot.notes);
     if (existing) parts.push(`Slot notes: ${existing}`);
-    return parts.join(' ');
+    return parts.join('\n\n');
   }
 
   function purposeOptions(current) {
     const normalized = ['series','pbs_feed'].includes(current) ? current : 'standalone';
-    return ['standalone','series','pbs_feed'].map((value) => `<option value="${value}"${value===normalized?' selected':''}>${purposeLabel(value)}</option>`).join('');
+    return ['standalone','series','pbs_feed'].map((value) => `<option value="${value}"${value===normalized?' selected':''}>${purposeLabel(value)}</option>`).join('\n\n');
   }
 
   function fillOptions(current) {
     const normalized = current === 'single_or_two' || current === 'two_half_hours' ? 'single_or_two' : 'single';
     const opts = [['single','Single program only'],['single_or_two','Multiple programs allowed']];
-    return opts.map(([value,label]) => `<option value="${value}"${value===normalized?' selected':''}>${label}</option>`).join('');
+    return opts.map(([value,label]) => `<option value="${value}"${value===normalized?' selected':''}>${label}</option>`).join('\n\n');
   }
 
   function lengthOptions(current) {
     const allowed = [30, 60, 90, 120, 150, 180, 210, 240];
     const normalized = Number(current) || 60;
-    return allowed.map((value) => `<option value="${value}"${value === normalized ? ' selected' : ''}>${value}</option>`).join('');
+    return allowed.map((value) => `<option value="${value}"${value === normalized ? ' selected' : ''}>${value}</option>`).join('\n\n');
   }
 
   function timeOptions(current) {
     const out = [];
     for (let minutes = TIME_MIN; minutes <= TIME_MAX; minutes += STEP) out.push(`<option value="${minutes}"${Number(current)===minutes?' selected':''}>${formatTime(minutes)}</option>`);
-    return out.join('');
+    return out.join('\n\n');
   }
 
 
   function weekdayOptions(current) {
     return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
       .map((label, index) => `<option value="${index}"${Number(current)===index?' selected':''}>${label}</option>`)
-      .join('');
+      .join('\n\n');
   }
 
   function seriesPatternOptions(current) {
@@ -2218,7 +2280,7 @@
       ['independent_by_weekday', 'M–F independent weekday series'],
       ['consecutive_across_days', 'M–F consecutive episodes across selected days']
     ];
-    return opts.map(([value, label]) => `<option value="${value}"${value===current?' selected':''}>${label}</option>`).join('');
+    return opts.map(([value, label]) => `<option value="${value}"${value===current?' selected':''}>${label}</option>`).join('\n\n');
   }
 
   function purposeLabel(purpose) {
@@ -2338,7 +2400,7 @@
     if (!name) return false;
     const terms = new Set(name.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 3));
     text(slot.titleTopic).toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 3).forEach((term) => terms.add(term));
-    const haystack = text([program.title, program.notes, program.topic, program.secondary_topic, program.rights_notes].join(' ')).toLowerCase();
+    const haystack = text([program.title, program.notes, program.topic, program.secondary_topic, program.rights_notes].join('\n\n')).toLowerCase();
     return [...terms].some((term) => haystack.includes(term));
   }
 
@@ -2350,6 +2412,20 @@
     if (start && iso < start) return false;
     if (end && iso > end) return false;
     return true;
+  }
+
+  function isArchivedProgram(program) {
+    const truthyKeys = ['is_archived', 'archived', 'isArchive', 'is_archive', 'program_archived', 'library_archived', 'inactive', 'is_inactive'];
+    if (truthyKeys.some((key) => booleanish(program?.[key]))) return true;
+    const statusText = text([program?.status, program?.library_status, program?.record_status, program?.availability, program?.archive_status].filter(Boolean).join('\n\n')).toLowerCase();
+    if (/(archived|archive|inactive|unavailable|retired)/.test(statusText)) return true;
+    return false;
+  }
+
+  function booleanish(value) {
+    if (value === true) return true;
+    const raw = text(value).toLowerCase();
+    return ['true', 'yes', 'y', '1', 'archived', 'inactive', 'unavailable', 'retired'].includes(raw);
   }
 
   function rightsStatus(program, iso) {

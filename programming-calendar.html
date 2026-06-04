@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.80"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.81"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -228,24 +228,25 @@
     .special-rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
     .special-rule-grid .span-2 { grid-column: 1 / -1; }
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .candidate-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-    .candidate-section { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--soft); }
-    .candidate-section h3 { margin: 0 0 8px; font-size: .98rem; }
-    .candidate-card { border: 1px solid var(--line); border-radius: 12px; padding: 9px; background: #fff; margin-bottom: 8px; }
+    .candidate-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .candidate-grid--single { grid-template-columns: 1fr; }
+    .candidate-section { border: 1px solid var(--line); border-radius: 14px; padding: 10px; background: var(--soft); }
+    .candidate-section h3 { margin: 0 0 6px; font-size: .98rem; }
+    .candidate-card { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: #fff; margin-bottom: 6px; }
     .candidate-card--blocked { border-style: dashed; background: #fbfcfd; }
-    .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; margin-top: 6px; }
-    .candidate-detail-line { font-size: .82rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+    .candidate-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+    .candidate-title { font-weight: 850; cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .candidate-score { font-weight: 850; color: var(--accent); font-size: .82rem; white-space: nowrap; }
+    .candidate-quick-meta { color: var(--muted); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+    .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; margin-top: 5px; }
+    .candidate-detail-line { font-size: .78rem; color: var(--muted); line-height: 1.25; overflow-wrap: anywhere; }
     .candidate-detail-line strong { color: var(--ink); }
-    .candidate-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
-    .candidate-use-btn { padding: 7px 10px; font-size: .82rem; }
-    .candidate-description { margin-top: 6px; font-size: .82rem; color: var(--muted); }
-    .candidate-description summary { cursor: pointer; font-weight: 750; color: var(--accent-dark); }
-    .candidate-description div { margin-top: 4px; line-height: 1.35; }
-    .excluded-candidate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .excluded-candidate { opacity: .82; background: #fbfcfd; }
-    .candidate-title { font-weight: 800; cursor: help; }
-    .candidate-meta, .candidate-why { font-size: .82rem; color: var(--muted); margin-top: 3px; }
-    .candidate-score { float: right; font-weight: 850; color: var(--accent); }
+    .candidate-use-btn { padding: 5px 8px; font-size: .78rem; white-space: nowrap; }
+    .candidate-more { margin-top: 3px; font-size: .78rem; color: var(--muted); }
+    .candidate-more summary { cursor: pointer; font-weight: 750; color: var(--accent-dark); }
+    .candidate-meta, .candidate-why { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+    .excluded-candidate-list { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .excluded-candidate { opacity: .86; background: #fbfcfd; }
     .nola-match-results { grid-column: 1 / -1; display: grid; gap: 6px; margin-top: -2px; }
     .nola-match-empty { color: var(--muted); font-size: .82rem; }
     .nola-match-list { display: grid; gap: 6px; }
@@ -277,7 +278,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.80 pool match-mode fix</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.81 candidate filter compact list</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
