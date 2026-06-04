@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.88"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.89"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -254,6 +254,10 @@
     .candidate-more:not([open]) .candidate-expand-label::after { content: ' ▼'; }
 
 
+
+    .series-shift-panel { margin-top: 12px; border: 1px solid #ead8b4; background: #fffaf0; border-radius: 14px; padding: 10px; }
+    .series-shift-row { display: grid; grid-template-columns: minmax(160px, 220px) auto; gap: 10px; align-items: end; margin-top: 8px; }
+    .series-shift-row button { white-space: nowrap; }
     .direct-add-section { border-color: #d8e5ef; background: #f8fbfd; }
     .direct-add-controls { display: grid; grid-template-columns: minmax(260px, 1fr); gap: 8px; margin-top: 8px; }
     .direct-program-results { display: grid; gap: 4px; margin-top: 8px; max-height: 360px; overflow: auto; padding-right: 2px; }
@@ -307,7 +311,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.88 direct add series cascade</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.89 series shift forward</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
