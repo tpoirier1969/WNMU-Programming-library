@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.76
+// WNMU Programming Library Schedule Planner test helper v1.5.77
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.76-simplified-template-form';
+  const VERSION = 'v1.5.77-recurring-template-rules';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -757,7 +757,7 @@
             <div class="weekday-picker">
               ${weekdayCheckboxes(date.getDay())}
             </div>
-            <div class="small-note">Use this for blocks like M–F 4:30 PM cooking. It will create one template row per selected weekday.</div>
+            <div class="small-note">Use this for standing schedule rules. The template applies every week to each checked weekday at this selected time; only overrides are date-specific.</div>
           </div>
           <label class="span-2">Template/group name
             <input name="templateGroupName" type="text" placeholder="Weekday Cooking, Wai Lana Yoga, Sit and Be Fit, PBS News, etc." />
@@ -820,7 +820,7 @@
           </label>
         </div>
         <div class="action-row">
-          <button type="submit" class="primary">Save planner test template</button>
+          <button type="submit" class="primary">Save recurring template</button>
         </div>
       </form>
     `;
@@ -868,8 +868,9 @@
     if (channelA !== channelB) return false;
     if (Number(a.startMinutes) !== Number(b.startMinutes)) return false;
     if (Number(a.lengthMinutes) !== Number(b.lengthMinutes)) return false;
-    if (text(a.startDate) !== text(b.startDate)) return false;
-    if (text(a.endDate) !== text(b.endDate)) return false;
+    // Template start/end dates were retired. A recurring template family is
+    // defined by its weekday/time rule, not by date-range fields that may
+    // linger on older test rows.
 
     if (groupA || groupB) {
       if (groupA !== groupB) return false;
@@ -879,7 +880,9 @@
 
     if (text(a.purpose) !== text(b.purpose)) return false;
     if (text(a.fillStrategy) !== text(b.fillStrategy)) return false;
-    if (text(a.seriesPattern) !== text(b.seriesPattern)) return false;
+    // Series pattern is inferred from the checked weekdays. Do not use it to
+    // split a recurring template family, or one field can fight another and
+    // prevent M-F edits/cascades from behaving like one standing rule.
     if (text(a.slotBehavior || 'open_search') !== text(b.slotBehavior || 'open_search')) return false;
     if (text(a.requiredPoolId) !== text(b.requiredPoolId)) return false;
     return true;
@@ -1053,7 +1056,8 @@
       }
       closeModal();
       render();
-      updateSummary('Saved planner test template/override to Supabase scheduler test tables.');
+      const savedKind = (data.scope === 'date' || data.scope === 'range') ? 'date-specific override' : 'recurring weekly template rule';
+      updateSummary(`Saved ${savedKind} to Supabase scheduler test tables.`);
     } catch (error) {
       console.error(error);
       alert(`Planner save failed: ${error.message}`);
@@ -1166,7 +1170,7 @@
             <div class="weekday-picker">
               ${editWeekdayCheckboxes(current)}
             </div>
-            <div class="small-note">Checked days are updated or created as matching scheduler test templates. Unchecked matching days are left alone, not deleted.</div>
+            <div class="small-note">Checked days define where this recurring template applies. Matching unchecked weekday rows are removed; date-specific overrides are left alone.</div>
           </div>
           <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || current.titleTopic || current.title || '')}" /></label>
           <label>Candidate mode<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
@@ -1190,7 +1194,7 @@
 
           <label class="span-4">Notes<textarea name="notes" rows="2">${escapeHtml(current.notes || '')}</textarea></label>
         </div>
-        <div class="action-row"><button type="submit" class="primary">Save template edits</button></div>
+        <div class="action-row"><button type="submit" class="primary">Save recurring template edits</button></div>
       </form>
     `;
     const editForm = document.getElementById('editTemplateForm');
@@ -1206,9 +1210,12 @@
     const data = Object.fromEntries(formData.entries());
     const selectedDays = [...new Set(formData.getAll('weekdays')
       .map(Number)
-      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))];
-    if (!selectedDays.includes(Number(current.dayOfWeek))) selectedDays.push(Number(current.dayOfWeek));
-    selectedDays.sort((a, b) => a - b);
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))]
+      .sort((a, b) => a - b);
+    if (!selectedDays.length) {
+      alert('Choose at least one weekday for this recurring template.');
+      return;
+    }
 
     const updatedBase = {
       ...current,
@@ -1247,10 +1254,23 @@
         }
       }
 
+      const selectedDaySet = new Set(selectedDays.map(Number));
+      const rowsToRemove = siblings.filter((item) => !selectedDaySet.has(Number(item.dayOfWeek)) && item.id);
+      if (rowsToRemove.length) {
+        const { error: deleteError } = await state.supabase
+          .from(TEMPLATE_TABLE)
+          .delete()
+          .in('id', rowsToRemove.map((item) => item.id));
+        if (deleteError) throw deleteError;
+        const removeIds = new Set(rowsToRemove.map((item) => String(item.id)));
+        state.templates = state.templates.filter((item) => !removeIds.has(String(item.id)));
+      }
+
       savedRows.map(templateFromDb).forEach((saved) => upsertInMemory(state.templates, saved));
       closeModal();
       render();
-      updateSummary(`Saved scheduler template edits for ${selectedDays.length} weekday${selectedDays.length === 1 ? '' : 's'}.`);
+      const removedCount = rowsToRemove.length;
+      updateSummary(`Saved recurring template rule for ${selectedDays.length} weekday${selectedDays.length === 1 ? '' : 's'}${removedCount ? ` and removed ${removedCount} unchecked weekday row${removedCount === 1 ? '' : 's'}` : ''}.`);
     } catch (error) {
       console.error(error);
       alert(`Template edit failed: ${error.message}`);
