@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.74
+// WNMU Programming Library Schedule Planner test helper v1.5.76
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.74-nav-arrows-compact-selector';
+  const VERSION = 'v1.5.76-simplified-template-form';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -392,7 +392,7 @@
   }
 
   function poolNameFromForm(data) {
-    return text(data.poolName || data.requiredPoolName || data.templateGroupName || data.titleTopic);
+    return text(data.templateGroupName || data.poolName || data.requiredPoolName || data.titleTopic);
   }
 
   function poolMatchFromForm(data) {
@@ -734,7 +734,6 @@
             <select name="scope">
               <option value="weekly">Selected weekdays every week</option>
               <option value="date">This date only as temporary override</option>
-              <option value="range">Date range temporary override</option>
             </select>
           </label>
           <label>Length minutes
@@ -742,21 +741,15 @@
           </label>
           <label>Purpose
             <select name="purpose">
-              <option value="standalone">Standalone</option>
-              <option value="series">Series run</option>
-              <option value="flex">Flexible block</option>
-              <option value="local">Local program</option>
-              <option value="pbs_feed">PBS feed / locked</option>
-              <option value="fundraiser">Fundraiser placeholder</option>
-              <option value="holiday">Holiday/event block</option>
-              <option value="hold">Manual hold</option>
+              <option value="standalone" selected>Program</option>
+              <option value="series">Series</option>
+              <option value="pbs_feed">PBS Feed</option>
             </select>
           </label>
           <label>Fill structure
             <select name="fillStrategy">
               <option value="single">Single program only</option>
-              <option value="two_half_hours">Two half-hours allowed</option>
-              <option value="single_or_two">Either single or two half-hours</option>
+              <option value="single_or_two">Multiple programs allowed</option>
             </select>
           </label>
           <div class="span-4">
@@ -767,22 +760,16 @@
             <div class="small-note">Use this for blocks like M–F 4:30 PM cooking. It will create one template row per selected weekday.</div>
           </div>
           <label class="span-2">Template/group name
-            <input name="templateGroupName" type="text" placeholder="Weekday Cooking, Prime History, PBS News, etc." />
+            <input name="templateGroupName" type="text" placeholder="Weekday Cooking, Wai Lana Yoga, Sit and Be Fit, PBS News, etc." />
           </label>
-          <label class="span-2">Title/topic label
-            <input name="titleTopic" type="text" placeholder="Gardening, News, Yan Can Cook, Nature, Local, etc." />
-          </label>
-          <label>Slot behavior
+          <label>Candidate mode
             <select name="slotBehavior">
-              <option value="open_search">Open candidate search</option>
+              <option value="open_search">Open search</option>
               <option value="required_rotation">Required rotation / pool</option>
             </select>
           </label>
           <label>Existing pool
             <select name="requiredPoolId">${poolOptions('')}</select>
-          </label>
-          <label class="span-2">Pool name
-            <input name="poolName" type="text" placeholder="WAI LANA YOGA seasons" />
           </label>
           <label class="span-2">Pool NOLA match / allowed program
             <input name="poolNolaText" type="text" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input />
@@ -793,7 +780,7 @@
           <div class="nola-match-results" data-pool-nola-results></div>
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox" checked /> Avoid same season back-to-back</label>
           <label>Repeat gap days
-            <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="0" />
+            <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="120" />
           </label>
           <label>Rights urgency
             <select name="rightsUrgencyMonths">
@@ -803,40 +790,18 @@
               <option value="12">Rights end in 12 months</option>
             </select>
           </label>
-          <label>Series pattern
-            <select name="seriesPattern">
-              <option value="none">Not a series lane</option>
-              <option value="weekly_one_day">Weekly one-day series</option>
-              <option value="independent_by_weekday">M–F independent weekday series</option>
-              <option value="consecutive_across_days">M–F consecutive episodes across selected days</option>
-            </select>
-          </label>
           <label>Series episode min
             <input name="episodeMin" type="number" min="1" step="1" placeholder="optional" />
           </label>
           <label>Series episode max
             <input name="episodeMax" type="number" min="1" step="1" placeholder="optional" />
           </label>
-          <label>Freshness
-            <select name="freshnessMonths">
-              <option value="0">Any</option>
-              <option value="12">Not aired in 12 months</option>
-              <option value="24" selected>Not aired in 24 months</option>
-            </select>
-          </label>
-          <label>Rating use
-            <select name="ratingMode">
-              <option value="boost">Prefer higher-rated</option>
-              <option value="ignore">Ignore ratings</option>
-              <option value="minimum">Require minimum</option>
-            </select>
-          </label>
-          <label>Minimum rating
-            <select name="ratingMin">
-              <option value="">Any</option>
-              <option value="3">3+</option>
-              <option value="4">4+</option>
-              <option value="5">5</option>
+          <input name="freshnessMonths" type="hidden" value="0" />
+          <input name="ratingMode" type="hidden" value="boost" />
+          <input name="ratingMin" type="hidden" value="" />
+          <label class="disabled-field">Minimum rating
+            <select disabled>
+              <option>Disabled for now</option>
             </select>
           </label>
           <label>Holiday/event match
@@ -849,12 +814,7 @@
           <label>Event window days
             <input name="eventWindowDays" type="number" min="0" max="30" step="1" value="5" />
           </label>
-          <label>Start date / season start
-            <input name="startDate" type="date" />
-          </label>
-          <label>End date / season end
-            <input name="endDate" type="date" />
-          </label>
+
           <label class="span-4">Notes
             <textarea name="notes" rows="2" placeholder="PBS feed name, fundraiser notes, staff-off holiday notes, etc."></textarea>
           </label>
@@ -952,12 +912,33 @@
       event.preventDefault();
       void saveTemplateFromForm(form, iso);
     });
-    if (form) bindPoolNolaSearch(form);
+    if (form) { bindPoolNolaSearch(form); bindTemplateFormHelpers(form); }
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
     document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
     document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
     document.getElementById('editTemplateBtn')?.addEventListener('click', () => renderEditTemplateForm(context.current, iso));
     document.getElementById('deleteTemplateBtn')?.addEventListener('click', () => { void deleteTemplate(context.current); });
+  }
+
+  function bindTemplateFormHelpers(form) {
+    const purpose = form.elements.purpose;
+    const repeat = form.elements.repeatGapDays;
+    if (!purpose || !repeat) return;
+    repeat.addEventListener('input', () => { repeat.dataset.userEdited = 'true'; });
+    purpose.addEventListener('change', () => {
+      if (repeat.dataset.userEdited === 'true') return;
+      repeat.value = String(defaultRepeatGapDays(purpose.value));
+    });
+  }
+
+  function defaultRepeatGapDays(purpose) {
+    return purpose === 'series' ? 24 : 120;
+  }
+
+  function inferSeriesPattern(purpose, selectedDays = []) {
+    if (purpose !== 'series') return 'none';
+    const uniqueDays = [...new Set((selectedDays || []).map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))];
+    return uniqueDays.length > 1 ? 'consecutive_across_days' : 'weekly_one_day';
   }
 
   function bindPoolNolaSearch(form) {
@@ -1053,7 +1034,7 @@
     const data = Object.fromEntries(formData.entries());
     const weekdays = formData.getAll('weekdays').map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
     const date = fromIsoDate(iso);
-    const base = plannerItemFromFormData(data, iso);
+    const base = plannerItemFromFormData(data, iso, weekdays);
     try {
       await attachPoolToPlannerItem(base, data);
       if (data.scope === 'date' || data.scope === 'range') {
@@ -1080,31 +1061,32 @@
     }
   }
 
-  function plannerItemFromFormData(data, iso) {
+  function plannerItemFromFormData(data, iso, selectedDays = []) {
     const purpose = data.purpose || 'standalone';
+    const groupName = text(data.templateGroupName || data.titleTopic || purposeLabel(purpose));
     return {
       startMinutes: state.selectedMinutes,
       lengthMinutes: saneLengthMinutes(data.lengthMinutes, 60),
       purpose,
       isPbsFeed: purpose === 'pbs_feed',
-      titleTopic: data.titleTopic || purposeLabel(purpose),
+      titleTopic: groupName,
       fillStrategy: data.fillStrategy || 'single',
-      seriesPattern: data.seriesPattern || 'none',
-      templateGroupName: data.templateGroupName || '',
+      seriesPattern: inferSeriesPattern(purpose, selectedDays),
+      templateGroupName: groupName,
       episodeMin: saneNullableNumber(data.episodeMin),
       episodeMax: saneNullableNumber(data.episodeMax),
-      ratingMode: data.ratingMode || 'boost',
-      ratingMin: saneNullableNumber(data.ratingMin),
-      freshnessMonths: saneNumber(data.freshnessMonths, 0),
+      ratingMode: 'boost',
+      ratingMin: null,
+      freshnessMonths: 0,
       eventMode: data.eventMode || 'none',
       eventWindowDays: saneNumber(data.eventWindowDays, 5),
       slotBehavior: data.slotBehavior || 'open_search',
       requiredPoolId: text(data.requiredPoolId),
       avoidBackToBack: data.avoidBackToBack === 'on' || data.avoidBackToBack === true,
-      repeatGapDays: saneNumber(data.repeatGapDays, 0),
+      repeatGapDays: saneNumber(data.repeatGapDays, defaultRepeatGapDays(purpose)),
       rightsUrgencyMonths: saneNumber(data.rightsUrgencyMonths, 0),
-      startDate: data.startDate || '',
-      endDate: data.endDate || '',
+      startDate: '',
+      endDate: '',
       notes: data.notes || '',
       createdAt: new Date().toISOString()
     };
@@ -1179,9 +1161,6 @@
           <label>Fill structure
             <select name="fillStrategy">${fillOptions(current.fillStrategy)}</select>
           </label>
-          <label>Start time
-            <select name="startMinutes">${timeOptions(current.startMinutes)}</select>
-          </label>
           <div class="span-4">
             <div class="field-label">Apply same template edit to weekdays</div>
             <div class="weekday-picker">
@@ -1189,31 +1168,26 @@
             </div>
             <div class="small-note">Checked days are updated or created as matching scheduler test templates. Unchecked matching days are left alone, not deleted.</div>
           </div>
-          <label>Series pattern
-            <select name="seriesPattern">${seriesPatternOptions(current.seriesPattern)}</select>
-          </label>
-          <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || '')}" /></label>
-          <label class="span-2">Title/topic label<input name="titleTopic" type="text" value="${escapeHtml(current.titleTopic || current.title || '')}" /></label>
-          <label>Slot behavior<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open candidate search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
+          <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || current.titleTopic || current.title || '')}" /></label>
+          <label>Candidate mode<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
           <label>Existing pool<select name="requiredPoolId">${poolOptions(current.requiredPoolId || '')}</select></label>
-          <label class="span-2">Pool name<input name="poolName" type="text" value="${escapeHtml(current.poolName || '')}" placeholder="WAI LANA YOGA seasons" /></label>
           <label class="span-2">Pool NOLA match / allowed program<input name="poolNolaText" type="text" value="${escapeHtml(poolNolaTextForSlot(current))}" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input /></label>
           <input name="poolSelectedProgramId" type="hidden" />
           <input name="poolSelectedProgramTitle" type="hidden" />
           <input name="poolSelectedProgramNola" type="hidden" />
           <div class="nola-match-results" data-pool-nola-results></div>
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox"${current.avoidBackToBack !== false ? ' checked' : ''} /> Avoid same season back-to-back</label>
-          <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(current.repeatGapDays || 0)}" /></label>
+          <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(Number(current.repeatGapDays) || defaultRepeatGapDays(current.purpose))}" /></label>
           <label>Rights urgency<select name="rightsUrgencyMonths"><option value="0"${!Number(current.rightsUrgencyMonths)?' selected':''}>Off</option><option value="3"${Number(current.rightsUrgencyMonths)===3?' selected':''}>Rights end in 3 months</option><option value="6"${Number(current.rightsUrgencyMonths)===6?' selected':''}>Rights end in 6 months</option><option value="12"${Number(current.rightsUrgencyMonths)===12?' selected':''}>Rights end in 12 months</option></select></label>
           <label>Series episode min<input name="episodeMin" type="number" min="1" step="1" value="${escapeHtml(current.episodeMin || '')}" /></label>
           <label>Series episode max<input name="episodeMax" type="number" min="1" step="1" value="${escapeHtml(current.episodeMax || '')}" /></label>
-          <label>Rating use<select name="ratingMode"><option value="boost"${current.ratingMode==='boost'?' selected':''}>Prefer higher-rated</option><option value="ignore"${current.ratingMode==='ignore'?' selected':''}>Ignore ratings</option><option value="minimum"${current.ratingMode==='minimum'?' selected':''}>Require minimum</option></select></label>
-          <label>Minimum rating<select name="ratingMin"><option value="">Any</option><option value="3"${Number(current.ratingMin)===3?' selected':''}>3+</option><option value="4"${Number(current.ratingMin)===4?' selected':''}>4+</option><option value="5"${Number(current.ratingMin)===5?' selected':''}>5</option></select></label>
-          <label>Freshness<select name="freshnessMonths"><option value="0">Any</option><option value="12"${Number(current.freshnessMonths)===12?' selected':''}>Not aired in 12 months</option><option value="24"${Number(current.freshnessMonths)===24?' selected':''}>Not aired in 24 months</option></select></label>
+          <input name="freshnessMonths" type="hidden" value="0" />
+          <input name="ratingMode" type="hidden" value="boost" />
+          <input name="ratingMin" type="hidden" value="" />
+          <label class="disabled-field">Minimum rating<select disabled><option>Disabled for now</option></select></label>
           <label>Event match<select name="eventMode"><option value="none">None</option><option value="prefer"${current.eventMode==='prefer'?' selected':''}>Prefer nearby event</option><option value="require"${current.eventMode==='require'?' selected':''}>Require nearby event</option></select></label>
           <label>Event window days<input name="eventWindowDays" type="number" min="0" max="30" step="1" value="${escapeHtml(current.eventWindowDays || 5)}" /></label>
-          <label>Active start date<input name="startDate" type="date" value="${escapeHtml(current.startDate || '')}" /></label>
-          <label>Active end date<input name="endDate" type="date" value="${escapeHtml(current.endDate || '')}" /></label>
+
           <label class="span-4">Notes<textarea name="notes" rows="2">${escapeHtml(current.notes || '')}</textarea></label>
         </div>
         <div class="action-row"><button type="submit" class="primary">Save template edits</button></div>
@@ -1224,7 +1198,7 @@
       event.preventDefault();
       void saveTemplateEdit(event.currentTarget, current, iso);
     });
-    if (editForm) bindPoolNolaSearch(editForm);
+    if (editForm) { bindPoolNolaSearch(editForm); bindTemplateFormHelpers(editForm); }
   }
 
   async function saveTemplateEdit(form, current, iso) {
@@ -1238,7 +1212,7 @@
 
     const updatedBase = {
       ...current,
-      ...plannerItemFromFormData(data, iso),
+      ...plannerItemFromFormData(data, iso, selectedDays),
       dayOfWeek: Number(current.dayOfWeek),
       startMinutes: saneNumber(data.startMinutes, current.startMinutes),
       channel: current.channel || state.channel
@@ -1899,12 +1873,14 @@
   }
 
   function purposeOptions(current) {
-    return ['standalone','series','flex','local','pbs_feed','fundraiser','holiday','hold'].map((value) => `<option value="${value}"${value===current?' selected':''}>${purposeLabel(value)}</option>`).join('');
+    const normalized = ['series','pbs_feed'].includes(current) ? current : 'standalone';
+    return ['standalone','series','pbs_feed'].map((value) => `<option value="${value}"${value===normalized?' selected':''}>${purposeLabel(value)}</option>`).join('');
   }
 
   function fillOptions(current) {
-    const opts = [['single','Single program only'],['two_half_hours','Two half-hours allowed'],['single_or_two','Either single or two half-hours']];
-    return opts.map(([value,label]) => `<option value="${value}"${value===current?' selected':''}>${label}</option>`).join('');
+    const normalized = current === 'single_or_two' || current === 'two_half_hours' ? 'single_or_two' : 'single';
+    const opts = [['single','Single program only'],['single_or_two','Multiple programs allowed']];
+    return opts.map(([value,label]) => `<option value="${value}"${value===normalized?' selected':''}>${label}</option>`).join('');
   }
 
   function lengthOptions(current) {
@@ -1938,8 +1914,8 @@
 
   function purposeLabel(purpose) {
     return ({
-      standalone: 'Standalone', series: 'Series run', flex: 'Flexible block', local: 'Local program', pbs_feed: 'PBS feed', fundraiser: 'Fundraiser', holiday: 'Holiday/event', hold: 'Manual hold', empty: 'Open slot'
-    })[purpose] || 'Programmable';
+      standalone: 'Program', series: 'Series', flex: 'Flexible block', local: 'Local program', pbs_feed: 'PBS Feed', fundraiser: 'Fundraiser', holiday: 'Holiday/event', hold: 'Manual hold', empty: 'Open slot'
+    })[purpose] || 'Program';
   }
 
   function fillStrategyLabel(value) {
