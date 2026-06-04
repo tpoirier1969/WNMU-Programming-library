@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.77"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.78"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -273,7 +273,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.77 recurring template rules</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.78 NOLA/topic pools</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
@@ -292,7 +292,7 @@
 
     <section id="plannerShell" class="hidden">
       <div class="notice">
-        Test mode: this planner reads existing Library/Holiday data and writes only to wnmu_prog_sched_* scheduler test tables, including required-rotation pool test records. It does not update Library records, aired-history fields, ProTrack, pledge data, or monthly schedule data.
+        Test mode: this planner reads existing Library/Holiday data and writes only to wnmu_prog_sched_* scheduler test tables, including required-rotation and topic-pool test records. It does not update Library records, aired-history fields, ProTrack, pledge data, or monthly schedule data.
       </div>
       <section class="card controls">
         <div class="control-grid">
@@ -334,7 +334,7 @@
             <div class="metric"><strong id="metricHolidays">0</strong><span>holiday/event records</span></div>
             <div class="metric"><strong id="metricTemplates">0</strong><span>DB test templates</span></div>
             <div class="metric"><strong id="metricOverrides">0</strong><span>DB test overrides</span></div>
-            <div class="metric"><strong id="metricPools">0</strong><span>rotation pools</span></div>
+            <div class="metric"><strong id="metricPools">0</strong><span>NOLA/topic pools</span></div>
             <div class="metric"><strong id="metricPoolItems">0</strong><span>pool items</span></div>
           </div>
           <p class="small-note" style="margin-top:12px;">Click a day cell to create database-backed test templates, override a PBS slot, or preview candidate suggestions. These planner records are test-only and do not alter Library schedule history.</p>

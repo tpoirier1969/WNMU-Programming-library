@@ -1,10 +1,10 @@
 // WNMU Programming Library Schedule Planner test helper v1.5.77
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
-// Adds required-rotation program pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
+// Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.77-recurring-template-rules';
+  const VERSION = 'v1.5.78-nola-topic-pools';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -147,7 +147,7 @@
       state.templates = (templateResult.data || []).map(templateFromDb);
       state.overrides = (overrideResult.data || []).map(overrideFromDb);
       state.plannerDataReady = true;
-      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs, ${state.templates.length.toLocaleString()} planner templates, and ${state.pools.length.toLocaleString()} required-rotation pools. Planner writes only to wnmu_prog_sched_* test tables.`);
+      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs, ${state.templates.length.toLocaleString()} planner templates, and ${state.pools.length.toLocaleString()} NOLA/topic pools. Planner writes only to wnmu_prog_sched_* test tables.`);
     } catch (error) {
       console.error(error);
       state.plannerDataReady = false;
@@ -438,32 +438,35 @@
 
     let poolId = text(data.requiredPoolId);
     const poolName = poolNameFromForm(data);
-    let nolaText = poolNolaFromForm(data);
-    let matchText = poolMatchFromForm(data);
-    const itemLabel = poolItemLabelFromForm(data);
-    const selectedProgramId = text(data.poolSelectedProgramId);
-    const selectedProgramTitle = text(data.poolSelectedProgramTitle);
+    let rules = parsePoolRulesFromFormData(data);
 
-    if (!poolId && !poolName) throw new Error('Required rotation slots need a program pool name.');
+    if (!poolId && !poolName) throw new Error('Allowed-pool slots need a template/group name or existing pool.');
 
-    if (!nolaText && !matchText && poolId && poolItemsForPool(poolId).length) {
+    if (!rules.length && poolId && poolItemsForPool(poolId).length) {
       item.requiredPoolId = poolId;
       return item;
     }
-    if (!nolaText && !matchText && poolId) {
+
+    if (!rules.length && poolId) {
       const existingPool = getPool(poolId);
-      nolaText = text(existingPool?.nolaMatchText || '');
-      matchText = text(existingPool?.titleMatchText || existingPool?.poolName);
+      const nola = text(existingPool?.nolaMatchText || '');
+      const matchText = text(existingPool?.titleMatchText || existingPool?.poolName || '');
+      if (nola) rules.push({ type: 'nola', nola, label: matchText || nola });
+      else if (matchText) rules.push({ type: 'text', title: matchText, label: matchText });
+      rules = normalizePoolRules(rules);
     }
-    if (!nolaText && !matchText) throw new Error('Required rotation slots need a NOLA prefix/code or selected pool item.');
+
+    if (!rules.length) throw new Error('Allowed-pool slots need at least one NOLA/program or topic.');
 
     if (!poolId) {
+      const firstNola = rules.find((rule) => rule.type === 'nola')?.nola || '';
+      const firstTopic = rules.find((rule) => rule.type === 'topic')?.topic || '';
       const payload = {
         pool_name: poolName,
-        pool_type: nolaText ? 'nola_prefix' : 'title_text',
-        match_mode: nolaText ? 'nola_prefix' : 'title_text',
-        title_match_text: matchText || poolName,
-        nola_match_text: nolaText || null,
+        pool_type: rules.some((rule) => rule.type === 'topic') && rules.some((rule) => rule.type === 'nola') ? 'mixed' : (firstTopic ? 'topic' : 'nola_prefix'),
+        match_mode: rules.some((rule) => rule.type === 'topic') && rules.some((rule) => rule.type === 'nola') ? 'mixed' : (firstTopic ? 'topic' : 'nola_prefix'),
+        title_match_text: firstTopic ? `topic: ${firstTopic}` : (firstNola || poolName),
+        nola_match_text: firstNola || null,
         avoid_back_to_back: item.avoidBackToBack !== false,
         repeat_gap_days: Number(item.repeatGapDays || 0),
         rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
@@ -480,16 +483,10 @@
       poolId = pool.id;
     }
 
-    if (nolaText || matchText) {
-      const itemPayload = {
-        pool_id: poolId,
-        item_label: itemLabel || nolaText || matchText,
-        title_match_text: selectedProgramTitle && nolaText ? `${selectedProgramTitle} · ${nolaText}` : (matchText || nolaText),
-        nola_match_text: nolaText || null,
-        program_record_id: selectedProgramId || null,
-        program_title: selectedProgramTitle || null,
-        active: true
-      };
+    const desiredTitleMatches = new Set();
+    for (const rule of rules) {
+      const itemPayload = poolItemPayloadFromRule(poolId, rule);
+      desiredTitleMatches.add(text(itemPayload.title_match_text));
       const { data: poolItemRow, error: itemError } = await state.supabase
         .from(POOL_ITEM_TABLE)
         .upsert(itemPayload, { onConflict: 'pool_id,title_match_text' })
@@ -499,8 +496,55 @@
       upsertInMemory(state.poolItems, poolItemFromDb(poolItemRow));
     }
 
+    if (Object.prototype.hasOwnProperty.call(data, 'poolRulesJson')) {
+      const staleItems = poolItemsForPool(poolId).filter((existing) => existing.id && !desiredTitleMatches.has(text(existing.titleMatchText)));
+      if (staleItems.length) {
+        const { error: deleteError } = await state.supabase
+          .from(POOL_ITEM_TABLE)
+          .delete()
+          .in('id', staleItems.map((existing) => existing.id));
+        if (deleteError) throw deleteError;
+        const staleIds = new Set(staleItems.map((existing) => String(existing.id)));
+        state.poolItems = state.poolItems.filter((existing) => !staleIds.has(String(existing.id)));
+      }
+    }
+
     item.requiredPoolId = poolId;
     return item;
+  }
+
+  function poolItemPayloadFromRule(poolId, rule) {
+    if (rule.type === 'topic') {
+      return {
+        pool_id: poolId,
+        item_label: rule.label || `Topic: ${rule.topic}`,
+        title_match_text: `topic: ${rule.topic}`,
+        nola_match_text: null,
+        program_record_id: null,
+        program_title: null,
+        active: true
+      };
+    }
+    if (rule.type === 'nola') {
+      return {
+        pool_id: poolId,
+        item_label: rule.label || rule.title || rule.nola,
+        title_match_text: rule.title && rule.nola ? `${rule.title} · ${rule.nola}` : rule.nola,
+        nola_match_text: rule.nola,
+        program_record_id: rule.programId || null,
+        program_title: rule.title || null,
+        active: true
+      };
+    }
+    return {
+      pool_id: poolId,
+      item_label: rule.label || rule.title,
+      title_match_text: rule.title,
+      nola_match_text: null,
+      program_record_id: null,
+      program_title: null,
+      active: true
+    };
   }
 
   function upsertInMemory(list, item) {
@@ -585,7 +629,7 @@
     if (!item || item.kind === 'empty') return `Click to define · ${formatTime(state.selectedMinutes)}`;
 
     // When a candidate has been manually placed, the calendar should read like
-    // a scheduled program, not like the generic required-rotation template that
+    // a scheduled program, not like the generic allowed-pool template that
     // suggested it. Put episode/season clues first because that is what matters
     // when Tod is recreating a known schedule.
     if (hasSelectedCandidateProgram(item)) {
@@ -600,7 +644,7 @@
     if (item.lengthMinutes) bits.push(`${item.lengthMinutes}m`);
     if (item.purposeLabel) bits.push(item.purposeLabel);
     if (item.fillStrategy && item.fillStrategy !== 'single') bits.push(fillStrategyLabel(item.fillStrategy));
-    if (item.slotBehavior === 'required_rotation') bits.push(item.poolName ? `pool: ${item.poolName}` : 'pool required');
+    if (item.slotBehavior === 'required_rotation') bits.push(item.poolName ? `pool: ${item.poolName}` : 'pool rule');
     if (item.selectedProgramNola) bits.push(item.selectedProgramNola);
     if (item.status === 'pbs') bits.push('locked');
     if (item.status === 'override') bits.push('temporary');
@@ -639,12 +683,14 @@
       .map((item) => normalizePlannerItem(item, 'override'));
     const overriddenKeys = new Set(overrideItems.map((item) => item.overrideTemplateId ? `${item.overrideTemplateId}|${item.startMinutes}` : `${item.startMinutes}`));
     const templateItems = state.templates
-      .filter((item) => item.channel === channel && Number(item.dayOfWeek) === dow && dateInRange(iso, item.startDate, item.endDate))
+      // Templates are standing weekday/time rules. Do not constrain them by
+      // retired active_start/end fields; only overrides are date-specific.
+      .filter((item) => item.channel === channel && Number(item.dayOfWeek) === dow)
       .filter((item) => !overriddenKeys.has(`${item.id}|${item.startMinutes}`) && !overriddenKeys.has(`${item.startMinutes}`))
       .map((item) => normalizePlannerItem(item, 'template'));
     // Overrides must win over templates at the same day/time. This matters
     // after clicking a candidate: the manual pick should replace the generic
-    // required-rotation template in the visible calendar cell immediately.
+    // allowed-pool template in the visible calendar cell immediately.
     return [...overrideItems, ...templateItems];
   }
 
@@ -676,7 +722,7 @@
       selectedProgramNola: selectedNola || raw.selectedProgramNola || '',
       selectedProgramEpisode: selectedEpisode,
       title: selectedTitle || raw.titleTopic || raw.title || purposeLabel(raw.purpose),
-      purposeLabel: hasSelected ? 'Manual pick' : (rotation ? 'Required rotation' : purposeLabel(raw.purpose)),
+      purposeLabel: hasSelected ? 'Manual pick' : (rotation ? 'Allowed pool' : purposeLabel(raw.purpose)),
       startMinutes: Number(raw.startMinutes || 0),
       lengthMinutes: Number(raw.lengthMinutes || STEP),
       programmable: override ? true : (!pbs && raw.purpose !== 'hold' && raw.purpose !== 'fundraiser')
@@ -765,19 +811,13 @@
           <label>Candidate mode
             <select name="slotBehavior">
               <option value="open_search">Open search</option>
-              <option value="required_rotation">Required rotation / pool</option>
+              <option value="required_rotation">Allowed NOLA/topic pool</option>
             </select>
           </label>
           <label>Existing pool
             <select name="requiredPoolId">${poolOptions('')}</select>
           </label>
-          <label class="span-2">Pool NOLA match / allowed program
-            <input name="poolNolaText" type="text" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input />
-          </label>
-          <input name="poolSelectedProgramId" type="hidden" />
-          <input name="poolSelectedProgramTitle" type="hidden" />
-          <input name="poolSelectedProgramNola" type="hidden" />
-          <div class="nola-match-results" data-pool-nola-results></div>
+          ${poolRuleBuilderMarkup([])}
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox" checked /> Avoid same season back-to-back</label>
           <label>Repeat gap days
             <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="120" />
@@ -824,6 +864,139 @@
         </div>
       </form>
     `;
+  }
+
+
+  function poolRuleBuilderMarkup(initialRules = []) {
+    const initial = escapeHtml(JSON.stringify(normalizePoolRules(initialRules)));
+    return `
+          <div class="span-4 pool-rule-builder" data-pool-rule-builder>
+            <div class="field-label">Allowed NOLA/programs and topics</div>
+            <input name="poolRulesJson" type="hidden" value="${initial}" data-pool-rules-json />
+            <input name="poolSelectedProgramId" type="hidden" />
+            <input name="poolSelectedProgramTitle" type="hidden" />
+            <input name="poolSelectedProgramNola" type="hidden" />
+            <div class="pool-rule-grid">
+              <label>NOLA / program
+                <input name="poolNolaText" type="text" placeholder="Type 2+ NOLA chars, then pick or add" autocomplete="off" data-pool-nola-input />
+              </label>
+              <button type="button" data-add-nola-rule>Add NOLA/program</button>
+              <label>Topic
+                <select name="poolTopicSelect" data-pool-topic-select>
+                  <option value="">Choose a Library topic…</option>
+                  ${topicOptions('')}
+                </select>
+              </label>
+              <button type="button" data-add-topic-rule>Add topic</button>
+            </div>
+            <div class="nola-match-results" data-pool-nola-results></div>
+            <div class="pool-rule-list" data-pool-rule-list></div>
+            <div class="small-note">You can add more than one NOLA/program and more than one topic. Candidate search treats this as an allowed pool: a program may match any listed NOLA/program or topic.</div>
+          </div>
+    `;
+  }
+
+  function topicOptions(current) {
+    const topics = availableLibraryTopics();
+    return topics.map((topic) => `<option value="${escapeHtml(topic)}"${topic === current ? ' selected' : ''}>${escapeHtml(topic)}</option>`).join('');
+  }
+
+  function availableLibraryTopics() {
+    const set = new Set();
+    state.programs.forEach((program) => {
+      [program.topic, program.secondary_topic, program.program_topic, program.category, program.subject].forEach((value) => {
+        splitTopicValues(value).forEach((topic) => set.add(topic));
+      });
+    });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  function splitTopicValues(value) {
+    return text(value)
+      .split(/[;,|]/)
+      .map((topic) => topic.trim())
+      .filter((topic) => topic.length > 1 && topic.length <= 80);
+  }
+
+  function poolRulesForSlot(slot) {
+    const items = poolItemsForPool(slot?.requiredPoolId);
+    if (items.length) return items.map(poolRuleFromItem).filter(Boolean);
+    const nola = poolNolaTextForSlot(slot);
+    const label = poolMatchTextForSlot(slot);
+    if (nola) return [{ type: 'nola', nola, title: label || nola, label: label || nola }];
+    return [];
+  }
+
+  function poolRuleFromItem(item) {
+    if (!item) return null;
+    const topic = topicFromPoolItem(item);
+    if (topic) return { type: 'topic', topic, label: `Topic: ${topic}` };
+    const nola = text(item.nolaMatchText);
+    if (nola) return {
+      type: 'nola',
+      nola,
+      programId: text(item.programRecordId),
+      title: text(item.programTitle || item.itemLabel || item.titleMatchText),
+      label: text(item.itemLabel || item.programTitle || item.titleMatchText || nola)
+    };
+    const title = text(item.titleMatchText || item.programTitle || item.itemLabel);
+    return title ? { type: 'text', title, label: text(item.itemLabel || title) } : null;
+  }
+
+  function topicFromPoolItem(item) {
+    const raw = text(item?.titleMatchText || item?.itemLabel);
+    const match = raw.match(/^topic\s*:\s*(.+)$/i);
+    return match ? text(match[1]) : '';
+  }
+
+  function normalizePoolRules(rules) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(rules) ? rules : []).forEach((rule) => {
+      const type = ['topic', 'nola', 'text'].includes(rule?.type) ? rule.type : (rule?.topic ? 'topic' : (rule?.nola ? 'nola' : 'text'));
+      const cleaned = {
+        type,
+        nola: text(rule?.nola),
+        topic: text(rule?.topic),
+        title: text(rule?.title),
+        programId: text(rule?.programId),
+        label: text(rule?.label)
+      };
+      if (cleaned.type === 'topic') {
+        if (!cleaned.topic) return;
+        cleaned.label = cleaned.label || `Topic: ${cleaned.topic}`;
+      } else if (cleaned.type === 'nola') {
+        cleaned.nola = normalizeNola(cleaned.nola).toUpperCase();
+        if (!cleaned.nola || cleaned.nola.length < 2) return;
+        cleaned.label = cleaned.label || cleaned.title || cleaned.nola;
+      } else {
+        if (!cleaned.title) return;
+        cleaned.label = cleaned.label || cleaned.title;
+      }
+      const key = `${cleaned.type}:${cleaned.type === 'topic' ? cleaned.topic.toLowerCase() : cleaned.type === 'nola' ? cleaned.nola.toLowerCase() : cleaned.title.toLowerCase()}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(cleaned);
+    });
+    return out;
+  }
+
+  function parsePoolRulesFromFormData(data) {
+    let rules = [];
+    try {
+      const parsed = JSON.parse(text(data.poolRulesJson) || '[]');
+      if (Array.isArray(parsed)) rules = parsed;
+    } catch {
+      rules = [];
+    }
+    const selectedNola = poolNolaFromForm(data);
+    const rawNola = text(data.poolNolaText);
+    const selectedProgramId = text(data.poolSelectedProgramId);
+    const selectedTitle = text(data.poolSelectedProgramTitle);
+    if (selectedNola || rawNola) {
+      rules.push({ type: 'nola', nola: selectedNola || rawNola, programId: selectedProgramId, title: selectedTitle, label: selectedTitle || selectedNola || rawNola });
+    }
+    return normalizePoolRules(rules);
   }
 
   function weekdayCheckboxes(selectedDay) {
@@ -915,7 +1088,7 @@
       event.preventDefault();
       void saveTemplateFromForm(form, iso);
     });
-    if (form) { bindPoolNolaSearch(form); bindTemplateFormHelpers(form); }
+    if (form) { bindPoolNolaSearch(form); bindPoolRuleBuilder(form); bindTemplateFormHelpers(form); }
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
     document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
     document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
@@ -976,6 +1149,87 @@
       const poolNameInput = form.elements.poolName;
       if (poolNameInput && !text(poolNameInput.value)) poolNameInput.value = title;
     });
+  }
+
+
+  function bindPoolRuleBuilder(form) {
+    const hidden = form.querySelector('[data-pool-rules-json]');
+    const list = form.querySelector('[data-pool-rule-list]');
+    if (!hidden || !list) return;
+    const nolaInput = form.querySelector('[data-pool-nola-input]');
+    const topicSelect = form.querySelector('[data-pool-topic-select]');
+    const hiddenId = form.elements.poolSelectedProgramId;
+    const hiddenTitle = form.elements.poolSelectedProgramTitle;
+    const hiddenNola = form.elements.poolSelectedProgramNola;
+    let rules = readPoolRulesHidden(hidden);
+
+    const sync = () => {
+      rules = normalizePoolRules(rules);
+      hidden.value = JSON.stringify(rules);
+      if (!rules.length) {
+        list.innerHTML = '<div class="pool-rule-empty">No NOLA/programs or topics added yet.</div>';
+        return;
+      }
+      list.innerHTML = rules.map((rule, index) => {
+        const label = rule.type === 'topic' ? `Topic: ${rule.topic}` : (rule.label || rule.title || rule.nola);
+        const prefix = rule.type === 'topic' ? 'Topic' : rule.type === 'nola' ? 'NOLA' : 'Text';
+        return `<span class="pool-rule-chip"><strong>${escapeHtml(prefix)}</strong> ${escapeHtml(label)} <button type="button" class="pool-rule-remove" data-remove-pool-rule="${index}" title="Remove">×</button></span>`;
+      }).join('');
+    };
+
+    list.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-remove-pool-rule]');
+      if (!btn) return;
+      const index = Number(btn.dataset.removePoolRule);
+      rules.splice(index, 1);
+      sync();
+    });
+
+    form.querySelector('[data-add-nola-rule]')?.addEventListener('click', () => {
+      const nola = text(hiddenNola?.value || nolaInput?.value || '');
+      if (!nola || normalizeNola(nola).length < 2) {
+        alert('Type at least 2 NOLA characters or choose a program match first.');
+        return;
+      }
+      const title = text(hiddenTitle?.value || '');
+      rules.push({ type: 'nola', nola, title, programId: text(hiddenId?.value || ''), label: title ? `${title} · ${nola}` : nola });
+      if (nolaInput) nolaInput.value = '';
+      if (hiddenId) hiddenId.value = '';
+      if (hiddenTitle) hiddenTitle.value = '';
+      if (hiddenNola) hiddenNola.value = '';
+      const results = form.querySelector('[data-pool-nola-results]');
+      if (results) results.innerHTML = '';
+      sync();
+    });
+
+    form.querySelector('[data-add-topic-rule]')?.addEventListener('click', () => {
+      const topic = text(topicSelect?.value || '');
+      if (!topic) {
+        alert('Choose a topic first.');
+        return;
+      }
+      rules.push({ type: 'topic', topic, label: `Topic: ${topic}` });
+      if (topicSelect) topicSelect.value = '';
+      sync();
+    });
+
+    form.elements.requiredPoolId?.addEventListener('change', () => {
+      const poolId = text(form.elements.requiredPoolId.value);
+      if (!poolId) return;
+      rules = poolItemsForPool(poolId).map(poolRuleFromItem).filter(Boolean);
+      sync();
+    });
+
+    sync();
+  }
+
+  function readPoolRulesHidden(hidden) {
+    try {
+      const parsed = JSON.parse(hidden.value || '[]');
+      return normalizePoolRules(parsed);
+    } catch {
+      return [];
+    }
   }
 
   function renderNolaMatchResults(rawQuery, results) {
@@ -1173,13 +1427,9 @@
             <div class="small-note">Checked days define where this recurring template applies. Matching unchecked weekday rows are removed; date-specific overrides are left alone.</div>
           </div>
           <label class="span-2">Template/group name<input name="templateGroupName" type="text" value="${escapeHtml(current.templateGroupName || current.titleTopic || current.title || '')}" /></label>
-          <label>Candidate mode<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Required rotation / pool</option></select></label>
+          <label>Candidate mode<select name="slotBehavior"><option value="open_search"${current.slotBehavior!=='required_rotation'?' selected':''}>Open search</option><option value="required_rotation"${current.slotBehavior==='required_rotation'?' selected':''}>Allowed NOLA/topic pool</option></select></label>
           <label>Existing pool<select name="requiredPoolId">${poolOptions(current.requiredPoolId || '')}</select></label>
-          <label class="span-2">Pool NOLA match / allowed program<input name="poolNolaText" type="text" value="${escapeHtml(poolNolaTextForSlot(current))}" placeholder="Type at least 2 NOLA characters…" autocomplete="off" data-pool-nola-input /></label>
-          <input name="poolSelectedProgramId" type="hidden" />
-          <input name="poolSelectedProgramTitle" type="hidden" />
-          <input name="poolSelectedProgramNola" type="hidden" />
-          <div class="nola-match-results" data-pool-nola-results></div>
+          ${poolRuleBuilderMarkup(poolRulesForSlot(current))}
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox"${current.avoidBackToBack !== false ? ' checked' : ''} /> Avoid same season back-to-back</label>
           <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(Number(current.repeatGapDays) || defaultRepeatGapDays(current.purpose))}" /></label>
           <label>Rights urgency<select name="rightsUrgencyMonths"><option value="0"${!Number(current.rightsUrgencyMonths)?' selected':''}>Off</option><option value="3"${Number(current.rightsUrgencyMonths)===3?' selected':''}>Rights end in 3 months</option><option value="6"${Number(current.rightsUrgencyMonths)===6?' selected':''}>Rights end in 6 months</option><option value="12"${Number(current.rightsUrgencyMonths)===12?' selected':''}>Rights end in 12 months</option></select></label>
@@ -1202,7 +1452,7 @@
       event.preventDefault();
       void saveTemplateEdit(event.currentTarget, current, iso);
     });
-    if (editForm) { bindPoolNolaSearch(editForm); bindTemplateFormHelpers(editForm); }
+    if (editForm) { bindPoolNolaSearch(editForm); bindPoolRuleBuilder(editForm); bindTemplateFormHelpers(editForm); }
   }
 
   async function saveTemplateEdit(form, current, iso) {
@@ -1327,19 +1577,19 @@
     preview.innerHTML = `
       <div class="candidate-grid">
         <section class="candidate-section">
-          <h3>${isRotation ? 'Required-rotation pool candidates' : 'Best single-program fits'}</h3>
+          <h3>${isRotation ? 'Allowed-pool candidates' : 'Best single-program fits'}</h3>
           ${isRotation ? `<p class="small-note">Pool: ${escapeHtml(target.poolName || poolLabel(target.requiredPoolId) || 'not selected')} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months</p>` : ''}
-          ${candidateMarkup || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA code/prefix or selected pool items.' : 'No single-program matches found.'}</p>`}
+          ${candidateMarkup || `<p class="small-note">${isRotation ? 'No allowed pool matches found. Check the pool NOLA/programs or selected topics.' : 'No single-program matches found.'}</p>`}
         </section>
         <section class="candidate-section">
           <h3>Best 30 + 30 fits</h3>
-          ${pairMarkup || `<p class="small-note">${isRotation ? 'Required-rotation slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
+          ${pairMarkup || `<p class="small-note">${isRotation ? 'Allowed-pool slots do not use open 30 + 30 search.' : 'No 30 + 30 pairs for this slot.'}</p>`}
         </section>
       </div>
       ${isRotation && excluded.length ? `
         <section class="candidate-section">
           <h3>Pool matches not currently eligible</h3>
-          <p class="small-note">These match the required pool but were not recommended by helper rules such as repeat gap, freshness, rights, archive, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
+          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, freshness, rights, archive, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
           <div class="excluded-candidate-list">${excludedMarkup}</div>
         </section>` : ''}
     `;
@@ -1400,9 +1650,9 @@
 
     if (slot.slotBehavior === 'required_rotation') {
       const poolMatch = rotationPoolMatch(program, slot);
-      if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside required pool'] };
+      if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside allowed pool'] };
       score += 45 + poolMatch.score;
-      why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'required pool match');
+      why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'allowed pool match');
     }
 
     if (slot.lengthMinutes && length && length !== Number(slot.lengthMinutes)) {
@@ -1417,7 +1667,7 @@
     if (slot.purpose === 'series' && !isSeries && slot.slotBehavior !== 'required_rotation') return { ok: false, program, length, score: -200, why: ['not series'] };
     if (slot.purpose === 'series' && !isSeries && slot.slotBehavior === 'required_rotation') { score += 4; warnings.push('not marked as series'); }
     if (slot.slotBehavior !== 'required_rotation' && ['standalone', 'holiday', 'local'].includes(slot.purpose) && isSeries) return { ok: false, program, length, score: -120, why: ['series excluded'] };
-    if (slot.slotBehavior === 'required_rotation' && isSeries) { score += 8; why.push('series allowed by required rotation'); }
+    if (slot.slotBehavior === 'required_rotation' && isSeries) { score += 8; why.push('series allowed by pool rule'); }
 
     if (rights.expired) return { ok: false, program, length, score: -300, why: ['expired rights'] };
     if (rights.missing) warnings.push('missing rights end');
@@ -1491,18 +1741,41 @@
 
   function programMatchesPoolItem(program, item) {
     const ids = programRecordIds(program);
-    if (item.programRecordId && ids.has(text(item.programRecordId))) return { ok: true, score: 90, label: item.itemLabel || item.programTitle || 'selected record' };
+    if (item.programRecordId && ids.has(text(item.programRecordId))) return { ok: true, score: 95, label: item.itemLabel || item.programTitle || 'selected record' };
 
-    const programNolaNorm = normalizeNola(programNola(program));
+    const topic = topicFromPoolItem(item);
+    if (topic) {
+      const topicMatch = programMatchesTopic(program, topic);
+      return topicMatch.ok ? { ok: true, score: 68, label: `Topic: ${topic}` } : { ok: false, score: 0 };
+    }
+
+    const programNolaNorms = programNolaValues(program).map(normalizeNola).filter(Boolean);
     const nolaTerms = text(item.nolaMatchText).split(/[,;|\s]+/).map(normalizeNola).filter((term) => term.length >= 2);
-    const nolaMatched = nolaTerms.find((term) => programNolaNorm && (programNolaNorm.startsWith(term) || programNolaNorm.includes(term)));
-    if (nolaMatched) return { ok: true, score: Math.min(85, 42 + nolaMatched.length * 3), label: item.itemLabel || item.nolaMatchText };
+    const nolaMatched = nolaTerms.find((term) => programNolaNorms.some((value) => value && (value.startsWith(term) || value.includes(term))));
+    if (nolaMatched) return { ok: true, score: Math.min(88, 42 + nolaMatched.length * 3), label: item.itemLabel || item.nolaMatchText };
 
     const terms = text(item.titleMatchText || item.programTitle || item.itemLabel).toLowerCase().split(/[,;|]/).map((term) => term.trim()).filter(Boolean);
     if (!terms.length) return { ok: false, score: 0 };
     const haystack = text([program.title, program.program_title, program.series_title, program.notes, program.topic, program.secondary_topic].join(' ')).toLowerCase();
     const matched = terms.find((term) => haystack.includes(term));
     return matched ? { ok: true, score: Math.min(55, 20 + matched.length), label: item.itemLabel || matched } : { ok: false, score: 0 };
+  }
+
+  function programMatchesTopic(program, topic) {
+    const wanted = text(topic).toLowerCase();
+    if (!wanted) return { ok: false };
+    const topics = programTopicValues(program).map((value) => value.toLowerCase());
+    if (topics.some((value) => value === wanted)) return { ok: true, exact: true };
+    if (topics.some((value) => value.includes(wanted) || wanted.includes(value))) return { ok: true, exact: false };
+    return { ok: false };
+  }
+
+  function programTopicValues(program) {
+    const values = [];
+    [program.topic, program.secondary_topic, program.program_topic, program.category, program.subject].forEach((value) => {
+      values.push(...splitTopicValues(value));
+    });
+    return [...new Set(values.map(text).filter(Boolean))];
   }
 
   function programRecordIds(program) {
@@ -1957,7 +2230,7 @@
       state.pools = [];
       state.poolItems = [];
       render();
-      updateSummary('Cleared scheduler test templates, overrides, and required-rotation pool records from Supabase planner tables.');
+      updateSummary('Cleared scheduler test templates, overrides, and NOLA/topic pool records from Supabase planner tables.');
     } catch (error) {
       console.error(error);
       alert(`Clear planner data failed: ${error.message}`);
