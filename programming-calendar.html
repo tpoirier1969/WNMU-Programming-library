@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.78"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.79"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -223,6 +223,10 @@
     .weekday-check input { width: auto; }
     .disabled-field { opacity: .52; }
     .disabled-field select, .disabled-field input { background: #eef3f7; cursor: not-allowed; }
+
+    .special-rule-panel { border: 1px solid #d9e6f3; background: #f7fbff; border-radius: 14px; padding: 10px; }
+    .special-rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+    .special-rule-grid .span-2 { grid-column: 1 / -1; }
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     .candidate-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
     .candidate-section { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--soft); }
@@ -273,7 +277,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.78 NOLA/topic pools</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.79 event holiday section</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.77
+// WNMU Programming Library Schedule Planner test helper v1.5.79
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.78-nola-topic-pools';
+  const VERSION = 'v1.5.79-event-holiday-section';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -844,20 +844,25 @@
               <option>Disabled for now</option>
             </select>
           </label>
-          <label>Holiday/event match
-            <select name="eventMode">
-              <option value="none">None</option>
-              <option value="prefer">Prefer nearby event</option>
-              <option value="require">Require nearby event</option>
-            </select>
-          </label>
-          <label>Event window days
-            <input name="eventWindowDays" type="number" min="0" max="30" step="1" value="5" />
-          </label>
-
-          <label class="span-4">Notes
-            <textarea name="notes" rows="2" placeholder="PBS feed name, fundraiser notes, staff-off holiday notes, etc."></textarea>
-          </label>
+          <div class="span-4 special-rule-panel">
+            <div class="field-label">Special / event / holiday behavior</div>
+            <div class="small-note">Use this for holiday-aware slots, fundraiser windows, staff-off periods, local seasonal fall-throughs, or other date-sensitive behavior. Normal weekly templates can stay at None.</div>
+            <div class="special-rule-grid">
+              <label>Holiday/event match
+                <select name="eventMode">
+                  <option value="none">None</option>
+                  <option value="prefer">Prefer nearby event</option>
+                  <option value="require">Require nearby event</option>
+                </select>
+              </label>
+              <label>Event window days
+                <input name="eventWindowDays" type="number" min="0" max="30" step="1" value="5" />
+              </label>
+              <label class="span-2">Notes / special handling notes
+                <textarea name="notes" rows="2" placeholder="PBS feed name, fundraiser notes, staff-off holiday notes, local-season fall-through notes, etc."></textarea>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="action-row">
           <button type="submit" class="primary">Save recurring template</button>
@@ -1439,10 +1444,15 @@
           <input name="ratingMode" type="hidden" value="boost" />
           <input name="ratingMin" type="hidden" value="" />
           <label class="disabled-field">Minimum rating<select disabled><option>Disabled for now</option></select></label>
-          <label>Event match<select name="eventMode"><option value="none">None</option><option value="prefer"${current.eventMode==='prefer'?' selected':''}>Prefer nearby event</option><option value="require"${current.eventMode==='require'?' selected':''}>Require nearby event</option></select></label>
-          <label>Event window days<input name="eventWindowDays" type="number" min="0" max="30" step="1" value="${escapeHtml(current.eventWindowDays || 5)}" /></label>
-
-          <label class="span-4">Notes<textarea name="notes" rows="2">${escapeHtml(current.notes || '')}</textarea></label>
+          <div class="span-4 special-rule-panel">
+            <div class="field-label">Special / event / holiday behavior</div>
+            <div class="small-note">Use this for holiday-aware slots, fundraiser windows, staff-off periods, local seasonal fall-throughs, or other date-sensitive behavior. Normal weekly templates can stay at None.</div>
+            <div class="special-rule-grid">
+              <label>Holiday/event match<select name="eventMode"><option value="none">None</option><option value="prefer"${current.eventMode==='prefer'?' selected':''}>Prefer nearby event</option><option value="require"${current.eventMode==='require'?' selected':''}>Require nearby event</option></select></label>
+              <label>Event window days<input name="eventWindowDays" type="number" min="0" max="30" step="1" value="${escapeHtml(current.eventWindowDays || 5)}" /></label>
+              <label class="span-2">Notes / special handling notes<textarea name="notes" rows="2">${escapeHtml(current.notes || '')}</textarea></label>
+            </div>
+          </div>
         </div>
         <div class="action-row"><button type="submit" class="primary">Save recurring template edits</button></div>
       </form>
