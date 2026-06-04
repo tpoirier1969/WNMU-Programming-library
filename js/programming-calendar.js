@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.82
+// WNMU Programming Library Schedule Planner test helper v1.5.83
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.82-status-color-cells';
+  const VERSION = 'v1.5.83-primary-topic-dropdown';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -936,7 +936,7 @@
               <button type="button" data-add-nola-rule>Add NOLA/program</button>
               <label>Topic
                 <select name="poolTopicSelect" data-pool-topic-select>
-                  <option value="">Choose a Library topic…</option>
+                  <option value="">Choose a primary Library topic…</option>
                   ${topicOptions('')}
                 </select>
               </label>
@@ -944,7 +944,7 @@
             </div>
             <div class="nola-match-results" data-pool-nola-results></div>
             <div class="pool-rule-list" data-pool-rule-list></div>
-            <div class="small-note">You can add more than one NOLA/program and more than one topic. Candidate search treats this as an allowed pool: a program may match any listed NOLA/program or topic.</div>
+            <div class="small-note">You can add more than one NOLA/program and more than one primary topic. Candidate search treats this as an allowed pool: a program may match any listed NOLA/program or topic.</div>
           </div>
     `;
   }
@@ -958,9 +958,7 @@
     const set = new Set();
     state.programs.forEach((program) => {
       if (isArchivedProgram(program)) return;
-      [program.topic, program.secondary_topic, program.program_topic, program.category, program.subject].forEach((value) => {
-        splitTopicValues(value).forEach((topic) => set.add(topic));
-      });
+      primaryProgramTopicValues(program).forEach((topic) => set.add(topic));
     });
     return [...set].sort((a, b) => a.localeCompare(b));
   }
@@ -1823,7 +1821,10 @@
   function programMatchesTopic(program, topic) {
     const wanted = normalizeTopic(topic);
     if (!wanted) return { ok: false };
-    const topics = programTopicValues(program).map(normalizeTopic).filter(Boolean);
+    // Topic-pool rules are intentionally matched against primary Library topics only.
+    // Secondary topic fields can be useful metadata, but they should not cause a program
+    // to appear in a pool/dropdown meant to represent the main schedule category.
+    const topics = primaryProgramTopicValues(program).map(normalizeTopic).filter(Boolean);
     if (topics.some((value) => value === wanted)) return { ok: true, exact: true };
     return { ok: false };
   }
@@ -1832,9 +1833,17 @@
     return text(value).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
   }
 
+  function primaryProgramTopicValues(program) {
+    const values = [];
+    [program.topic, program.primary_topic, program.program_topic].forEach((value) => {
+      values.push(...splitTopicValues(value));
+    });
+    return [...new Set(values.map(text).filter(Boolean))];
+  }
+
   function programTopicValues(program) {
     const values = [];
-    [program.topic, program.secondary_topic, program.program_topic, program.category, program.subject].forEach((value) => {
+    [program.topic, program.primary_topic, program.program_topic, program.secondary_topic, program.category, program.subject].forEach((value) => {
       values.push(...splitTopicValues(value));
     });
     return [...new Set(values.map(text).filter(Boolean))];
