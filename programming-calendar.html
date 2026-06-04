@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.86"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.87"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -253,6 +253,14 @@
     .candidate-more[open] .candidate-expand-label::after { content: ' ▲'; }
     .candidate-more:not([open]) .candidate-expand-label::after { content: ' ▼'; }
 
+
+    .direct-add-section { border-color: #d8e5ef; background: #f8fbfd; }
+    .direct-add-controls { display: grid; grid-template-columns: minmax(260px, 1fr); gap: 8px; margin-top: 8px; }
+    .direct-program-results { display: grid; gap: 4px; margin-top: 8px; max-height: 360px; overflow: auto; padding-right: 2px; }
+    .direct-program-card { border: 1px solid var(--line); border-radius: 9px; padding: 4px 6px; background: #fff; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+    .direct-program-title { font-weight: 820; font-size: .72rem; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
+    .direct-program-meta { font-size: .64rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+    .direct-program-card button { padding: 3px 7px; font-size: .72rem; border-radius: 8px; white-space: nowrap; }
     .candidate-list-controls { display: grid; grid-template-columns: minmax(220px, 1.4fr) minmax(160px, .8fr) minmax(150px, .8fr); gap: 8px; align-items: end; margin: 8px 0 6px; }
     .candidate-list-controls label { font-size: .78rem; }
     .candidate-list-controls input,
@@ -298,7 +306,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.85 use/rights filters</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.87 direct add exact program</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

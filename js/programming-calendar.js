@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.86-candidate-sort-aired-filter';
+  const VERSION = 'v1.5.87-direct-add-exact-program';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -976,6 +976,7 @@
       </div>
 
       ${isEmpty ? createTemplateMarkup(iso) : existingSlotMarkup(current, iso, { isPbs, isOverride })}
+      ${directProgramAddMarkup(current, iso)}
       <div id="candidatePreview"></div>
     `;
   }
@@ -1296,6 +1297,141 @@
     `;
   }
 
+
+  function directProgramAddMarkup(current, iso) {
+    const isEmpty = current?.kind === 'empty';
+    const slotLabel = `${formatLongDate(fromIsoDate(iso))} · ${formatTime(current?.startMinutes ?? state.selectedMinutes)}`;
+    return `
+      <section class="candidate-section direct-add-section">
+        <h3>Direct add exact program</h3>
+        <p class="small-note">Use this when you already know the title you want. This bypasses the template candidate rules and creates a scheduler test override for <strong>${escapeHtml(slotLabel)}</strong>. ${isEmpty ? 'No recurring template is required.' : 'The template underneath is left alone.'}</p>
+        <div class="direct-add-controls">
+          <label>Search Library title/NOLA/topic/type
+            <input type="search" data-direct-program-search placeholder="Type 2+ characters, e.g. Garden, WALA, Great..." autocomplete="off" />
+          </label>
+        </div>
+        <div class="direct-program-results" data-direct-program-results>
+          <div class="small-note">Type at least 2 characters to search all loaded non-archived Library programs.</div>
+        </div>
+      </section>
+    `;
+  }
+
+  function bindDirectProgramAdd(current, iso) {
+    const input = document.querySelector('[data-direct-program-search]');
+    const results = document.querySelector('[data-direct-program-results]');
+    if (!input || !results) return;
+    const renderDirect = () => renderDirectProgramResults(input.value, results, current, iso);
+    input.addEventListener('input', renderDirect);
+    input.addEventListener('focus', renderDirect);
+    results.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-direct-program-id]');
+      if (!button) return;
+      const program = findProgramByStableId(button.dataset.directProgramId);
+      if (!program) {
+        alert('That program is no longer available in the loaded Library list. Refresh Library data and try again.');
+        return;
+      }
+      void useDirectProgram(program, current, iso);
+    });
+  }
+
+  function renderDirectProgramResults(rawQuery, resultsEl, current, iso) {
+    const query = text(rawQuery || '').trim().toLowerCase();
+    if (query.length < 2) {
+      resultsEl.innerHTML = '<div class="small-note">Type at least 2 characters to search all loaded non-archived Library programs.</div>';
+      return;
+    }
+    const matches = state.programs
+      .filter((program) => !isArchivedProgram(program))
+      .filter((program) => directProgramMatchesSearch(program, query, iso))
+      .sort((a, b) => text(programTitle(a)).localeCompare(text(programTitle(b))) || text(programNola(a)).localeCompare(text(programNola(b))));
+    if (!matches.length) {
+      resultsEl.innerHTML = `<div class="small-note">No non-archived Library programs matched “${escapeHtml(query)}”. Try NOLA, title, topic, or type.</div>`;
+      return;
+    }
+    resultsEl.innerHTML = `
+      <div class="small-note">${matches.length.toLocaleString()} direct match${matches.length === 1 ? '' : 'es'} found. Click Add here to place one directly on this date/time.</div>
+      ${matches.map((program) => directProgramCard(program, iso)).join('\n\n')}
+    `;
+  }
+
+  function directProgramMatchesSearch(program, query, iso) {
+    const haystack = [
+      programTitle(program),
+      scheduledProgramTitle(program),
+      programNola(program),
+      programPrimaryTopicLabel(program),
+      programTypeLabel(program),
+      programUseText(program),
+      rightsBegin(program),
+      rightsEnd(program),
+      channelHistoryCompact(program, state.channel, iso),
+      programDescription(program)
+    ].map(text).join(' ').toLowerCase();
+    return haystack.includes(query);
+  }
+
+  function directProgramCard(program, iso) {
+    const title = programTitle(program) || scheduledProgramTitle(program) || 'Untitled program';
+    const description = programDescription(program) || title;
+    return `
+      <div class="direct-program-card" title="${escapeHtml(description)}">
+        <div>
+          <div class="direct-program-title">${escapeHtml(title)}</div>
+          <div class="direct-program-meta">${escapeHtml(candidateQuickMeta(program, state.channel, iso))}</div>
+        </div>
+        <button type="button" class="primary" data-direct-program-id="${escapeHtml(programStableId(program))}">Add here</button>
+      </div>
+    `;
+  }
+
+  async function useDirectProgram(program, current, iso) {
+    try {
+      const target = directProgramTarget(current, program, iso);
+      const length = parseLength(program.length_minutes) || target.lengthMinutes || STEP;
+      await saveCandidateOverride(program, target, iso, target.startMinutes, length, null, {
+        overrideReason: 'direct_program_pick'
+      });
+      await refreshPlannerRowsAfterCandidateFill();
+      closeModal();
+      render();
+      updateSummary(`Direct-added ${programTitle(program)} to ${formatLongDate(fromIsoDate(iso))} at ${formatTime(target.startMinutes)}.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Direct add failed: ${error.message}`);
+      updateSummary(`Direct add failed: ${error.message}`);
+    }
+  }
+
+  function directProgramTarget(current, program, iso) {
+    const base = current && current.kind !== 'empty'
+      ? normalizePlannerItem({ ...current, channel: state.channel }, current.kind || 'template')
+      : normalizePlannerItem({
+          kind: 'override',
+          status: 'override',
+          channel: state.channel,
+          startMinutes: state.selectedMinutes,
+          lengthMinutes: parseLength(program.length_minutes) || STEP,
+          purpose: looksLikeSeries(program) ? 'series' : 'standalone',
+          titleTopic: programTitle(program),
+          templateGroupName: 'Direct add',
+          fillStrategy: 'single',
+          slotBehavior: 'open_search',
+          startDate: iso,
+          endDate: iso,
+          programmable: true
+        }, 'override');
+    return {
+      ...base,
+      channel: state.channel,
+      startMinutes: Number(current?.startMinutes ?? state.selectedMinutes),
+      lengthMinutes: Number(parseLength(program.length_minutes) || base.lengthMinutes || STEP),
+      programmable: true,
+      slotBehavior: 'open_search'
+    };
+  }
+
   function bindSlotModalEvents(context, iso) {
     const form = document.getElementById('slotTemplateForm');
     form?.addEventListener('submit', (event) => {
@@ -1303,6 +1439,7 @@
       void saveTemplateFromForm(form, iso);
     });
     if (form) { bindPoolNolaSearch(form); bindPoolRuleBuilder(form); bindTemplateFormHelpers(form); }
+    bindDirectProgramAdd(context.current, iso);
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
     document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
     document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
