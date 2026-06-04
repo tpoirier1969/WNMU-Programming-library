@@ -1761,18 +1761,43 @@
     }
     const pattern = text(slot.seriesPattern || slot.series_pattern || '').toLowerCase();
     const startDow = fromIsoDate(iso).getDay();
-    let weekdays = matchingTemplateWeekdays(slot);
-    if (!weekdays.length) weekdays = (pattern.includes('consecutive') || pattern.includes('across')) ? [1,2,3,4,5] : [startDow];
-    if (!(pattern.includes('consecutive') || pattern.includes('across'))) weekdays = [startDow];
+    const siblingWeekdays = matchingTemplateWeekdays(slot);
+    const hasConsecutivePattern = pattern.includes('consecutive') || pattern.includes('across');
+    const hasIndependentPattern = pattern.includes('independent');
+    const hasWeeklyOneDayPattern = pattern.includes('weekly_one_day') || pattern.includes('weekly one') || pattern === 'weekly';
+    const hasNoSeriesPattern = !pattern || pattern === 'none' || pattern.includes('not a series') || pattern.includes('not');
+    let weekdays = siblingWeekdays.length ? siblingWeekdays : [];
+
+    if (hasIndependentPattern || hasWeeklyOneDayPattern) {
+      // Explicit one-day or independent weekday lanes should stay on the clicked weekday.
+      weekdays = [startDow];
+    } else if (hasConsecutivePattern) {
+      // Consecutive lanes fill the whole matching template family. If that family
+      // cannot be found yet, fall back to the normal M-F programming pattern.
+      weekdays = weekdays.length ? weekdays : [1, 2, 3, 4, 5];
+    } else if (hasNoSeriesPattern && weekdays.length > 1) {
+      // Real-world schedule entry: if the template edit has M-F/selected weekdays
+      // checked, honor that checked family even when the Series Pattern dropdown
+      // was left at "Not a series lane." The weekday picker is the user's clearest
+      // instruction here.
+      weekdays = weekdays;
+    } else {
+      weekdays = [startDow];
+    }
+
+    weekdays = Array.from(new Set(weekdays.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))).sort((a, b) => a - b);
+    if (!weekdays.length) weekdays = [startDow];
+
     const seasonNumber = seriesSeasonNumber(program);
     const episodeNumbers = Array.from({ length: count }, (_, index) => seasonNumber ? String(seasonNumber * 100 + index + 1) : String(index + 1));
+    const multiDay = weekdays.length > 1;
     return {
       shouldCascade: true,
       count,
       displayTitle: seriesDisplayTitle(program, seasonNumber),
       episodeNumbers,
-      weekdays: Array.from(new Set(weekdays.map(Number))).sort((a,b) => a - b),
-      dayLabel: (pattern.includes('consecutive') || pattern.includes('across')) ? 'M-F/selected-weekday' : 'weekly'
+      weekdays,
+      dayLabel: multiDay ? 'selected weekdays' : 'weekly'
     };
   }
 
