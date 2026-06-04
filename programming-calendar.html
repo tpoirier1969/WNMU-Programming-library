@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.84"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.85"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -239,7 +239,7 @@
     .candidate-card { border: 1px solid var(--line); border-radius: 9px; padding: 4px 6px; background: #fff; margin-bottom: 4px; }
     .candidate-card--blocked { border-style: dashed; background: #fbfcfd; }
     .candidate-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
-    .candidate-title { font-weight: 850; font-size: .75rem; line-height: 1.1; cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .candidate-title { font-weight: 850; font-size: .68rem; line-height: 1.1; cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .candidate-score { font-weight: 850; color: var(--accent); font-size: .72rem; white-space: nowrap; }
     .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; margin-top: 4px; }
     .candidate-detail-line { font-size: .72rem; color: var(--muted); line-height: 1.18; overflow-wrap: anywhere; }
@@ -248,10 +248,13 @@
     .candidate-more { margin-top: 2px; font-size: .72rem; color: var(--muted); }
     .candidate-more summary { cursor: pointer; font-weight: 750; color: var(--accent-dark); list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
     .candidate-more summary::-webkit-details-marker { display: none; }
-    .candidate-quick-meta { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .candidate-quick-meta { color: var(--muted); font-size: .66rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .candidate-expand-label { color: var(--accent-dark); font-weight: 850; white-space: nowrap; }
     .candidate-more[open] .candidate-expand-label::after { content: ' ▲'; }
     .candidate-more:not([open]) .candidate-expand-label::after { content: ' ▼'; }
+    .candidate-filter-panel { border: 1px solid #d8e5ef; background: #f8fbfd; border-radius: 14px; padding: 10px; }
+    .candidate-filter-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+    .candidate-filter-grid label { font-size: .82rem; }
     .priority-rule-panel { border: 1px solid #d7ead9; background: #f7fff8; border-radius: 14px; padding: 10px; }
     .priority-rule-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
     .priority-rule-grid label { font-size: .82rem; }
@@ -276,7 +279,7 @@
     }
     @media (max-width: 720px) {
       .topbar { align-items: start; flex-direction: column; }
-      .control-grid, .form-grid { grid-template-columns: 1fr; }
+      .control-grid, .form-grid, .candidate-filter-grid, .priority-rule-grid { grid-template-columns: 1fr; }
       .span-2, .span-4 { grid-column: auto; }
       .month-grid, .calendar-head { min-width: 780px; }
       .calendar-card { overflow-x: auto; }
@@ -289,7 +292,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.84 weighted compact candidates</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.85 use/rights filters</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>

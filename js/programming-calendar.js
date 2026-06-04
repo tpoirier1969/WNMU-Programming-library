@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.84
+// WNMU Programming Library Schedule Planner test helper v1.5.85
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.84-weighted-compact-candidates';
+  const VERSION = 'v1.5.85-use-rights-filters-candidate-info';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -269,6 +269,9 @@
       episodeMax: row.episode_max,
       ratingMode: row.rating_mode || 'boost',
       ratingMin: row.rating_min,
+      useFilterMode: row.use_filter_mode || 'off',
+      useFilterText: row.use_filter_text || '',
+      rightsBeginAfter: row.rights_begin_after || '',
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
@@ -317,6 +320,9 @@
       episodeMax: row.episode_max,
       ratingMode: row.rating_mode || 'boost',
       ratingMin: row.rating_min,
+      useFilterMode: row.use_filter_mode || 'off',
+      useFilterText: row.use_filter_text || '',
+      rightsBeginAfter: row.rights_begin_after || '',
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
@@ -356,6 +362,9 @@
       episode_max: emptyToNull(item.episodeMax),
       rating_mode: item.ratingMode || 'boost',
       rating_min: emptyToNull(item.ratingMin),
+      use_filter_mode: item.useFilterMode || 'off',
+      use_filter_text: item.useFilterText || '',
+      rights_begin_after: item.rightsBeginAfter || null,
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
@@ -396,6 +405,9 @@
       episode_max: emptyToNull(item.episodeMax),
       rating_mode: item.ratingMode || 'boost',
       rating_min: emptyToNull(item.ratingMin),
+      use_filter_mode: item.useFilterMode || 'off',
+      use_filter_text: item.useFilterText || '',
+      rights_begin_after: item.rightsBeginAfter || null,
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
@@ -459,6 +471,29 @@
       priorityRepeatGap: clampPriority(data.priorityRepeatGap, 4),
       priorityEventMatch: clampPriority(data.priorityEventMatch, 4)
     };
+  }
+
+
+  function useFilterModeOptions(current) {
+    const value = text(current || 'off') || 'off';
+    return [
+      ['off', 'Off'],
+      ['require_contains', 'Only if Use? contains'],
+      ['exclude_contains', 'Exclude if Use? contains']
+    ].map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}>${label}</option>`).join('\n\n');
+  }
+
+  function candidateFilterPanelMarkup(current = {}) {
+    return `
+          <div class="span-4 candidate-filter-panel">
+            <div class="field-label">Candidate filters</div>
+            <div class="small-note">These are hard filters. Use? checks the Library Use?/use flag field. Rights date checks the rights begin/start date.</div>
+            <div class="candidate-filter-grid">
+              <label>Use? rule<select name="useFilterMode">${useFilterModeOptions(current.useFilterMode)}</select></label>
+              <label>Use? text<input name="useFilterText" type="text" value="${escapeHtml(current.useFilterText || '')}" placeholder="Y, 13.3, etc." /></label>
+              <label>Rights begin on/after<input name="rightsBeginAfter" type="date" value="${escapeHtml(current.rightsBeginAfter || '')}" /></label>
+            </div>
+          </div>`;
   }
 
   function priorityPanelMarkup(current = {}) {
@@ -974,6 +1009,7 @@
           <label>Minimum rating
             <select name="ratingMin">${ratingMinimumOptions('')}</select>
           </label>
+          ${candidateFilterPanelMarkup({})}
           ${priorityPanelMarkup({})}
           <div class="span-4 special-rule-panel">
             <div class="field-label">Special / event / holiday behavior</div>
@@ -1471,6 +1507,9 @@
       episodeMax: saneNullableNumber(data.episodeMax),
       ratingMode: 'boost',
       ratingMin: saneNullableNumber(data.ratingMin),
+      useFilterMode: data.useFilterMode || 'off',
+      useFilterText: text(data.useFilterText || ''),
+      rightsBeginAfter: normalizeDateish(data.rightsBeginAfter) || '',
       freshnessMonths: 0,
       ...priorityFieldsFromData(data),
       eventMode: data.eventMode || 'none',
@@ -1575,6 +1614,7 @@
           <input name="freshnessMonths" type="hidden" value="0" />
           <input name="ratingMode" type="hidden" value="boost" />
           <label>Minimum rating<select name="ratingMin">${ratingMinimumOptions(current.ratingMin)}</select></label>
+          ${candidateFilterPanelMarkup(current)}
           ${priorityPanelMarkup(current)}
           <div class="span-4 special-rule-panel">
             <div class="field-label">Special / event / holiday behavior</div>
@@ -1750,6 +1790,7 @@
     const includedIds = new Set((includedCandidates || []).map((entry) => programStableId(entry.program)));
     return state.programs
       .map((program) => {
+        if (hardCandidateFilterFailure(program, slot)) return null;
         const poolMatch = rotationPoolMatch(program, slot);
         if (!poolMatch.ok) return null;
         if (includedIds.has(programStableId(program))) return null;
@@ -1792,7 +1833,8 @@
     const priorityEvent = clampPriority(slot.priorityEventMatch, 4);
     let score = 0;
 
-    if (isArchivedProgram(program)) return { ok: false, program, score: -999, why: ['archived/unavailable'] };
+    const hardFailure = hardCandidateFilterFailure(program, slot);
+    if (hardFailure) return { ok: false, program, score: -999, why: [hardFailure] };
 
     const enforceAllowedPool = slotUsesAllowedPool(slot);
     if (enforceAllowedPool) {
@@ -1869,6 +1911,78 @@
     }
 
     return { ok: true, program, length, rating, score, why, warnings };
+  }
+
+
+  function hardCandidateFilterFailure(program, slot) {
+    if (isArchivedProgram(program)) return 'archived/unavailable';
+    const useFailure = useFilterFailure(program, slot);
+    if (useFailure) return useFailure;
+    const rightsBeginFailure = rightsBeginAfterFailure(program, slot);
+    if (rightsBeginFailure) return rightsBeginFailure;
+    return '';
+  }
+
+  function useFilterFailure(program, slot) {
+    const mode = text(slot?.useFilterMode || 'off');
+    const terms = filterTerms(slot?.useFilterText);
+    if (!terms.length || mode === 'off') return '';
+    const useText = programUseText(program).toLowerCase();
+    const matched = terms.find((term) => useText.includes(term.toLowerCase()));
+    if (mode === 'require_contains' && !matched) return `Use? does not contain ${terms.join(' / ')}`;
+    if (mode === 'exclude_contains' && matched) return `Use? contains ${matched}`;
+    return '';
+  }
+
+  function rightsBeginAfterFailure(program, slot) {
+    const after = normalizeDateish(slot?.rightsBeginAfter);
+    if (!after) return '';
+    const begin = rightsBegin(program);
+    if (!begin) return `missing rights begin/start date`;
+    if (begin < after) return `rights begin ${begin} before ${after}`;
+    return '';
+  }
+
+  function filterTerms(value) {
+    return text(value).split(/[;,|\n]+/).map((term) => term.trim()).filter(Boolean);
+  }
+
+  function programUseText(program) {
+    return programUseValues(program).join(' · ');
+  }
+
+  function programUseValues(program) {
+    const values = [];
+    const directKeys = ['use', 'use_', 'use_flag', 'use_field', 'use_status', 'use_question', 'program_use', 'use_for', 'channel_use', 'use_13_1', 'use_13_3', 'use_131', 'use_133'];
+    directKeys.forEach((key) => {
+      const value = text(program?.[key]);
+      if (value) values.push(value);
+    });
+    Object.keys(program || {}).forEach((key) => {
+      const lower = key.toLowerCase();
+      if (lower === 'user_rating' || lower === 'user' || lower.startsWith('user_')) return;
+      if (lower === 'use' || lower === 'use?' || /^use[_\s?]/.test(lower) || /^use(13|wnmu|channel|flag|field|status|question)/.test(lower) || lower === 'program_use' || lower === 'use_for') {
+        const value = text(program[key]);
+        if (value) values.push(value);
+      }
+    });
+    return [...new Set(values)];
+  }
+
+  function programPrimaryTopicLabel(program) {
+    return primaryProgramTopicValues(program)[0] || '';
+  }
+
+  function programTypeLabel(program) {
+    return text(program.program_type || program.type || program.programType || '');
+  }
+
+  function channelHistoryCompact(program, channel, iso) {
+    const field = channel === '13.3' ? program.aired_13_3 : program.aired_13_1;
+    const dates = extractDates(field).filter((d) => !iso || d <= iso).sort();
+    if (!dates.length) return `${channel}: none`;
+    const latest = dates[dates.length - 1];
+    return `${channel}: ${dates.length}x latest ${latest}`;
   }
 
   function rotationPoolMatch(program, slot) {
@@ -2045,11 +2159,16 @@
   function candidateQuickMeta(program, channel, iso) {
     const parts = [];
     const nola = programNola(program);
+    const topic = programPrimaryTopicLabel(program);
+    const type = programTypeLabel(program);
     const length = parseLength(program.length_minutes);
     const episode = programSingleEpisodeNumber(program) || programScheduleEpisodeLine(program).replace(/^Episode:\s*/i, '');
     if (nola) parts.push(nola);
+    if (topic) parts.push(`Topic: ${topic}`);
+    if (type) parts.push(`Type: ${type}`);
     if (episode) parts.push(`Ep ${episode.replace(/^Episode\s*/i, '')}`);
     if (length) parts.push(`${length}m`);
+    parts.push(channelHistoryCompact(program, channel, iso));
     const rights = rightsEnd(program);
     if (rights) parts.push(`rights end ${rights}`);
     return parts.join(' · ');
@@ -2062,10 +2181,15 @@
     const episodeCount = extractEpisodeCount(program);
     const episodeSeason = text(program.episode_season);
     const history = channelHistoryText(program, channel, iso);
+    const topic = programPrimaryTopicLabel(program) || 'unknown';
+    const type = programTypeLabel(program) || 'unknown';
+    const useValue = programUseText(program) || 'blank';
     const rows = [
       ['NOLA', nola],
+      ['Topic', topic],
+      ['Type', type],
+      ['Use?', useValue],
       ['Length', length ? `${length}m` : 'unknown'],
-      ['Type', [program.program_type, program.topic, program.distributor].filter(Boolean).join(' · ') || 'unknown'],
       ['Rights begin', rights.begin || 'unknown'],
       ['Rights end', rights.end || 'unknown'],
       [`${channel} history`, history],
@@ -2526,7 +2650,7 @@
     const truthyKeys = ['is_archived', 'archived', 'isArchive', 'is_archive', 'program_archived', 'library_archived', 'inactive', 'is_inactive'];
     if (truthyKeys.some((key) => booleanish(program?.[key]))) return true;
     const statusText = text([program?.status, program?.library_status, program?.record_status, program?.availability, program?.archive_status].filter(Boolean).join('\n\n')).toLowerCase();
-    if (/(archived|archive|inactive|unavailable|retired)/.test(statusText)) return true;
+    if (/\b(archived|archive|inactive|unavailable|retired)\b/.test(statusText)) return true;
     return false;
   }
 
