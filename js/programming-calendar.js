@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.83
+// WNMU Programming Library Schedule Planner test helper v1.5.84
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.83-primary-topic-dropdown';
+  const VERSION = 'v1.5.84-weighted-compact-candidates';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -277,6 +277,12 @@
       avoidBackToBack: row.avoid_back_to_back !== false,
       repeatGapDays: Number(row.repeat_gap_days || 0),
       rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
+      priorityPoolMatch: priorityFromDb(row.priority_pool_match, 5),
+      priorityRightsUrgency: priorityFromDb(row.priority_rights_urgency, 4),
+      priorityRating: priorityFromDb(row.priority_rating, 3),
+      priorityLengthFit: priorityFromDb(row.priority_length_fit, 2),
+      priorityRepeatGap: priorityFromDb(row.priority_repeat_gap, 4),
+      priorityEventMatch: priorityFromDb(row.priority_event_match, 4),
       startDate: row.active_start_date || '',
       endDate: row.active_end_date || '',
       notes: row.notes || '',
@@ -319,6 +325,12 @@
       avoidBackToBack: row.avoid_back_to_back !== false,
       repeatGapDays: Number(row.repeat_gap_days || 0),
       rightsUrgencyMonths: Number(row.rights_urgency_months || 0),
+      priorityPoolMatch: priorityFromDb(row.priority_pool_match, 5),
+      priorityRightsUrgency: priorityFromDb(row.priority_rights_urgency, 4),
+      priorityRating: priorityFromDb(row.priority_rating, 3),
+      priorityLengthFit: priorityFromDb(row.priority_length_fit, 2),
+      priorityRepeatGap: priorityFromDb(row.priority_repeat_gap, 4),
+      priorityEventMatch: priorityFromDb(row.priority_event_match, 4),
       notes: row.notes || '',
       selectedProgramRecordId: row.selected_program_record_id || '',
       selectedProgramTitle: row.selected_program_title || '',
@@ -352,6 +364,12 @@
       avoid_back_to_back: item.avoidBackToBack !== false,
       repeat_gap_days: Number(item.repeatGapDays || 0),
       rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
+      priority_pool_match: priorityForDb(item.priorityPoolMatch, 5),
+      priority_rights_urgency: priorityForDb(item.priorityRightsUrgency, 4),
+      priority_rating: priorityForDb(item.priorityRating, 3),
+      priority_length_fit: priorityForDb(item.priorityLengthFit, 2),
+      priority_repeat_gap: priorityForDb(item.priorityRepeatGap, 4),
+      priority_event_match: priorityForDb(item.priorityEventMatch, 4),
       active_start_date: item.startDate || null,
       active_end_date: item.endDate || null,
       notes: item.notes || ''
@@ -386,6 +404,12 @@
       avoid_back_to_back: item.avoidBackToBack !== false,
       repeat_gap_days: Number(item.repeatGapDays || 0),
       rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
+      priority_pool_match: priorityForDb(item.priorityPoolMatch, 5),
+      priority_rights_urgency: priorityForDb(item.priorityRightsUrgency, 4),
+      priority_rating: priorityForDb(item.priorityRating, 3),
+      priority_length_fit: priorityForDb(item.priorityLengthFit, 2),
+      priority_repeat_gap: priorityForDb(item.priorityRepeatGap, 4),
+      priority_event_match: priorityForDb(item.priorityEventMatch, 4),
       notes: item.notes || '',
       selected_program_record_id: item.selectedProgramRecordId || null,
       selected_program_title: item.selectedProgramTitle || null,
@@ -397,6 +421,67 @@
     if (value == null || value === '') return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function priorityFromDb(value, fallback) {
+    return clampPriority(value, fallback);
+  }
+
+  function priorityForDb(value, fallback) {
+    return clampPriority(value, fallback);
+  }
+
+  function clampPriority(value, fallback = 3) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(1, Math.min(5, Math.round(n)));
+  }
+
+  function priorityOptions(current, fallback = 3) {
+    const value = clampPriority(current, fallback);
+    return [1, 2, 3, 4, 5].map((n) => `<option value="${n}"${n === value ? ' selected' : ''}>${n}</option>`).join('\n\n');
+  }
+
+  function priorityScale(value, fallback = 3) {
+    return clampPriority(value, fallback) / 3;
+  }
+
+  function weightedScore(points, priority, fallback = 3) {
+    return Math.round(Number(points || 0) * priorityScale(priority, fallback));
+  }
+
+  function priorityFieldsFromData(data) {
+    return {
+      priorityPoolMatch: clampPriority(data.priorityPoolMatch, 5),
+      priorityRightsUrgency: clampPriority(data.priorityRightsUrgency, 4),
+      priorityRating: clampPriority(data.priorityRating, 3),
+      priorityLengthFit: clampPriority(data.priorityLengthFit, 2),
+      priorityRepeatGap: clampPriority(data.priorityRepeatGap, 4),
+      priorityEventMatch: clampPriority(data.priorityEventMatch, 4)
+    };
+  }
+
+  function priorityPanelMarkup(current = {}) {
+    return `
+          <div class="span-4 priority-rule-panel">
+            <div class="field-label">Candidate scoring priorities</div>
+            <div class="small-note">1 = low importance, 5 = high importance. These weights change ranking, not Library records.</div>
+            <div class="priority-rule-grid">
+              <label>Pool / topic / NOLA match<select name="priorityPoolMatch">${priorityOptions(current.priorityPoolMatch, 5)}</select></label>
+              <label>Rights urgency<select name="priorityRightsUrgency">${priorityOptions(current.priorityRightsUrgency, 4)}</select></label>
+              <label>Rating<select name="priorityRating">${priorityOptions(current.priorityRating, 3)}</select></label>
+              <label>Length fit<select name="priorityLengthFit">${priorityOptions(current.priorityLengthFit, 2)}</select></label>
+              <label>Repeat gap<select name="priorityRepeatGap">${priorityOptions(current.priorityRepeatGap, 4)}</select></label>
+              <label>Event / holiday match<select name="priorityEventMatch">${priorityOptions(current.priorityEventMatch, 4)}</select></label>
+            </div>
+          </div>`;
+  }
+
+  function ratingMinimumOptions(current) {
+    const value = text(current);
+    const options = ['<option value="">Off</option>'];
+    [1, 2, 3, 4, 5].forEach((n) => options.push(`<option value="${n}"${String(n) === value ? ' selected' : ''}>${n}+</option>`));
+    return options.join('\n\n');
   }
 
   function getPool(poolId) {
@@ -886,12 +971,10 @@
           </label>
           <input name="freshnessMonths" type="hidden" value="0" />
           <input name="ratingMode" type="hidden" value="boost" />
-          <input name="ratingMin" type="hidden" value="" />
-          <label class="disabled-field">Minimum rating
-            <select disabled>
-              <option>Disabled for now</option>
-            </select>
+          <label>Minimum rating
+            <select name="ratingMin">${ratingMinimumOptions('')}</select>
           </label>
+          ${priorityPanelMarkup({})}
           <div class="span-4 special-rule-panel">
             <div class="field-label">Special / event / holiday behavior</div>
             <div class="small-note">Use this for holiday-aware slots, fundraiser windows, staff-off periods, local seasonal fall-throughs, or other date-sensitive behavior. Normal weekly templates can stay at None.</div>
@@ -1387,8 +1470,9 @@
       episodeMin: saneNullableNumber(data.episodeMin),
       episodeMax: saneNullableNumber(data.episodeMax),
       ratingMode: 'boost',
-      ratingMin: null,
+      ratingMin: saneNullableNumber(data.ratingMin),
       freshnessMonths: 0,
+      ...priorityFieldsFromData(data),
       eventMode: data.eventMode || 'none',
       eventWindowDays: saneNumber(data.eventWindowDays, 5),
       slotBehavior: data.slotBehavior || 'open_search',
@@ -1490,8 +1574,8 @@
           <label>Series episode max<input name="episodeMax" type="number" min="1" step="1" value="${escapeHtml(current.episodeMax || '')}" /></label>
           <input name="freshnessMonths" type="hidden" value="0" />
           <input name="ratingMode" type="hidden" value="boost" />
-          <input name="ratingMin" type="hidden" value="" />
-          <label class="disabled-field">Minimum rating<select disabled><option>Disabled for now</option></select></label>
+          <label>Minimum rating<select name="ratingMin">${ratingMinimumOptions(current.ratingMin)}</select></label>
+          ${priorityPanelMarkup(current)}
           <div class="span-4 special-rule-panel">
             <div class="field-label">Special / event / holiday behavior</div>
             <div class="small-note">Use this for holiday-aware slots, fundraiser windows, staff-off periods, local seasonal fall-throughs, or other date-sensitive behavior. Normal weekly templates can stay at None.</div>
@@ -1614,31 +1698,31 @@
     if (!preview) return;
     const isPoolConstrained = slotUsesAllowedPool(target);
     state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map(), excluded: new Map() };
-    const displayCandidates = candidates.slice(0, 150);
-    const hiddenCount = Math.max(0, candidates.length - displayCandidates.length);
+    const displayCandidates = candidates;
     const candidateMarkup = displayCandidates.map((entry, index) => {
       const key = candidateKey(entry.program, index);
       state.candidatePreview.singles.set(key, entry);
       return candidateCard(entry, key, target, iso);
     }).join('\n\n');
-    const excludedMarkup = excluded.slice(0, 80).map((entry, index) => {
+    const excludedMarkup = excluded.map((entry, index) => {
       const key = `excluded_${candidateKey(entry.program, index)}`;
       state.candidatePreview.excluded.set(key, entry);
       return excludedCandidateCard(entry, key);
     }).join('\n\n');
     const poolName = target.poolName || poolLabel(target.requiredPoolId) || 'not selected';
+    const prioritySummary = `priorities: pool ${clampPriority(target.priorityPoolMatch, 5)} · rights ${clampPriority(target.priorityRightsUrgency, 4)} · rating ${clampPriority(target.priorityRating, 3)} · length ${clampPriority(target.priorityLengthFit, 2)} · repeat ${clampPriority(target.priorityRepeatGap, 4)} · event ${clampPriority(target.priorityEventMatch, 4)}`;
     preview.innerHTML = `
       <div class="candidate-grid candidate-grid--single">
         <section class="candidate-section">
           <h3>${isPoolConstrained ? 'Allowed candidate programs' : 'Best candidate programs'}</h3>
-          ${isPoolConstrained ? `<p class="small-note">Pool: ${escapeHtml(poolName)} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months · ${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'}${hiddenCount ? ` · showing first ${displayCandidates.length.toLocaleString()}` : ''}</p>` : `<p class="small-note">${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'}${hiddenCount ? ` · showing first ${displayCandidates.length.toLocaleString()}` : ''}</p>`}
+          ${isPoolConstrained ? `<p class="small-note">Pool: ${escapeHtml(poolName)} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months · ${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'} · showing all · ${escapeHtml(prioritySummary)}</p>` : `<p class="small-note">${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'} · showing all · ${escapeHtml(prioritySummary)}</p>`}
           ${candidateMarkup || `<p class="small-note">${isPoolConstrained ? 'No allowed pool/topic/NOLA matches found. Check the selected allowed items.' : 'No single-program matches found.'}</p>`}
         </section>
       </div>
       ${isPoolConstrained && excluded.length ? `
         <section class="candidate-section">
           <h3>Pool matches not currently eligible</h3>
-          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, rights, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule.</p>
+          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, rights, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule. Showing all ${excluded.length.toLocaleString()}.</p>
           <div class="excluded-candidate-list">${excludedMarkup}</div>
         </section>` : ''}
     `;
@@ -1697,9 +1781,15 @@
     const why = [];
     const warnings = [];
     const length = parseLength(program.length_minutes);
-    const rating = normalizeRating(program.rating);
+    const rating = normalizeRating(program.rating ?? program.program_rating ?? program.scheduler_rating ?? program.priority_rating ?? program.user_rating);
     const isSeries = looksLikeSeries(program);
     const rights = rightsStatus(program, iso, slot);
+    const priorityPool = clampPriority(slot.priorityPoolMatch, 5);
+    const priorityRights = clampPriority(slot.priorityRightsUrgency, 4);
+    const priorityRating = clampPriority(slot.priorityRating, 3);
+    const priorityLength = clampPriority(slot.priorityLengthFit, 2);
+    const priorityRepeat = clampPriority(slot.priorityRepeatGap, 4);
+    const priorityEvent = clampPriority(slot.priorityEventMatch, 4);
     let score = 0;
 
     if (isArchivedProgram(program)) return { ok: false, program, score: -999, why: ['archived/unavailable'] };
@@ -1708,13 +1798,13 @@
     if (enforceAllowedPool) {
       const poolMatch = rotationPoolMatch(program, slot);
       if (!poolMatch.ok) return { ok: false, program, length, score: -250, why: ['outside allowed pool/topic/NOLA'] };
-      score += 45 + poolMatch.score;
+      score += weightedScore(45 + poolMatch.score, priorityPool, 5);
       why.push(poolMatch.label ? `pool match: ${poolMatch.label}` : 'allowed pool match');
     }
 
     if (slot.lengthMinutes && length && length !== Number(slot.lengthMinutes)) {
       if (slot.slotBehavior === 'required_rotation') {
-        score -= 60;
+        score -= weightedScore(60, priorityLength, 2);
         warnings.push(`${length}m program in ${slot.lengthMinutes}m slot`);
       } else {
         return { ok: false, program, length, score: -200, why: ['wrong length'] };
@@ -1722,59 +1812,59 @@
     }
     if (slot.lengthMinutes && !length) warnings.push('missing length');
     if (slot.purpose === 'series' && !isSeries && slot.slotBehavior !== 'required_rotation') return { ok: false, program, length, score: -200, why: ['not series'] };
-    if (slot.purpose === 'series' && !isSeries && slot.slotBehavior === 'required_rotation') { score += 4; warnings.push('not marked as series'); }
+    if (slot.purpose === 'series' && !isSeries && slot.slotBehavior === 'required_rotation') { score += weightedScore(4, priorityPool, 5); warnings.push('not marked as series'); }
     if (slot.slotBehavior !== 'required_rotation' && ['standalone', 'holiday', 'local'].includes(slot.purpose) && isSeries) return { ok: false, program, length, score: -120, why: ['series excluded'] };
-    if (slot.slotBehavior === 'required_rotation' && isSeries) { score += 8; why.push('series allowed by pool rule'); }
+    if (slot.slotBehavior === 'required_rotation' && isSeries) { score += weightedScore(8, priorityPool, 5); why.push('series allowed by pool rule'); }
 
     if (rights.expired) return { ok: false, program, length, score: -300, why: ['expired rights'] };
     if (rights.missing) warnings.push('missing rights end');
-    else score += 15;
+    else score += weightedScore(15, priorityRights, 4);
 
     if (slot.slotBehavior === 'required_rotation') {
       const gapDays = Number(slot.repeatGapDays || 0);
       if (gapDays) {
         const recent = daysSinceLastAired(program, state.channel, iso);
-        if (recent != null && recent < gapDays) return { ok: false, program, length, score: -180, why: [`aired ${recent} days ago`] };
+        if (recent != null && recent < gapDays) return { ok: false, program, length, score: -weightedScore(180, priorityRepeat, 4), why: [`aired ${recent} days ago`] };
       }
       const urgency = rightsUrgencyInfo(program, iso, Number(slot.rightsUrgencyMonths || 0));
-      if (urgency.urgent) { score += 55; why.push(`rights end in ${urgency.monthsUntil} months`); }
-      else if (Number(slot.rightsUrgencyMonths || 0) && !rights.missing) { score += 5; }
+      if (urgency.urgent) { score += weightedScore(55, priorityRights, 4); why.push(`rights end in ${urgency.monthsUntil} months`); }
+      else if (Number(slot.rightsUrgencyMonths || 0) && !rights.missing) { score += weightedScore(5, priorityRights, 4); }
       if (slot.avoidBackToBack !== false && nearbyTitleConflict(program, slot._rotationContext)) {
-        score -= 35;
+        score -= weightedScore(35, priorityRepeat, 4);
         warnings.push('nearby same title/season');
       }
     }
 
-    if (length === Number(slot.lengthMinutes)) { score += 25; why.push(`${length}m length match`); }
+    if (length === Number(slot.lengthMinutes)) { score += weightedScore(25, priorityLength, 2); why.push(`${length}m length match`); }
     if (isSeries) {
       const count = extractEpisodeCount(program);
       if (slot.episodeMin && count != null && count < Number(slot.episodeMin)) return { ok: false, program, length, score: -100, why: ['too few episodes'] };
       if (slot.episodeMax && count != null && count > Number(slot.episodeMax)) return { ok: false, program, length, score: -100, why: ['too many episodes'] };
-      if (count) { score += 8; why.push(`${count} episodes`); }
+      if (count) { score += weightedScore(8, priorityLength, 2); why.push(`${count} episodes`); }
     }
 
     const fresh = freshnessInfo(program, state.channel, iso);
     const freshnessMonths = Number(slot.freshnessMonths || 0);
     if (freshnessMonths && fresh.monthsSince != null && fresh.monthsSince < freshnessMonths) return { ok: false, program, length, score: -100, why: [`aired ${fresh.monthsSince} months ago`] };
-    if (fresh.neverAired) { score += 25; why.push(`new to ${state.channel}`); }
-    else if (fresh.monthsSince != null) { score += Math.min(20, Math.floor(fresh.monthsSince / 3)); why.push(`last aired ${fresh.monthsSince} months ago`); }
+    if (fresh.neverAired) { score += weightedScore(25, priorityRepeat, 4); why.push(`new to ${state.channel}`); }
+    else if (fresh.monthsSince != null) { score += weightedScore(Math.min(20, Math.floor(fresh.monthsSince / 3)), priorityRepeat, 4); why.push(`last aired ${fresh.monthsSince} months ago`); }
 
     if (slot.ratingMode !== 'ignore') {
       if (slot.ratingMin && (!rating || rating < Number(slot.ratingMin))) return { ok: false, program, length, score: -100, why: ['below rating minimum'] };
-      if (rating) { score += rating * 5; why.push(`${rating}/5 rating`); }
-      else { score -= 3; warnings.push('unrated'); }
+      if (rating) { score += weightedScore(rating * 5, priorityRating, 3); why.push(`${rating}/5 rating`); }
+      else { score -= weightedScore(3, priorityRating, 3); warnings.push('unrated'); }
     }
 
     const event = relevantEventForSlot(iso, slot);
     if (event) {
       const match = eventMatch(program, event, slot);
       if (slot.eventMode === 'require' && !match) return { ok: false, program, length, score: -100, why: ['no event match'] };
-      if (match) { score += 22; why.push(`event match: ${event.name}`); }
+      if (match) { score += weightedScore(22, priorityEvent, 4); why.push(`event match: ${event.name}`); }
     }
 
     const label = text(slot.titleTopic).toLowerCase();
     if (label && label.length > 2 && text(program.title + ' ' + program.notes + ' ' + program.topic + ' ' + program.secondary_topic).toLowerCase().includes(label)) {
-      score += 10;
+      score += weightedScore(10, priorityPool, 5);
       why.push(`matches ${slot.titleTopic}`);
     }
 
@@ -1902,9 +1992,8 @@
           <div class="candidate-score">Score: ${escapeHtml(formatCandidateScore(entry.score))}</div>
           <button type="button" class="candidate-use-btn primary" data-candidate-kind="single" data-candidate-key="${escapeHtml(key)}">Use</button>
         </div>
-        <div class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, iso))}</div>
         <details class="candidate-more">
-          <summary>Details</summary>
+          <summary><span class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, iso))}</span><span class="candidate-expand-label">Details</span></summary>
           <div class="candidate-detail-grid">${details}</div>
           <div class="candidate-why">${escapeHtml(why || 'matched current template rules')}</div>
         </details>
@@ -1923,7 +2012,7 @@
           <button type="button" class="candidate-use-btn primary" data-candidate-kind="pair" data-candidate-key="${escapeHtml(key)}">Use pair</button>
         </div>
         <details class="candidate-more">
-          <summary>Details</summary>
+          <summary><span class="candidate-quick-meta">30 + 30 pair</span><span class="candidate-expand-label">Details</span></summary>
           <div class="candidate-detail-grid">
             ${candidateDetailRows(pair.a.program, state.channel, iso)}
             ${candidateDetailRows(pair.b.program, state.channel, iso)}
@@ -1944,9 +2033,8 @@
           <div class="candidate-title" title="${escapeHtml(description || programTitle(p))}">${escapeHtml(programTitle(p))}</div>
           <button type="button" class="candidate-use-btn" data-candidate-kind="excluded" data-candidate-key="${escapeHtml(key)}">Use anyway</button>
         </div>
-        <div class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, null))}</div>
         <details class="candidate-more">
-          <summary>Why not recommended / details</summary>
+          <summary><span class="candidate-quick-meta">${escapeHtml(candidateQuickMeta(p, state.channel, null))}</span><span class="candidate-expand-label">Details</span></summary>
           <div class="candidate-detail-grid">${candidateDetailRows(p, state.channel, null)}</div>
           <div class="candidate-why"><strong>Not recommended:</strong> ${escapeHtml(why || 'Not eligible under current slot rules')}</div>
         </details>

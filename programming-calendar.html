@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.83"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.84"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -236,18 +236,25 @@
     .candidate-grid--single { grid-template-columns: 1fr; }
     .candidate-section { border: 1px solid var(--line); border-radius: 14px; padding: 10px; background: var(--soft); }
     .candidate-section h3 { margin: 0 0 6px; font-size: .98rem; }
-    .candidate-card { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: #fff; margin-bottom: 6px; }
+    .candidate-card { border: 1px solid var(--line); border-radius: 9px; padding: 4px 6px; background: #fff; margin-bottom: 4px; }
     .candidate-card--blocked { border-style: dashed; background: #fbfcfd; }
-    .candidate-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
-    .candidate-title { font-weight: 850; cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .candidate-score { font-weight: 850; color: var(--accent); font-size: .82rem; white-space: nowrap; }
-    .candidate-quick-meta { color: var(--muted); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-    .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; margin-top: 5px; }
-    .candidate-detail-line { font-size: .78rem; color: var(--muted); line-height: 1.25; overflow-wrap: anywhere; }
+    .candidate-card-main { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+    .candidate-title { font-weight: 850; font-size: .75rem; line-height: 1.1; cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .candidate-score { font-weight: 850; color: var(--accent); font-size: .72rem; white-space: nowrap; }
+    .candidate-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; margin-top: 4px; }
+    .candidate-detail-line { font-size: .72rem; color: var(--muted); line-height: 1.18; overflow-wrap: anywhere; }
     .candidate-detail-line strong { color: var(--ink); }
-    .candidate-use-btn { padding: 5px 8px; font-size: .78rem; white-space: nowrap; }
-    .candidate-more { margin-top: 3px; font-size: .78rem; color: var(--muted); }
-    .candidate-more summary { cursor: pointer; font-weight: 750; color: var(--accent-dark); }
+    .candidate-use-btn { padding: 3px 7px; font-size: .72rem; white-space: nowrap; border-radius: 8px; }
+    .candidate-more { margin-top: 2px; font-size: .72rem; color: var(--muted); }
+    .candidate-more summary { cursor: pointer; font-weight: 750; color: var(--accent-dark); list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+    .candidate-more summary::-webkit-details-marker { display: none; }
+    .candidate-quick-meta { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .candidate-expand-label { color: var(--accent-dark); font-weight: 850; white-space: nowrap; }
+    .candidate-more[open] .candidate-expand-label::after { content: ' ▲'; }
+    .candidate-more:not([open]) .candidate-expand-label::after { content: ' ▼'; }
+    .priority-rule-panel { border: 1px solid #d7ead9; background: #f7fff8; border-radius: 14px; padding: 10px; }
+    .priority-rule-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+    .priority-rule-grid label { font-size: .82rem; }
     .candidate-meta, .candidate-why { font-size: .78rem; color: var(--muted); margin-top: 3px; }
     .excluded-candidate-list { display: grid; grid-template-columns: 1fr; gap: 6px; }
     .excluded-candidate { opacity: .86; background: #fbfcfd; }
@@ -282,7 +289,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.83 primary topic dropdown</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.84 weighted compact candidates</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
