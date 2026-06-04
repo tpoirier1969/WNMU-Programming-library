@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.81
+// WNMU Programming Library Schedule Planner test helper v1.5.82
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.81-candidate-filter-compact-list';
+  const VERSION = 'v1.5.82-status-color-cells';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -627,14 +627,25 @@
     const today = iso === toIsoDate(new Date());
     const context = resolveDayContext(date, state.selectedMinutes, state.channel);
     const holiday = holidaysForDate(iso)[0];
+    const dayStatusClass = dayStatusClassForContext(context);
     return `
-      <button type="button" class="day-cell${outside ? ' outside' : ''}${today ? ' today' : ''}" data-date="${escapeHtml(iso)}" aria-label="${escapeHtml(formatLongDate(date))} ${escapeHtml(formatTime(state.selectedMinutes))}">
+      <button type="button" class="day-cell${outside ? ' outside' : ''}${today ? ' today' : ''}${dayStatusClass ? ` ${dayStatusClass}` : ''}" data-date="${escapeHtml(iso)}" aria-label="${escapeHtml(formatLongDate(date))} ${escapeHtml(formatTime(state.selectedMinutes))}">
         <div class="day-num"><span>${date.getDate()}</span>${holiday ? `<span class="holiday-chip" title="${escapeHtml(eventName(holiday))}">${escapeHtml(eventName(holiday))}</span>` : ''}</div>
         ${renderContextRow(context.previous, 'faded')}
         ${renderContextRow(context.current, 'current')}
         ${renderContextRow(context.next, 'faded')}
       </button>
     `;
+  }
+
+  function dayStatusClassForContext(context) {
+    const current = context?.current;
+    // Color the whole day cell based on the selected time slot's real state.
+    // PBS feed = light blue-gray. A selected/candidate title that the planner
+    // has placed as an override = light green. Plain templates keep the base style.
+    if (hasSelectedCandidateProgram(current)) return 'day-status-scheduled';
+    if (current?.status === 'pbs' || current?.purpose === 'pbs_feed' || current?.isPbsFeed) return 'day-status-pbs';
+    return '';
   }
 
   function renderContextRow(item, role) {
