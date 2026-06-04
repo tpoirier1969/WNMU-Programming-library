@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.85"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.86"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -252,6 +252,12 @@
     .candidate-expand-label { color: var(--accent-dark); font-weight: 850; white-space: nowrap; }
     .candidate-more[open] .candidate-expand-label::after { content: ' ▲'; }
     .candidate-more:not([open]) .candidate-expand-label::after { content: ' ▼'; }
+
+    .candidate-list-controls { display: grid; grid-template-columns: minmax(220px, 1.4fr) minmax(160px, .8fr) minmax(150px, .8fr); gap: 8px; align-items: end; margin: 8px 0 6px; }
+    .candidate-list-controls label { font-size: .78rem; }
+    .candidate-list-controls input,
+    .candidate-list-controls select { padding: 6px 8px; border-radius: 8px; }
+    .candidate-live-note { margin: 4px 0 6px; }
     .candidate-filter-panel { border: 1px solid #d8e5ef; background: #f8fbfd; border-radius: 14px; padding: 10px; }
     .candidate-filter-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
     .candidate-filter-grid label { font-size: .82rem; }
@@ -279,7 +285,7 @@
     }
     @media (max-width: 720px) {
       .topbar { align-items: start; flex-direction: column; }
-      .control-grid, .form-grid, .candidate-filter-grid, .priority-rule-grid { grid-template-columns: 1fr; }
+      .control-grid, .form-grid, .candidate-filter-grid, .candidate-list-controls, .priority-rule-grid { grid-template-columns: 1fr; }
       .span-2, .span-4 { grid-column: auto; }
       .month-grid, .calendar-head { min-width: 780px; }
       .calendar-card { overflow-x: auto; }

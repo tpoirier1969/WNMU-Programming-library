@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.85
+// WNMU Programming Library Schedule Planner test helper v1.5.86
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.85-use-rights-filters-candidate-info';
+  const VERSION = 'v1.5.86-candidate-sort-aired-filter';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -272,6 +272,9 @@
       useFilterMode: row.use_filter_mode || 'off',
       useFilterText: row.use_filter_text || '',
       rightsBeginAfter: row.rights_begin_after || '',
+      airedFilterMode: row.aired_filter_mode || 'off',
+      candidateSortBy: row.candidate_sort_by || 'score',
+      candidateSortDirection: row.candidate_sort_direction || 'desc',
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
@@ -323,6 +326,9 @@
       useFilterMode: row.use_filter_mode || 'off',
       useFilterText: row.use_filter_text || '',
       rightsBeginAfter: row.rights_begin_after || '',
+      airedFilterMode: row.aired_filter_mode || 'off',
+      candidateSortBy: row.candidate_sort_by || 'score',
+      candidateSortDirection: row.candidate_sort_direction || 'desc',
       freshnessMonths: Number(row.freshness_months || 0),
       eventMode: row.event_mode || 'none',
       eventWindowDays: Number(row.event_window_days || 5),
@@ -365,6 +371,9 @@
       use_filter_mode: item.useFilterMode || 'off',
       use_filter_text: item.useFilterText || '',
       rights_begin_after: item.rightsBeginAfter || null,
+      aired_filter_mode: item.airedFilterMode || 'off',
+      candidate_sort_by: item.candidateSortBy || 'score',
+      candidate_sort_direction: item.candidateSortDirection || 'desc',
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
@@ -386,6 +395,11 @@
   }
 
   function overrideToDb(item) {
+    // Overrides are date-specific schedule exceptions. Keep this payload limited
+    // to columns that belong to wnmu_prog_sched_slot_overrides. Template-only
+    // candidate filters such as Use?, rights-begin-after, aired-before, sort,
+    // and scoring weights must not be written here; otherwise candidate fills
+    // fail when the override table does not have those template rule columns.
     return {
       channel: item.channel || state.channel,
       start_date: item.startDate,
@@ -405,9 +419,6 @@
       episode_max: emptyToNull(item.episodeMax),
       rating_mode: item.ratingMode || 'boost',
       rating_min: emptyToNull(item.ratingMin),
-      use_filter_mode: item.useFilterMode || 'off',
-      use_filter_text: item.useFilterText || '',
-      rights_begin_after: item.rightsBeginAfter || null,
       freshness_months: Number(item.freshnessMonths || 0),
       event_mode: item.eventMode || 'none',
       event_window_days: Number(item.eventWindowDays || 5),
@@ -416,12 +427,6 @@
       avoid_back_to_back: item.avoidBackToBack !== false,
       repeat_gap_days: Number(item.repeatGapDays || 0),
       rights_urgency_months: Number(item.rightsUrgencyMonths || 0),
-      priority_pool_match: priorityForDb(item.priorityPoolMatch, 5),
-      priority_rights_urgency: priorityForDb(item.priorityRightsUrgency, 4),
-      priority_rating: priorityForDb(item.priorityRating, 3),
-      priority_length_fit: priorityForDb(item.priorityLengthFit, 2),
-      priority_repeat_gap: priorityForDb(item.priorityRepeatGap, 4),
-      priority_event_match: priorityForDb(item.priorityEventMatch, 4),
       notes: item.notes || '',
       selected_program_record_id: item.selectedProgramRecordId || null,
       selected_program_title: item.selectedProgramTitle || null,
@@ -483,15 +488,53 @@
     ].map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}>${label}</option>`).join('\n\n');
   }
 
+  function airedFilterModeOptions(current) {
+    const value = text(current || 'off') || 'off';
+    return [
+      ['off', 'Off'],
+      ['aired_before', 'Only titles aired before'],
+      ['not_aired_before', 'Only titles not aired before']
+    ].map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}>${label}</option>`).join('\n\n');
+  }
+
+  function candidateSortByOptions(current) {
+    const value = text(current || 'score') || 'score';
+    return [
+      ['score', 'Score'],
+      ['title', 'Title A–Z'],
+      ['nola', 'NOLA'],
+      ['topic', 'Primary topic'],
+      ['type', 'Type'],
+      ['rating', 'Rating'],
+      ['length', 'Length'],
+      ['use', 'Use?'],
+      ['rights_begin', 'Rights begin'],
+      ['rights_end', 'Rights ending'],
+      ['last_aired', 'Last aired on selected channel'],
+      ['times_aired', 'Times aired on selected channel']
+    ].map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}>${label}</option>`).join('\n\n');
+  }
+
+  function candidateSortDirectionOptions(current) {
+    const value = text(current || 'desc') || 'desc';
+    return [
+      ['desc', 'High/new/latest first'],
+      ['asc', 'Low/old/earliest first']
+    ].map(([option, label]) => `<option value="${option}"${option === value ? ' selected' : ''}>${label}</option>`).join('\n\n');
+  }
+
   function candidateFilterPanelMarkup(current = {}) {
     return `
           <div class="span-4 candidate-filter-panel">
-            <div class="field-label">Candidate filters</div>
-            <div class="small-note">These are hard filters. Use? checks the Library Use?/use flag field. Rights date checks the rights begin/start date.</div>
+            <div class="field-label">Candidate filters and sort</div>
+            <div class="small-note">Hard filters narrow the candidate list. Sort changes display order only. Aired-before checks the selected channel and selected calendar date.</div>
             <div class="candidate-filter-grid">
               <label>Use? rule<select name="useFilterMode">${useFilterModeOptions(current.useFilterMode)}</select></label>
               <label>Use? text<input name="useFilterText" type="text" value="${escapeHtml(current.useFilterText || '')}" placeholder="Y, 13.3, etc." /></label>
               <label>Rights begin on/after<input name="rightsBeginAfter" type="date" value="${escapeHtml(current.rightsBeginAfter || '')}" /></label>
+              <label>Aired before?<select name="airedFilterMode">${airedFilterModeOptions(current.airedFilterMode)}</select></label>
+              <label>Sort candidates by<select name="candidateSortBy">${candidateSortByOptions(current.candidateSortBy)}</select></label>
+              <label>Sort direction<select name="candidateSortDirection">${candidateSortDirectionOptions(current.candidateSortDirection)}</select></label>
             </div>
           </div>`;
   }
@@ -988,7 +1031,7 @@
           ${poolRuleBuilderMarkup([])}
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox" checked /> Avoid same season back-to-back</label>
           <label>Repeat gap days
-            <input name="repeatGapDays" type="number" min="0" max="365" step="1" value="120" />
+            <input name="repeatGapDays" type="number" min="0" max="1095" step="1" value="120" />
           </label>
           <label>Rights urgency
             <select name="rightsUrgencyMonths">
@@ -1510,6 +1553,9 @@
       useFilterMode: data.useFilterMode || 'off',
       useFilterText: text(data.useFilterText || ''),
       rightsBeginAfter: normalizeDateish(data.rightsBeginAfter) || '',
+      airedFilterMode: data.airedFilterMode || 'off',
+      candidateSortBy: data.candidateSortBy || 'score',
+      candidateSortDirection: data.candidateSortDirection || 'desc',
       freshnessMonths: 0,
       ...priorityFieldsFromData(data),
       eventMode: data.eventMode || 'none',
@@ -1607,7 +1653,7 @@
           <label>Existing pool<select name="requiredPoolId">${poolOptions(current.requiredPoolId || '')}</select></label>
           ${poolRuleBuilderMarkup(poolRulesForSlot(current))}
           <label class="check-row span-2"><input name="avoidBackToBack" type="checkbox"${current.avoidBackToBack !== false ? ' checked' : ''} /> Avoid same season back-to-back</label>
-          <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="365" step="1" value="${escapeHtml(Number(current.repeatGapDays) || defaultRepeatGapDays(current.purpose))}" /></label>
+          <label>Repeat gap days<input name="repeatGapDays" type="number" min="0" max="1095" step="1" value="${escapeHtml(Number(current.repeatGapDays) || defaultRepeatGapDays(current.purpose))}" /></label>
           <label>Rights urgency<select name="rightsUrgencyMonths"><option value="0"${!Number(current.rightsUrgencyMonths)?' selected':''}>Off</option><option value="3"${Number(current.rightsUrgencyMonths)===3?' selected':''}>Rights end in 3 months</option><option value="6"${Number(current.rightsUrgencyMonths)===6?' selected':''}>Rights end in 6 months</option><option value="12"${Number(current.rightsUrgencyMonths)===12?' selected':''}>Rights end in 12 months</option></select></label>
           <label>Series episode min<input name="episodeMin" type="number" min="1" step="1" value="${escapeHtml(current.episodeMin || '')}" /></label>
           <label>Series episode max<input name="episodeMax" type="number" min="1" step="1" value="${escapeHtml(current.episodeMax || '')}" /></label>
@@ -1737,43 +1783,151 @@
     const preview = document.getElementById('candidatePreview');
     if (!preview) return;
     const isPoolConstrained = slotUsesAllowedPool(target);
-    state.candidatePreview = { target, iso, singles: new Map(), pairs: new Map(), excluded: new Map() };
-    const displayCandidates = candidates;
-    const candidateMarkup = displayCandidates.map((entry, index) => {
-      const key = candidateKey(entry.program, index);
-      state.candidatePreview.singles.set(key, entry);
-      return candidateCard(entry, key, target, iso);
-    }).join('\n\n');
-    const excludedMarkup = excluded.map((entry, index) => {
-      const key = `excluded_${candidateKey(entry.program, index)}`;
-      state.candidatePreview.excluded.set(key, entry);
-      return excludedCandidateCard(entry, key);
-    }).join('\n\n');
     const poolName = target.poolName || poolLabel(target.requiredPoolId) || 'not selected';
     const prioritySummary = `priorities: pool ${clampPriority(target.priorityPoolMatch, 5)} · rights ${clampPriority(target.priorityRightsUrgency, 4)} · rating ${clampPriority(target.priorityRating, 3)} · length ${clampPriority(target.priorityLengthFit, 2)} · repeat ${clampPriority(target.priorityRepeatGap, 4)} · event ${clampPriority(target.priorityEventMatch, 4)}`;
+    state.candidatePreview = {
+      target,
+      iso,
+      rawCandidates: candidates,
+      rawExcluded: excluded,
+      singles: new Map(),
+      pairs: new Map(),
+      excluded: new Map()
+    };
     preview.innerHTML = `
       <div class="candidate-grid candidate-grid--single">
         <section class="candidate-section">
           <h3>${isPoolConstrained ? 'Allowed candidate programs' : 'Best candidate programs'}</h3>
           ${isPoolConstrained ? `<p class="small-note">Pool: ${escapeHtml(poolName)} · repeat gap ${Number(target.repeatGapDays || 0)} days · rights urgency ${Number(target.rightsUrgencyMonths || 0)} months · ${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'} · showing all · ${escapeHtml(prioritySummary)}</p>` : `<p class="small-note">${candidates.length.toLocaleString()} eligible match${candidates.length === 1 ? '' : 'es'} · showing all · ${escapeHtml(prioritySummary)}</p>`}
-          ${candidateMarkup || `<p class="small-note">${isPoolConstrained ? 'No allowed pool/topic/NOLA matches found. Check the selected allowed items.' : 'No single-program matches found.'}</p>`}
+          <div class="candidate-list-controls">
+            <label>Filter shown results<input type="search" data-candidate-list-filter placeholder="title, NOLA, topic, type, Use?, history..." /></label>
+            <label>Sort by<select data-candidate-list-sort>${candidateSortByOptions(target.candidateSortBy || 'score')}</select></label>
+            <label>Direction<select data-candidate-list-direction>${candidateSortDirectionOptions(target.candidateSortDirection || 'desc')}</select></label>
+          </div>
+          <div class="candidate-live-note small-note" data-candidate-live-note></div>
+          <div data-candidate-results></div>
         </section>
       </div>
       ${isPoolConstrained && excluded.length ? `
         <section class="candidate-section">
           <h3>Pool matches not currently eligible</h3>
-          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, rights, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule. Showing all ${excluded.length.toLocaleString()}.</p>
-          <div class="excluded-candidate-list">${excludedMarkup}</div>
+          <p class="small-note">These match the allowed pool but were not recommended by helper rules such as repeat gap, rights, length, rating, or nearby scheduling. Use anyway is for recreating a known/existing schedule. Showing all ${excluded.length.toLocaleString()} before live filters.</p>
+          <div data-candidate-excluded-results></div>
         </section>` : ''}
     `;
+    bindCandidatePreviewControls(preview);
+    updateCandidatePreviewLists(preview);
+  }
+
+  function bindCandidatePreviewControls(preview) {
+    const refresh = () => updateCandidatePreviewLists(preview);
+    preview.querySelector('[data-candidate-list-filter]')?.addEventListener('input', refresh);
+    preview.querySelector('[data-candidate-list-sort]')?.addEventListener('change', refresh);
+    preview.querySelector('[data-candidate-list-direction]')?.addEventListener('change', refresh);
+  }
+
+  function updateCandidatePreviewLists(preview) {
+    const current = state.candidatePreview || {};
+    const target = current.target;
+    const iso = current.iso;
+    if (!target || !iso) return;
+    const query = text(preview.querySelector('[data-candidate-list-filter]')?.value || '').toLowerCase();
+    const sortBy = text(preview.querySelector('[data-candidate-list-sort]')?.value || target.candidateSortBy || 'score');
+    const sortDirection = text(preview.querySelector('[data-candidate-list-direction]')?.value || target.candidateSortDirection || 'desc');
+    const sortSlot = { ...target, candidateSortBy: sortBy, candidateSortDirection: sortDirection };
+    const singles = (current.rawCandidates || [])
+      .filter((entry) => candidateMatchesListFilter(entry, query, iso))
+      .sort((a, b) => compareCandidateEntries(a, b, sortSlot, iso));
+    const excluded = (current.rawExcluded || [])
+      .filter((entry) => candidateMatchesListFilter(entry, query, iso))
+      .sort((a, b) => compareCandidateEntries(a, b, sortSlot, iso));
+    current.singles = new Map();
+    current.excluded = new Map();
+    const candidateMarkup = singles.map((entry, index) => {
+      const key = candidateKey(entry.program, index);
+      current.singles.set(key, entry);
+      return candidateCard(entry, key, sortSlot, iso);
+    }).join('\n\n');
+    const excludedMarkup = excluded.map((entry, index) => {
+      const key = `excluded_${candidateKey(entry.program, index)}`;
+      current.excluded.set(key, entry);
+      return excludedCandidateCard(entry, key);
+    }).join('\n\n');
+    const results = preview.querySelector('[data-candidate-results]');
+    const excludedResults = preview.querySelector('[data-candidate-excluded-results]');
+    const note = preview.querySelector('[data-candidate-live-note]');
+    if (note) {
+      const filterText = query ? ` after filter “${query}”` : '';
+      note.textContent = `Showing ${singles.length.toLocaleString()} of ${(current.rawCandidates || []).length.toLocaleString()} eligible matches${filterText}.`;
+    }
+    if (results) results.innerHTML = candidateMarkup || `<p class="small-note">No eligible candidates match the current filters.</p>`;
+    if (excludedResults) excludedResults.innerHTML = excludedMarkup || `<p class="small-note">No not-recommended pool matches match the current filters.</p>`;
+    state.candidatePreview = current;
     bindCandidatePreviewEvents(preview);
+  }
+
+  function candidateMatchesListFilter(entry, rawQuery, iso) {
+    const query = text(rawQuery || '').trim().toLowerCase();
+    if (!query) return true;
+    const p = entry?.program || {};
+    const haystack = [
+      programTitle(p),
+      programNola(p),
+      programPrimaryTopicLabel(p),
+      programTypeLabel(p),
+      programUseText(p),
+      channelHistoryCompact(p, state.channel, iso),
+      rightsBegin(p),
+      rightsEnd(p),
+      programDescription(p)
+    ].map(text).join(' ').toLowerCase();
+    return haystack.includes(query);
   }
 
   function rankCandidates(slot, iso) {
     return state.programs
       .map((program) => scoreProgram(program, slot, iso))
       .filter((entry) => entry.ok)
-      .sort((a, b) => b.score - a.score || text(programTitle(a.program)).localeCompare(text(programTitle(b.program))));
+      .sort((a, b) => compareCandidateEntries(a, b, slot, iso));
+  }
+
+
+  function compareCandidateEntries(a, b, slot, iso) {
+    const sortBy = text(slot?.candidateSortBy || 'score') || 'score';
+    const direction = text(slot?.candidateSortDirection || 'desc') === 'asc' ? 1 : -1;
+    const av = candidateSortValue(a, sortBy, iso);
+    const bv = candidateSortValue(b, sortBy, iso);
+    let result = compareSortValues(av, bv);
+    if (result === 0) result = compareSortValues(text(programTitle(a.program)).toLowerCase(), text(programTitle(b.program)).toLowerCase());
+    if (result === 0) result = compareSortValues(text(programNola(a.program)).toLowerCase(), text(programNola(b.program)).toLowerCase());
+    return result * direction;
+  }
+
+  function candidateSortValue(entry, sortBy, iso) {
+    const program = entry?.program || {};
+    if (sortBy === 'score') return Number(entry?.score || 0);
+    if (sortBy === 'title') return text(programTitle(program)).toLowerCase();
+    if (sortBy === 'nola') return text(programNola(program)).toLowerCase();
+    if (sortBy === 'topic') return text(programPrimaryTopicLabel(program)).toLowerCase();
+    if (sortBy === 'type') return text(programTypeLabel(program)).toLowerCase();
+    if (sortBy === 'rating') return Number(normalizeRating(program.rating ?? program.program_rating ?? program.scheduler_rating ?? program.priority_rating ?? program.user_rating) || 0);
+    if (sortBy === 'length') return Number(parseLength(program.length_minutes) || 0);
+    if (sortBy === 'use') return text(programUseText(program)).toLowerCase();
+    if (sortBy === 'rights_begin') return rightsBegin(program) || '';
+    if (sortBy === 'rights_end') return rightsEnd(program) || '';
+    if (sortBy === 'last_aired') return channelHistoryStats(program, state.channel, iso).latest || '';
+    if (sortBy === 'times_aired') return Number(channelHistoryStats(program, state.channel, iso).count || 0);
+    return Number(entry?.score || 0);
+  }
+
+  function compareSortValues(a, b) {
+    const aMissing = a == null || a === '' || (typeof a === 'number' && !Number.isFinite(a));
+    const bMissing = b == null || b === '' || (typeof b === 'number' && !Number.isFinite(b));
+    if (aMissing && bMissing) return 0;
+    if (aMissing) return -1;
+    if (bMissing) return 1;
+    if (typeof a === 'number' || typeof b === 'number') return Number(a || 0) - Number(b || 0);
+    return String(a).localeCompare(String(b));
   }
 
   function slotUsesAllowedPool(slot) {
@@ -1790,7 +1944,7 @@
     const includedIds = new Set((includedCandidates || []).map((entry) => programStableId(entry.program)));
     return state.programs
       .map((program) => {
-        if (hardCandidateFilterFailure(program, slot)) return null;
+        if (hardCandidateFilterFailure(program, slot, iso)) return null;
         const poolMatch = rotationPoolMatch(program, slot);
         if (!poolMatch.ok) return null;
         if (includedIds.has(programStableId(program))) return null;
@@ -1799,7 +1953,7 @@
         return { ...scored, poolLabel: poolMatch.label || 'pool match' };
       })
       .filter(Boolean)
-      .sort((a, b) => text(programTitle(a.program)).localeCompare(text(programTitle(b.program))));
+      .sort((a, b) => compareCandidateEntries(a, b, slot, iso));
   }
 
   function rankPairs(slot, iso) {
@@ -1833,7 +1987,7 @@
     const priorityEvent = clampPriority(slot.priorityEventMatch, 4);
     let score = 0;
 
-    const hardFailure = hardCandidateFilterFailure(program, slot);
+    const hardFailure = hardCandidateFilterFailure(program, slot, iso);
     if (hardFailure) return { ok: false, program, score: -999, why: [hardFailure] };
 
     const enforceAllowedPool = slotUsesAllowedPool(slot);
@@ -1914,12 +2068,14 @@
   }
 
 
-  function hardCandidateFilterFailure(program, slot) {
+  function hardCandidateFilterFailure(program, slot, iso) {
     if (isArchivedProgram(program)) return 'archived/unavailable';
     const useFailure = useFilterFailure(program, slot);
     if (useFailure) return useFailure;
     const rightsBeginFailure = rightsBeginAfterFailure(program, slot);
     if (rightsBeginFailure) return rightsBeginFailure;
+    const airedFailure = airedBeforeFilterFailure(program, slot, iso);
+    if (airedFailure) return airedFailure;
     return '';
   }
 
@@ -1940,6 +2096,17 @@
     const begin = rightsBegin(program);
     if (!begin) return `missing rights begin/start date`;
     if (begin < after) return `rights begin ${begin} before ${after}`;
+    return '';
+  }
+
+
+  function airedBeforeFilterFailure(program, slot, iso) {
+    const mode = text(slot?.airedFilterMode || 'off');
+    if (mode === 'off') return '';
+    const stats = channelHistoryStats(program, state.channel, iso);
+    const hasAiredBefore = stats.count > 0;
+    if (mode === 'aired_before' && !hasAiredBefore) return `not aired before on ${state.channel}`;
+    if (mode === 'not_aired_before' && hasAiredBefore) return `already aired on ${state.channel}`;
     return '';
   }
 
@@ -1977,12 +2144,16 @@
     return text(program.program_type || program.type || program.programType || '');
   }
 
-  function channelHistoryCompact(program, channel, iso) {
+  function channelHistoryStats(program, channel, iso) {
     const field = channel === '13.3' ? program.aired_13_3 : program.aired_13_1;
     const dates = extractDates(field).filter((d) => !iso || d <= iso).sort();
-    if (!dates.length) return `${channel}: none`;
-    const latest = dates[dates.length - 1];
-    return `${channel}: ${dates.length}x latest ${latest}`;
+    return { count: dates.length, latest: dates.length ? dates[dates.length - 1] : '', dates };
+  }
+
+  function channelHistoryCompact(program, channel, iso) {
+    const stats = channelHistoryStats(program, channel, iso);
+    if (!stats.count) return `${channel}: none`;
+    return `${channel}: ${stats.count}x latest ${stats.latest}`;
   }
 
   function rotationPoolMatch(program, slot) {
@@ -2189,6 +2360,7 @@
       ['Topic', topic],
       ['Type', type],
       ['Use?', useValue],
+      ['Rating', normalizeRating(program.rating ?? program.program_rating ?? program.scheduler_rating ?? program.priority_rating ?? program.user_rating) || 'unrated'],
       ['Length', length ? `${length}m` : 'unknown'],
       ['Rights begin', rights.begin || 'unknown'],
       ['Rights end', rights.end || 'unknown'],
