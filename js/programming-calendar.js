@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.79
+// WNMU Programming Library Schedule Planner test helper v1.5.80
 // Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
 // Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.79-event-holiday-section';
+  const VERSION = 'v1.5.80-pool-match-mode-fix';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -461,10 +461,16 @@
     if (!poolId) {
       const firstNola = rules.find((rule) => rule.type === 'nola')?.nola || '';
       const firstTopic = rules.find((rule) => rule.type === 'topic')?.topic || '';
+      const hasTopicRule = rules.some((rule) => rule.type === 'topic');
+      const hasNolaRule = rules.some((rule) => rule.type === 'nola');
+      // Keep parent pool values inside the v1.5.63 database check constraint.
+      // Topic-only and mixed topic/NOLA pools are stored as parent mode "mixed";
+      // the actual topic matching lives in wnmu_prog_sched_program_pool_items as "topic: ..." rows.
+      const parentPoolMode = hasTopicRule ? 'mixed' : (hasNolaRule ? 'nola_prefix' : 'title_text');
       const payload = {
         pool_name: poolName,
-        pool_type: rules.some((rule) => rule.type === 'topic') && rules.some((rule) => rule.type === 'nola') ? 'mixed' : (firstTopic ? 'topic' : 'nola_prefix'),
-        match_mode: rules.some((rule) => rule.type === 'topic') && rules.some((rule) => rule.type === 'nola') ? 'mixed' : (firstTopic ? 'topic' : 'nola_prefix'),
+        pool_type: parentPoolMode,
+        match_mode: parentPoolMode,
         title_match_text: firstTopic ? `topic: ${firstTopic}` : (firstNola || poolName),
         nola_match_text: firstNola || null,
         avoid_back_to_back: item.avoidBackToBack !== false,
