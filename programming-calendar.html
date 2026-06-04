@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/programming-calendar.js?v=1.5.73"></script>
+  <script defer src="js/programming-calendar.js?v=1.5.74"></script>
   <style>
     :root {
       --bg: #eef3f6;
@@ -97,21 +97,36 @@
     }
     .control-grid {
       display: grid;
-      grid-template-columns: minmax(160px, .8fr) minmax(130px, .55fr) minmax(280px, 1fr) minmax(160px, .75fr) minmax(220px, 1fr);
+      grid-template-columns: minmax(150px, .7fr) minmax(260px, 1fr) minmax(300px, 1.05fr);
       gap: 10px;
       align-items: end;
     }
-    .time-control { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; }
-    .time-display { text-align: center; font-weight: 800; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--soft); }
-    .month-nav { display: flex; gap: 6px; align-items: center; }
-    .month-nav button { flex: 0 0 auto; }
-    .legend { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: .86rem; }
-    .legend span { display: inline-flex; align-items: center; gap: 5px; }
-    .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--line); display: inline-block; }
-    .dot.current { background: var(--accent); }
-    .dot.pbs { background: #6c7a89; }
-    .dot.override { background: #b56b00; }
-    .dot.empty { background: #c8d2dc; }
+    .nav-control {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) 38px;
+      gap: 6px;
+      align-items: center;
+    }
+    .nav-arrow {
+      min-width: 0;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      font-size: 1.25rem;
+      line-height: 1;
+      font-weight: 900;
+    }
+    .nav-control select,
+    .nav-control input[type="month"] {
+      height: 38px;
+      font-weight: 800;
+      text-align: center;
+      text-align-last: center;
+      background: var(--soft);
+    }
+    .time-control { display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; gap: 6px; align-items: center; }
+    .time-display { display: none; }
     .calendar-card { overflow: hidden; }
     .calendar-head {
       display: grid;
@@ -256,7 +271,7 @@
     <div class="brand">
       <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" onerror="this.style.display='none'" />
       <div>
-        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.73 series cascade display fit</span></div>
+        <div class="brand-title">Schedule Planner <span class="version-pill">v1.5.74 nav arrows compact selector</span></div>
         <div class="brand-sub">Login-only planner test · writes only to scheduler test tables</div>
       </div>
     </div>
@@ -286,29 +301,19 @@
             </select>
           </label>
           <label>Month
-            <input id="monthInput" type="month" />
-          </label>
-          <label>Selected time
-            <div class="time-control">
-              <button type="button" id="timeDownBtn">−30</button>
-              <div id="timeDisplay" class="time-display">2:00 PM</div>
-              <button type="button" id="timeUpBtn">+30</button>
+            <div class="nav-control month-control" aria-label="Month navigation">
+              <button type="button" id="prevMonthBtn" class="nav-arrow" aria-label="Previous month" title="Previous month">‹</button>
+              <input id="monthInput" type="month" />
+              <button type="button" id="nextMonthBtn" class="nav-arrow" aria-label="Next month" title="Next month">›</button>
             </div>
           </label>
-          <label>Jump to time
-            <select id="timeSelect"></select>
+          <label>Selected time
+            <div class="nav-control time-control" aria-label="Selected time navigation">
+              <button type="button" id="timeDownBtn" class="nav-arrow" aria-label="Earlier time" title="Earlier time">‹</button>
+              <select id="timeSelect"></select>
+              <button type="button" id="timeUpBtn" class="nav-arrow" aria-label="Later time" title="Later time">›</button>
+            </div>
           </label>
-          <div class="month-nav">
-            <button type="button" id="prevMonthBtn">Previous month</button>
-            <button type="button" id="thisMonthBtn">This month</button>
-            <button type="button" id="nextMonthBtn">Next month</button>
-          </div>
-        </div>
-        <div class="legend">
-          <span><i class="dot current"></i> Selected slot</span>
-          <span><i class="dot pbs"></i> PBS locked</span>
-          <span><i class="dot override"></i> Local override</span>
-          <span><i class="dot empty"></i> Empty/template needed</span>
         </div>
       </section>
 
