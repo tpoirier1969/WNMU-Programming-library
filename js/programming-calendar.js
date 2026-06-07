@@ -1,10 +1,10 @@
-// WNMU Programming Library Schedule Planner test helper v1.5.86
-// Database-backed test planner: reads existing Library/Holiday data and writes only to wnmu_prog_sched_* test tables.
-// Adds NOLA/topic candidate pools without writing to Library program, aired-history, holiday, pledge, monthly schedule, or ProTrack data.
+// WNMU Programming Library Schedule Planner helper v1.5.90
+// Database-backed planner: reads existing Library/Holiday data, writes planner rows to wnmu_prog_sched_* tables,
+// and syncs placed/deleted program overrides to the Library aired_13_1/aired_13_3 program-detail fields.
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.88-direct-add-series-cascade';
+  const VERSION = 'v1.5.90-airing-sync';
   const TIME_MIN = 7 * 60;
   const TIME_MAX = 26 * 60;
   const STEP = 30;
@@ -147,7 +147,7 @@
       state.templates = (templateResult.data || []).map(templateFromDb);
       state.overrides = (overrideResult.data || []).map(overrideFromDb);
       state.plannerDataReady = true;
-      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs, ${state.templates.length.toLocaleString()} planner templates, and ${state.pools.length.toLocaleString()} NOLA/topic pools. Planner writes only to wnmu_prog_sched_* test tables.`);
+      updateSummary(`Loaded ${state.programs.length.toLocaleString()} programs, ${state.templates.length.toLocaleString()} planner templates, and ${state.pools.length.toLocaleString()} NOLA/topic pools. Planner overrides sync placed air dates to Library aired fields.`);
     } catch (error) {
       console.error(error);
       state.plannerDataReady = false;
@@ -986,7 +986,7 @@
     return `
       <form id="slotTemplateForm" class="candidate-section">
         <h3>Create database-backed test template</h3>
-        <p class="small-note">Saved to Supabase table <strong>${TEMPLATE_TABLE}</strong> or <strong>${OVERRIDE_TABLE}</strong>. Library program records and aired-history fields are not changed.</p>
+        <p class="small-note">Templates/overrides save to Supabase planner tables. Placed program overrides also append/remove the selected air date/time in the Library program-detail aired field for the selected channel.</p>
         <div class="form-grid">
           <label>Applies to
             <select name="scope">
@@ -1293,8 +1293,254 @@
           ${current.kind === 'template' ? '<button type="button" id="deleteTemplateBtn" class="danger">Delete template</button>' : ''}
         </div>
         ${!canFind && isPbs ? '<p class="small-note">PBS feed slots are ignored by the helper until you override them.</p>' : ''}
+        ${canShiftRemainingSeries(current) ? shiftRemainingSeriesMarkup(current, iso) : ''}
       </section>
     `;
+  }
+
+  function shiftRemainingSeriesMarkup(current, iso) {
+    const remaining = findRemainingSeriesOverrides(current, iso);
+    const title = seriesShiftDisplayTitle(current);
+    const count = remaining.length;
+    return `
+      <div class="series-shift-panel">
+        <div class="field-label">Pause / move remaining series episodes</div>
+        <p class="small-note">Use this when a fundraiser, special, or other interruption bumps a series. It moves this episode and the remaining matching series overrides forward, leaving earlier episodes alone.</p>
+        <div class="series-shift-row">
+          <label>Move remaining episodes forward
+            <select id="shiftRemainingWeeks">
+              <option value="1">1 week</option>
+              <option value="2">2 weeks</option>
+            </select>
+          </label>
+          <button type="button" id="shiftRemainingSeriesBtn" class="primary">Shift remaining series</button>
+        </div>
+        <p class="small-note">Series: <strong>${escapeHtml(title)}</strong> · starting ${escapeHtml(formatLongDate(fromIsoDate(iso)))} · ${count.toLocaleString()} matching remaining override${count === 1 ? '' : 's'} found.</p>
+      </div>
+    `;
+  }
+
+  function canShiftRemainingSeries(current) {
+    if (!current || current.kind !== 'override') return false;
+    if (!hasSelectedCandidateProgram(current)) return false;
+    if (current.purpose === 'series' || looksLikeSeries(findSelectedProgramForPlannerItem(current) || {})) return true;
+    const title = text(current.selectedProgramTitle || current.titleTopic || current.templateGroupName);
+    const reason = text(current.overrideReason || '');
+    return Boolean(title && /series|cascade/i.test(reason));
+  }
+
+  async function shiftRemainingSeriesFromSlot(current, iso) {
+    try {
+      if (!canShiftRemainingSeries(current)) throw new Error('This slot does not look like a placed series episode.');
+      const weeks = Number(document.getElementById('shiftRemainingWeeks')?.value || 1);
+      const shiftDays = weeks === 2 ? 14 : 7;
+      const rows = findRemainingSeriesOverrides(current, iso);
+      if (!rows.length) throw new Error('No matching remaining series overrides were found to move.');
+      const conflictLines = findSeriesShiftConflicts(rows, shiftDays);
+      if (conflictLines.length) {
+        const shown = conflictLines.slice(0, 8).join('\n');
+        const more = conflictLines.length > 8 ? `\n...and ${conflictLines.length - 8} more conflict${conflictLines.length - 8 === 1 ? '' : 's'}.` : '';
+        if (!confirm(`This move will land on ${conflictLines.length} occupied planner override slot${conflictLines.length === 1 ? '' : 's'} outside this series:\n\n${shown}${more}\n\nContinue anyway?`)) return;
+      }
+      const sorted = rows.slice().sort((a, b) => text(b.startDate).localeCompare(text(a.startDate)));
+      for (const row of sorted) {
+        const shifted = {
+          ...row,
+          startDate: shiftIsoDate(row.startDate, shiftDays),
+          endDate: shiftIsoDate(row.endDate || row.startDate, shiftDays),
+          notes: appendSeriesShiftNote(row.notes, iso, weeks)
+        };
+        const { data, error } = await state.supabase
+          .from(OVERRIDE_TABLE)
+          .update(overrideToDb(shifted))
+          .eq('id', row.id)
+          .select('*')
+          .single();
+        if (error) throw error;
+        const savedShift = overrideFromDb(data);
+        upsertInMemory(state.overrides, savedShift);
+        await syncPlannerOverrideAiringSafe(row, 'remove');
+        await syncPlannerOverrideAiringSafe(savedShift, 'add');
+      }
+      await refreshPlannerRowsAfterCandidateFill();
+      closeModal();
+      render();
+      updateSummary(`Moved ${rows.length} remaining ${seriesShiftDisplayTitle(current)} episode${rows.length === 1 ? '' : 's'} forward ${weeks} week${weeks === 1 ? '' : 's'} starting ${formatLongDate(fromIsoDate(iso))}.`);
+    } catch (error) {
+      console.error(error);
+      alert(`Series shift failed: ${error.message}`);
+      updateSummary(`Series shift failed: ${error.message}`);
+    }
+  }
+
+  function findRemainingSeriesOverrides(current, startIso) {
+    const channel = current.channel || state.channel;
+    const startMinutes = Number(current.startMinutes ?? state.selectedMinutes);
+    return state.overrides
+      .filter((item) => item.id)
+      .filter((item) => (item.channel || state.channel) === channel)
+      .filter((item) => Number(item.startMinutes) === startMinutes)
+      .filter((item) => text(item.startDate) >= startIso)
+      .filter((item) => sameSeriesShiftGroup(item, current))
+      .sort((a, b) => text(a.startDate).localeCompare(text(b.startDate)) || Number(a.episodeMin || 0) - Number(b.episodeMin || 0));
+  }
+
+  function sameSeriesShiftGroup(item, current) {
+    if (!item || item.kind !== 'override') return false;
+    const currentId = text(current.selectedProgramRecordId);
+    if (currentId && text(item.selectedProgramRecordId) === currentId) return true;
+    const currentNola = normalizeNola(current.selectedProgramNola);
+    if (currentNola && normalizeNola(item.selectedProgramNola) === currentNola) return true;
+    const currentTitle = normalizeSeriesShiftTitle(current.selectedProgramTitle || current.titleTopic);
+    const itemTitle = normalizeSeriesShiftTitle(item.selectedProgramTitle || item.titleTopic);
+    if (currentTitle && itemTitle && currentTitle === itemTitle) return true;
+    const currentGroup = normalizeSeriesShiftTitle(current.templateGroupName);
+    const itemGroup = normalizeSeriesShiftTitle(item.templateGroupName);
+    if (currentGroup && itemGroup && currentGroup === itemGroup && (item.purpose === 'series' || /series|cascade/i.test(text(item.overrideReason)))) return true;
+    return false;
+  }
+
+  function normalizeSeriesShiftTitle(value) {
+    return text(value)
+      .toLowerCase()
+      .replace(/episode\s*:?\s*\d{1,4}/g, '')
+      .replace(/ep\.?\s*\d{1,4}/g, '')
+      .replace(/\d{3,4}/g, '')
+      .replace(/\d00s/g, '00s')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function seriesShiftDisplayTitle(item) {
+    return text(item?.selectedProgramTitle || item?.titleTopic || item?.templateGroupName || 'series');
+  }
+
+  function shiftIsoDate(iso, days) {
+    return toIsoDate(addDays(fromIsoDate(iso), days));
+  }
+
+  function findSeriesShiftConflicts(rows, shiftDays) {
+    const movingIds = new Set(rows.map((row) => String(row.id)));
+    const lines = [];
+    rows.forEach((row) => {
+      const destIso = shiftIsoDate(row.startDate, shiftDays);
+      const conflict = state.overrides.find((other) => {
+        if (!other.id || movingIds.has(String(other.id))) return false;
+        if ((other.channel || state.channel) !== (row.channel || state.channel)) return false;
+        if (Number(other.startMinutes) !== Number(row.startMinutes)) return false;
+        return dateInRange(destIso, other.startDate, other.endDate);
+      });
+      if (conflict) lines.push(`${destIso} ${formatTime(row.startMinutes)} · ${conflict.selectedProgramTitle || conflict.titleTopic || conflict.templateGroupName || 'existing override'}`);
+    });
+    return lines;
+  }
+
+  function appendSeriesShiftNote(existingNotes, originalIso, weeks) {
+    const stamp = `Series shifted forward ${weeks} week${weeks === 1 ? '' : 's'} from ${originalIso} by Schedule Planner test.`;
+    const existing = text(existingNotes);
+    return existing ? `${existing}
+
+${stamp}` : stamp;
+  }
+
+
+  function libraryAiringFieldForChannel(channel) {
+    return text(channel) === '13.3' ? 'aired_13_3' : 'aired_13_1';
+  }
+
+  function airingStampForPlannerSlot(iso, startMinutes) {
+    const base = fromIsoDate(iso);
+    let minutes = Number(startMinutes || 0);
+    if (!Number.isFinite(minutes)) minutes = 0;
+    while (minutes >= 1440) {
+      base.setDate(base.getDate() + 1);
+      minutes -= 1440;
+    }
+    while (minutes < 0) {
+      base.setDate(base.getDate() - 1);
+      minutes += 1440;
+    }
+    const month = base.getMonth() + 1;
+    const day = base.getDate();
+    const year = String(base.getFullYear()).slice(-2);
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${month}/${day}/${year} ${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  }
+
+  function splitAiringEntries(value) {
+    return text(value).split(/[;|\n]+/).map((entry) => entry.trim()).filter(Boolean);
+  }
+
+  function normalizedAiringKey(value) {
+    const raw = text(value);
+    if (!raw) return '';
+    const dateMatch = raw.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/);
+    if (!dateMatch) return '';
+    const iso = normalizeDateish(dateMatch[0]);
+    if (!iso) return '';
+    const afterDate = raw.slice((dateMatch.index || 0) + dateMatch[0].length);
+    const timeMatch = afterDate.match(/\b(\d{1,2})(?::(\d{2}))?\s*([AP]M)?\b/i);
+    let minutes = null;
+    if (timeMatch) {
+      let hour = Number(timeMatch[1]);
+      const min = Number(timeMatch[2] || 0);
+      const suffix = text(timeMatch[3]).toUpperCase();
+      if (suffix === 'PM' && hour < 12) hour += 12;
+      if (suffix === 'AM' && hour === 12) hour = 0;
+      if (Number.isFinite(hour) && Number.isFinite(min) && hour >= 0 && hour <= 23 && min >= 0 && min <= 59) minutes = hour * 60 + min;
+    }
+    return minutes == null ? iso : `${iso}T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  }
+
+  function appendAiringStamp(existingValue, stamp) {
+    const entries = splitAiringEntries(existingValue);
+    const wanted = normalizedAiringKey(stamp);
+    if (wanted && entries.some((entry) => normalizedAiringKey(entry) === wanted)) return text(existingValue);
+    return [...entries, stamp].join('; ');
+  }
+
+  function removeAiringStamp(existingValue, stamp) {
+    const entries = splitAiringEntries(existingValue);
+    const wanted = normalizedAiringKey(stamp);
+    if (!wanted) return text(existingValue);
+    return entries.filter((entry) => normalizedAiringKey(entry) !== wanted).join('; ');
+  }
+
+  async function syncPlannerOverrideAiring(override, action) {
+    if (!override || !override.selectedProgramRecordId && !override.selectedProgramTitle && !override.selectedProgramNola) return { changed: false, skipped: true };
+    const program = findSelectedProgramForPlannerItem(override);
+    if (!program) return { changed: false, skipped: true };
+    const dbId = text(program.id);
+    if (!dbId) return { changed: false, skipped: true };
+    const field = libraryAiringFieldForChannel(override.channel || state.channel);
+    const stamp = airingStampForPlannerSlot(override.startDate, override.startMinutes);
+    const currentValue = text(program[field]);
+    const nextValue = action === 'remove' ? removeAiringStamp(currentValue, stamp) : appendAiringStamp(currentValue, stamp);
+    if (nextValue === currentValue) return { changed: false, skipped: false };
+    const payload = { [field]: nextValue || null };
+    const { data, error } = await state.supabase.from('programs').update(payload).eq('id', dbId).select('*').single();
+    if (error) throw error;
+    mergeSyncedProgramIntoPlannerState(data || { ...program, ...payload });
+    return { changed: true, skipped: false, field, stamp, title: programTitle(program) };
+  }
+
+  async function syncPlannerOverrideAiringSafe(override, action) {
+    try {
+      return await syncPlannerOverrideAiring(override, action);
+    } catch (error) {
+      console.error(`Library airing ${action} sync failed`, error);
+      throw new Error(`Planner override saved, but Library air-date sync failed: ${error.message}`);
+    }
+  }
+
+  function mergeSyncedProgramIntoPlannerState(program) {
+    const id = text(program?.id);
+    const nola = normalizeNola(programNola(program));
+    const index = state.programs.findIndex((item) => (id && text(item.id) === id) || (nola && normalizeNola(programNola(item)) === nola));
+    if (index >= 0) state.programs[index] = { ...state.programs[index], ...program };
+    else state.programs.push(program);
+    state.programs = dedupePrograms(state.programs);
   }
 
 
@@ -1456,6 +1702,7 @@
     document.getElementById('findCandidatesBtn')?.addEventListener('click', () => renderCandidatePreview(context.current, iso));
     document.getElementById('overridePbsBtn')?.addEventListener('click', () => { void createPbsOverride(context.current, iso); });
     document.getElementById('removeOverrideBtn')?.addEventListener('click', () => { void removeOverride(context.current); });
+    document.getElementById('shiftRemainingSeriesBtn')?.addEventListener('click', () => { void shiftRemainingSeriesFromSlot(context.current, iso); });
     document.getElementById('editTemplateBtn')?.addEventListener('click', () => renderEditTemplateForm(context.current, iso));
     document.getElementById('deleteTemplateBtn')?.addEventListener('click', () => { void deleteTemplate(context.current); });
   }
@@ -1763,12 +2010,14 @@
   async function removeOverride(current) {
     if (!current?.id) return;
     try {
+      const removed = { ...current };
       const { error } = await state.supabase.from(OVERRIDE_TABLE).delete().eq('id', current.id);
       if (error) throw error;
       state.overrides = state.overrides.filter((item) => String(item.id) !== String(current.id));
+      await syncPlannerOverrideAiringSafe(removed, 'remove');
       closeModal();
       render();
-      updateSummary('Removed planner override and restored the underlying template/PBS feed.');
+      updateSummary('Removed planner override, restored the underlying template/PBS feed, and removed that air date/time from the Library program details.');
     } catch (error) {
       console.error(error);
       alert(`Remove override failed: ${error.message}`);
@@ -1782,7 +2031,7 @@
     body.innerHTML = `
       <form id="editTemplateForm" class="candidate-section">
         <h3>Edit scheduler test template</h3>
-        <p class="small-note">This edits Supabase table <strong>${TEMPLATE_TABLE}</strong> only. It does not alter Library program records.</p>
+        <p class="small-note">This edits Supabase table <strong>${TEMPLATE_TABLE}</strong> only. Library aired fields are changed only when you place, replace, shift, or remove a specific program override.</p>
         <div class="form-grid">
           <label>Length minutes<select name="lengthMinutes">${lengthOptions(current.lengthMinutes)}</select></label>
           <label>Purpose
@@ -1908,15 +2157,17 @@
 
   async function deleteTemplate(current) {
     if (!current?.id) return;
-    if (!confirm('Delete this scheduler test template? Matching planner overrides for this template will also be removed. Library program data will not be touched.')) return;
+    if (!confirm('Delete this scheduler template? Matching planner overrides for this template may also be removed, and their synced Library air dates/times will be removed.')) return;
     try {
+      const linkedOverrides = state.overrides.filter((item) => String(item.overrideTemplateId || '') === String(current.id));
       const { error } = await state.supabase.from(TEMPLATE_TABLE).delete().eq('id', current.id);
       if (error) throw error;
+      for (const override of linkedOverrides) await syncPlannerOverrideAiringSafe(override, 'remove');
       state.templates = state.templates.filter((item) => String(item.id) !== String(current.id));
       state.overrides = state.overrides.filter((item) => String(item.overrideTemplateId || '') !== String(current.id));
       closeModal();
       render();
-      updateSummary('Deleted scheduler test template.');
+      updateSummary('Deleted scheduler template and removed linked Library air dates/times for matching placed overrides.');
     } catch (error) {
       console.error(error);
       alert(`Delete template failed: ${error.message}`);
@@ -2627,15 +2878,20 @@
       notes: candidateOverrideNotes(program, slot, bypassEntry, episodeNumber)
     };
     const payload = overrideToDb(override);
+    let savedRow = null;
     if (existing?.id) {
       const { data, error } = await state.supabase.from(OVERRIDE_TABLE).update(payload).eq('id', existing.id).select('*').single();
       if (error) throw error;
-      upsertInMemory(state.overrides, overrideFromDb(data));
+      savedRow = overrideFromDb(data);
+      upsertInMemory(state.overrides, savedRow);
     } else {
       const { data, error } = await state.supabase.from(OVERRIDE_TABLE).insert(payload).select('*').single();
       if (error) throw error;
-      state.overrides.push(overrideFromDb(data));
+      savedRow = overrideFromDb(data);
+      state.overrides.push(savedRow);
     }
+    if (existing) await syncPlannerOverrideAiringSafe(existing, 'remove');
+    await syncPlannerOverrideAiringSafe(savedRow, 'add');
   }
 
 
