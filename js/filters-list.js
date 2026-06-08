@@ -128,6 +128,8 @@ function snapshotViewState() {
     programTypeFilter: els.programTypeFilter.value,
     statusFilter: els.statusFilter.value,
     ratingFilter: els.ratingFilter?.value || '',
+    rightsWindowStartFilter: els.rightsWindowStartFilter?.value || '',
+    rightsWindowEndFilter: els.rightsWindowEndFilter?.value || '',
     currentView: state.currentView
   };
 }
@@ -157,6 +159,8 @@ function applySnapshot(snapshot) {
   els.programTypeFilter.value = snapshot.programTypeFilter || '';
   els.statusFilter.value = snapshot.statusFilter === 'expired' ? '' : (snapshot.statusFilter || '');
   if (els.ratingFilter) els.ratingFilter.value = snapshot.ratingFilter || '';
+  if (els.rightsWindowStartFilter) els.rightsWindowStartFilter.value = snapshot.rightsWindowStartFilter || '';
+  if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = snapshot.rightsWindowEndFilter || '';
   state.currentView = snapshot.currentView === 'expired' ? 'archived' : (snapshot.currentView || 'all');
   syncQuickViewState();
   resetVisibleRowWindow();
@@ -223,6 +227,8 @@ function resetFilters() {
   els.programTypeFilter.value = '';
   els.statusFilter.value = '';
   if (els.ratingFilter) els.ratingFilter.value = '';
+  if (els.rightsWindowStartFilter) els.rightsWindowStartFilter.value = '';
+  if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
   resetVisibleRowWindow();
@@ -230,6 +236,19 @@ function resetFilters() {
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
   setStatus(`${activePrograms().length.toLocaleString()} matching programs.`);
+}
+
+
+function programRightsCoverDateRange(program, startIso, endIso) {
+  const start = normalizeIsoDate(startIso);
+  const end = normalizeIsoDate(endIso);
+  if (!start && !end) return true;
+  const rangeStart = start || end;
+  const rangeEnd = end || start;
+  const rightsBegin = normalizeIsoDate(program?.rights_begin);
+  const rightsEnd = normalizeIsoDate(program?.rights_end);
+  if (!rightsBegin || !rightsEnd) return false;
+  return rightsBegin <= rangeStart && rightsEnd >= rangeEnd;
 }
 
 function activePrograms() {
@@ -243,6 +262,8 @@ function activePrograms() {
   const programType = els.programTypeFilter.value;
   const status = els.statusFilter.value;
   const ratingFilter = els.ratingFilter?.value || '';
+  const rightsWindowStart = els.rightsWindowStartFilter?.value || '';
+  const rightsWindowEnd = els.rightsWindowEndFilter?.value || '';
   const cacheKey = [
     state.currentView,
     state.programs.length,
@@ -255,7 +276,9 @@ function activePrograms() {
     distributor,
     programType,
     status,
-    ratingFilter
+    ratingFilter,
+    rightsWindowStart,
+    rightsWindowEnd
   ].join('||');
 
   if (state.filteredCacheKey === cacheKey && Array.isArray(state.filteredProgramIds)) return state.filteredProgramIds;
@@ -296,6 +319,7 @@ function activePrograms() {
         }
       }
     }
+    if ((rightsWindowStart || rightsWindowEnd) && !programRightsCoverDateRange(item, rightsWindowStart, rightsWindowEnd)) return false;
     return true;
   });
 

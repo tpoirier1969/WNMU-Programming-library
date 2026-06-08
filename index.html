@@ -9,17 +9,17 @@
   <link rel="icon" type="image/png" sizes="16x16" href="programming-library-tab-icon-16.png" />
   <link rel="shortcut icon" href="programming-library-tab-icon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="programming-library-tab-icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.51" />
+  <link rel="stylesheet" href="styles.css?v=1.5.91" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/core.js?v=1.5.47"></script>
+  <script defer src="js/core.js?v=1.5.91"></script>
   <script defer src="js/auth-init.js?v=1.5.47"></script>
   <script defer src="js/data-store.js?v=1.5.47"></script>
-  <script defer src="js/filters-list.js?v=1.5.47"></script>
+  <script defer src="js/filters-list.js?v=1.5.91"></script>
   <script defer src="js/editor-export.js?v=1.5.47"></script>
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
   <script defer src="js/lookup.js?v=1.5.47"></script>
-  <script defer src="js/events.js?v=1.5.47"></script>
+  <script defer src="js/events.js?v=1.5.91"></script>
   <script defer src="js/library-workflow.js?v=1.5.61"></script>
 </head>
 <body>
@@ -59,7 +59,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.61</span>
+            <span id="appVersion" class="version-pill">v1.5.91</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -211,6 +211,26 @@
               <option value="4plus">4+ stars</option>
               <option value="3plus">3+ stars</option>
             </select>
+          </div>
+          <div class="filter-box rights-range-filter-box">
+            <div class="filter-label-row">
+              <label class="filter-label" for="rightsWindowStartFilter">Rights good for dates</label>
+              <button type="button" id="clearRightsWindowFilter" class="mini-clear">Clear</button>
+            </div>
+            <div class="rights-window-filter">
+              <label class="rights-window-date-field">
+                <span>Begin</span>
+                <input id="rightsWindowStartFilter" type="date" aria-label="Rights window begin date" />
+              </label>
+              <label class="rights-window-date-field">
+                <span>End</span>
+                <input id="rightsWindowEndFilter" type="date" aria-label="Rights window end date" />
+              </label>
+            </div>
+            <div class="rights-window-actions">
+              <button type="button" id="setRightsWindowMonthBtn" class="mini-clear">This month</button>
+            </div>
+            <div class="filter-help">Only shows programs whose rights cover the full selected date range.</div>
           </div>
         </div>
       </div>

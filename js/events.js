@@ -290,7 +290,7 @@ The rating is still shown locally in this browser, but it may not have synced to
     }
   });
 
-  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect, els.ratingFilter]
+  [els.codeFilter, els.topicFilter, els.secondaryTopicFilter, els.lengthFilter, els.distributorFilter, els.programTypeFilter, els.statusFilter, els.searchFieldSelect, els.ratingFilter, els.rightsWindowStartFilter, els.rightsWindowEndFilter]
     .filter(Boolean)
     .forEach((el) => el.addEventListener('change', updateQueryStatus));
 
@@ -344,6 +344,22 @@ The rating is still shown locally in this browser, but it may not have synced to
   });
   els.clearLengthFilter?.addEventListener('click', () => {
     clearMultiSelect(els.lengthFilter);
+    updateQueryStatus();
+  });
+  els.clearRightsWindowFilter?.addEventListener('click', () => {
+    if (els.rightsWindowStartFilter) els.rightsWindowStartFilter.value = '';
+    if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = '';
+    updateQueryStatus();
+  });
+  els.setRightsWindowMonthBtn?.addEventListener('click', () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    const toIso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (els.rightsWindowStartFilter) els.rightsWindowStartFilter.value = toIso(start);
+    if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = toIso(end);
     updateQueryStatus();
   });
   els.resetFiltersBtn?.addEventListener('click', resetFilters);

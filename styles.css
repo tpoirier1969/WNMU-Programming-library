@@ -661,3 +661,38 @@ input:focus, select:focus, textarea:focus, button:focus {
     max-height: none;
   }
 }
+
+
+/* v1.5.91 rights-window library filter */
+.rights-range-filter-box {
+  min-width: 260px;
+}
+.rights-window-filter {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+.rights-window-date-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--pbs-blue-dark);
+}
+.rights-window-date-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.rights-window-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 6px;
+}
+@media (max-width: 760px) {
+  .rights-window-filter {
+    grid-template-columns: 1fr;
+  }
+}
