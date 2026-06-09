@@ -111,31 +111,50 @@ button:hover { transform: translateY(-1px); }
   display: grid;
   gap: 10px;
   grid-column: span 3;
-  grid-template-columns: minmax(280px, 1.9fr) minmax(108px, .75fr) minmax(74px, .45fr);
+  grid-template-columns: minmax(210px, 1.45fr) minmax(136px, .72fr) minmax(132px, .85fr) minmax(96px, .58fr) minmax(128px, .74fr);
   align-items: end;
 }
 .cluster-search-text {
   grid-column: 1;
   grid-row: 1;
 }
-.cluster-distributor {
+.cluster-rights-start {
   grid-column: 2;
   grid-row: 1;
 }
-.cluster-type {
+.cluster-distributor {
   grid-column: 3;
   grid-row: 1;
+}
+.cluster-type {
+  grid-column: 4;
+  grid-row: 1;
+}
+.cluster-episodes {
+  grid-column: 5;
+  grid-row: 1;
+  align-self: end;
 }
 .cluster-search-in {
   grid-column: 1;
   grid-row: 2;
+  max-width: 15.5ch;
 }
-.cluster-status {
+.cluster-search-in select {
+  width: auto;
+  min-width: 15.5ch;
+  max-width: 15.5ch;
+}
+.cluster-rights-end {
   grid-column: 2;
   grid-row: 2;
 }
-.cluster-rating {
+.cluster-status {
   grid-column: 3;
+  grid-row: 2;
+}
+.cluster-rating {
+  grid-column: 4;
   grid-row: 2;
 }
 .filter-label { display: block; font-size: .72rem; font-weight: 800; color: var(--teal-dark); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
@@ -436,7 +455,7 @@ input:focus, select:focus, textarea:focus, button:focus {
   .filters-grid { grid-template-columns: 1fr 1fr; }
   .filter-box.wide { grid-column: span 2; }
   .filters-cluster { grid-column: span 2; grid-template-columns: 1fr 1fr; }
-  .cluster-search-text, .cluster-distributor, .cluster-type, .cluster-search-in, .cluster-status, .cluster-rating { grid-column: auto; grid-row: auto; }
+  .cluster-search-text, .cluster-rights-start, .cluster-distributor, .cluster-type, .cluster-episodes, .cluster-search-in, .cluster-rights-end, .cluster-status, .cluster-rating { grid-column: auto; grid-row: auto; max-width: none; }
   .table-wrap { max-height: calc(100vh - 240px); }
 }
 @media (max-width: 1180px) {
@@ -477,7 +496,7 @@ input:focus, select:focus, textarea:focus, button:focus {
   .quick-strip, .filters-grid { grid-template-columns: 1fr; }
   .filter-box.wide { grid-column: span 1; }
   .filters-cluster { grid-column: span 1; grid-template-columns: 1fr; }
-  .cluster-search-text, .cluster-distributor, .cluster-type, .cluster-search-in, .cluster-status, .cluster-rating { grid-column: auto; grid-row: auto; }
+  .cluster-search-text, .cluster-rights-start, .cluster-distributor, .cluster-type, .cluster-episodes, .cluster-search-in, .cluster-rights-end, .cluster-status, .cluster-rating { grid-column: auto; grid-row: auto; max-width: none; }
   .filter-foot { flex-direction: column; align-items: stretch; }
   .filter-foot .muted { width: 100%; }
   .reset-all { margin-left: 0; width: 100%; }
@@ -663,36 +682,32 @@ input:focus, select:focus, textarea:focus, button:focus {
 }
 
 
-/* v1.5.91 rights-window library filter */
+/* v1.5.92 compact rights-window library filter */
 .rights-range-filter-box {
-  min-width: 260px;
-}
-.rights-window-filter {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  align-items: end;
-}
-.rights-window-date-field {
-  display: grid;
-  gap: 4px;
   min-width: 0;
-  font-size: 0.76rem;
-  font-weight: 800;
-  color: var(--pbs-blue-dark);
 }
-.rights-window-date-field input {
+.rights-range-filter-box input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
 }
-.rights-window-actions {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 6px;
+
+.episode-range-filter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+
+/* v1.5.92 alignment tightening */
+.episode-range-filter {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
-@media (max-width: 760px) {
-  .rights-window-filter {
-    grid-template-columns: 1fr;
+.cluster-episodes .filter-label-row,
+.cluster-rights-start .filter-label-row {
+  min-height: 22px;
+}
+@media (max-width: 1100px) {
+  .cluster-search-in select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 }
