@@ -1,0 +1,7 @@
+{
+  "appVersion": "v1.5.98",
+  "version": "v1.5.98",
+  "name": "WNMU Programming Library",
+  "notes": "Adds app version manifest checking and required refresh popup based on the Pledge Library version gate.",
+  "updated": "2026-06-12T18:08:25Z"
+}
