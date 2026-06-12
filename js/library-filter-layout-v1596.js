@@ -1,11 +1,11 @@
-// v1.5.98 Library filter layout hardening + secondary-topic narrowing
-// Replaces the v1.5.96 helper and pairs with index.html cache-buster v1.5.98.
+// v1.5.100 Library filter layout hardening + secondary-topic narrowing
+// Replaces the earlier helper in the same file path and pairs with the v1.5.100 cache-buster.
 // This intentionally overrides older CSS and inline grid styles injected by library-workflow.js.
 
 (function () {
-  const VERSION = 'v1.5.98 library filter layout hardening';
-  const LAYOUT_STYLE_ID = 'wnmuLibraryFilterLayoutV1597';
-  const OLD_LAYOUT_STYLE_IDS = ['wnmuCompactFilterLayoutV159', 'wnmuLibraryFilterLayoutV1596'];
+  const VERSION = 'v1.5.100 library filter layout hardening';
+  const LAYOUT_STYLE_ID = 'wnmuLibraryFilterLayoutV15100';
+  const OLD_LAYOUT_STYLE_IDS = ['wnmuCompactFilterLayoutV159', 'wnmuLibraryFilterLayoutV1596', 'wnmuLibraryFilterLayoutV1597'];
 
   function norm(value) {
     try {
@@ -537,14 +537,7 @@
     }
   }
 
-
-  function syncVisibleVersion() {
-    const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = 'v1.5.97';
-  }
-
   function enforceLayout() {
-    syncVisibleVersion();
     setUiLabels();
     installLayoutStyle();
     reorderClusterDom();

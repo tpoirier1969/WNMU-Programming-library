@@ -1,16 +1,13 @@
-// v1.5.99 App version check / required refresh notice
+// v1.5.100 App version check / required refresh gate
 // Adapted from the Pledge Library version.json checker for the WNMU Programming Library.
-// Important fix: compare the remote manifest against this script's app version,
-// not the visible version pill. A stale/cached HTML shell can show an older pill
-// while the current checker has already loaded; using the pill can create a false
-// "update required" loop even after refresh.
+// Fetches version.json with cache bypass, compares against this script version, and locks the page if a newer build is published.
 
 (function () {
-  const LOCAL_VERSION = 'v1.5.99';
+  const LOCAL_VERSION = 'v1.5.100';
   const VERSION_MANIFEST = 'version.json';
   const VERSION_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const OVERLAY_ID = 'appVersionGate';
-  const STYLE_ID = 'appVersionGateStylesV1599';
+  const STYLE_ID = 'appVersionGateStylesV15100';
   let timer = 0;
   let gateActive = false;
 

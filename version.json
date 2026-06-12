@@ -1,7 +1,7 @@
 {
-  "appVersion": "v1.5.99",
-  "version": "v1.5.99",
+  "appVersion": "v1.5.100",
+  "version": "v1.5.100",
   "name": "WNMU Programming Library",
-  "notes": "v1.5.99 fixes the visible version flag issue and removes the Copy button underneath the program description while retaining the v1.5.98 version-check popup and layout rollup.",
-  "updated": "2026-06-12T18:38:00Z"
+  "notes": "Fixes stale helper resetting the visible version flag, keeps version checker on script-version comparison, and removes the description Copy button.",
+  "updated": "2026-06-12T19:30:00Z"
 }
