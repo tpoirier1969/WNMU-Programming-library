@@ -22,6 +22,7 @@
   <script defer src="js/lookup.js?v=1.5.47"></script>
   <script defer src="js/events.js?v=1.5.93"></script>
   <script defer src="js/library-workflow.js?v=1.5.61"></script>
+  <script defer src="js/library-filter-layout-v1596.js?v=1.5.96"></script>
 </head>
 <body>
   <div id="setupNotice" class="setup-notice hidden">
@@ -60,7 +61,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.95</span>
+            <span id="appVersion" class="version-pill">v1.5.96</span>
           </div>
           <div id="statusLine" class="status-line">Loading…</div>
         </div>
@@ -143,7 +144,7 @@
           <select id="lengthFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
-          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Code / bucket</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
+          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Uses</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
           <select id="codeFilter" multiple size="5"></select>
         </div>
         <div class="filters-cluster compact-search-cluster">
@@ -163,7 +164,7 @@
             <select id="distributorFilter"><option value="">All distributors</option></select>
           </div>
           <div class="filter-box cluster-type">
-            <label class="filter-label" for="programTypeFilter">Type</label>
+            <label class="filter-label" for="programTypeFilter">Program / Series</label>
             <select id="programTypeFilter"><option value="">All types</option></select>
           </div>
           <div id="episodeFilterBox" class="filter-box cluster-episodes">
@@ -182,7 +183,7 @@
               <option value="">All fields</option>
               <option value="title">Title</option>
               <option value="notes">Description</option>
-              <option value="legacy_code">Code / bucket</option>
+              <option value="legacy_code">Uses</option>
               <option value="nola_eidr">NOLA</option>
               <option value="topic">Topic</option>
               <option value="secondary_topic">Secondary topic</option>
