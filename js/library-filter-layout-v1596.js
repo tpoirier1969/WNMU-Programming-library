@@ -1,5 +1,5 @@
 // v1.5.97 Library filter layout hardening + secondary-topic narrowing
-// Replaces the v1.5.96 helper in the same file path so index.html does not need to change.
+// Replaces the v1.5.96 helper and pairs with index.html cache-buster v1.5.97.
 // This intentionally overrides older CSS and inline grid styles injected by library-workflow.js.
 
 (function () {
@@ -537,7 +537,14 @@
     }
   }
 
+
+  function syncVisibleVersion() {
+    const pill = document.getElementById('appVersion');
+    if (pill) pill.textContent = 'v1.5.97';
+  }
+
   function enforceLayout() {
+    syncVisibleVersion();
     setUiLabels();
     installLayoutStyle();
     reorderClusterDom();
