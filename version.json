@@ -1,7 +1,7 @@
 {
-  "appVersion": "v1.5.98",
-  "version": "v1.5.98",
+  "appVersion": "v1.5.99",
+  "version": "v1.5.99",
   "name": "WNMU Programming Library",
-  "notes": "v1.5.98 rollup with corrected version checker: compares manifest against the loaded script version instead of the visible version pill to avoid false refresh loops.",
-  "updated": "2026-06-12T18:24:00Z"
+  "notes": "v1.5.99 fixes the visible version flag issue and removes the Copy button underneath the program description while retaining the v1.5.98 version-check popup and layout rollup.",
+  "updated": "2026-06-12T18:38:00Z"
 }
