@@ -1,7 +1,7 @@
 {
-  "appVersion": "v1.5.102",
-  "version": "v1.5.102",
+  "appVersion": "v1.5.103",
+  "version": "v1.5.103",
   "name": "WNMU Programming Library",
-  "notes": "Refines the Program / Series segmented toggle, makes Clear all filters slightly larger and less crowded, and widens Distributor enough to show the full label and All value.",
-  "updated": "2026-06-17T20:05:00-04:00"
+  "notes": "Refines the Program / Series toggle, enlarges Search Text to use the open row space, widens Distributor enough to show All, and keeps the Rating dropdown inside the panel.",
+  "updated": "2026-06-17T20:18:00-04:00"
 }
