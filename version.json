@@ -1,7 +1,7 @@
 {
-  "appVersion": "v1.5.101",
-  "version": "v1.5.101",
+  "appVersion": "v1.5.102",
+  "version": "v1.5.102",
   "name": "WNMU Programming Library",
-  "notes": "Adds a three-way Series / All / Program toggle in place of the Program / Series dropdown, tightens Clear all filters and Distributor, and keeps the v1.5.100 version/copy-button fixes.",
-  "updated": "2026-06-17T19:45:00-04:00"
+  "notes": "Refines the Program / Series segmented toggle, makes Clear all filters slightly larger and less crowded, and widens Distributor enough to show the full label and All value.",
+  "updated": "2026-06-17T20:05:00-04:00"
 }

@@ -1,9 +1,9 @@
-// v1.5.101 Library filter layout hardening + secondary-topic narrowing
-// Replaces the earlier helper in the same file path and pairs with the v1.5.101 cache-buster.
+// v1.5.102 Library filter layout hardening + secondary-topic narrowing
+// Replaces the earlier helper in the same file path and pairs with the v1.5.102 cache-buster.
 // This intentionally overrides older CSS and inline grid styles injected by library-workflow.js.
 
 (function () {
-  const VERSION = 'v1.5.101 library filter layout hardening';
+  const VERSION = 'v1.5.102 library filter layout hardening';
   const LAYOUT_STYLE_ID = 'wnmuLibraryFilterLayoutV15100';
   const OLD_LAYOUT_STYLE_IDS = ['wnmuCompactFilterLayoutV159', 'wnmuLibraryFilterLayoutV1596', 'wnmuLibraryFilterLayoutV1597'];
 

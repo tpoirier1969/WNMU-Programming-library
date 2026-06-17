@@ -1,13 +1,13 @@
-// v1.5.101 App version check / required refresh gate
+// v1.5.102 App version check / required refresh gate
 // Adapted from the Pledge Library version.json checker for the WNMU Programming Library.
 // Fetches version.json with cache bypass, compares against this script version, and locks the page if a newer build is published.
 
 (function () {
-  const LOCAL_VERSION = 'v1.5.101';
+  const LOCAL_VERSION = 'v1.5.102';
   const VERSION_MANIFEST = 'version.json';
   const VERSION_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const OVERLAY_ID = 'appVersionGate';
-  const STYLE_ID = 'appVersionGateStylesV15101';
+  const STYLE_ID = 'appVersionGateStylesV15102';
   let timer = 0;
   let gateActive = false;
 
