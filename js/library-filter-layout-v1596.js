@@ -1,9 +1,9 @@
-// v1.5.106 Library filter layout hardening + secondary-topic narrowing
-// Replaces the earlier helper in the same file path and pairs with the v1.5.106 cache-buster.
+// v1.5.107 Library filter layout hardening + secondary-topic narrowing
+// Replaces the earlier helper in the same file path and pairs with the v1.5.107 cache-buster.
 // This intentionally overrides older CSS and inline grid styles injected by library-workflow.js.
 
 (function () {
-  const VERSION = 'v1.5.106 library filter layout hardening';
+  const VERSION = 'v1.5.107 library filter layout hardening';
   const LAYOUT_STYLE_ID = 'wnmuLibraryFilterLayoutV15100';
   const OLD_LAYOUT_STYLE_IDS = ['wnmuCompactFilterLayoutV159', 'wnmuLibraryFilterLayoutV1596', 'wnmuLibraryFilterLayoutV1597'];
 
@@ -66,50 +66,170 @@
     return norm(a).localeCompare(norm(b), undefined, { numeric: true, sensitivity: 'base' });
   }
 
-  function fallbackSecondaryTopics() {
-    try {
-      if (typeof lookupItemsOrFallback === 'function') {
-        return lookupItemsOrFallback('secondary_topics', 'secondary_topic')
-          .map((item) => (typeof item === 'string' ? item : item?.name))
-          .map(norm)
-          .filter(Boolean);
-      }
-    } catch {}
-
-    const values = new Set();
-    safePrograms().forEach((program) => {
-      splitValues(program?.secondary_topic).forEach((secondary) => {
-        const clean = norm(secondary);
-        if (clean) values.add(clean);
-      });
-    });
-    return Array.from(values);
+  function readSelectValues(id) {
+    return selectedValuesFrom(document.getElementById(id));
   }
 
-  function getSecondaryTopicsForSelectedPrimaryTopics() {
-    const topicSelect = document.getElementById('topicFilter');
-    const selectedTopics = selectedValuesFrom(topicSelect);
-    const selectedSet = new Set(selectedTopics.map(lower).filter(Boolean));
+  function readFieldValue(id) {
+    return norm(document.getElementById(id)?.value || '');
+  }
 
-    if (!selectedSet.size) {
-      return Array.from(new Set(fallbackSecondaryTopics())).sort(optionSort);
+  function getDerived(program) {
+    try {
+      if (typeof getProgramDerived === 'function') return getProgramDerived(program) || {};
+    } catch {}
+    return {};
+  }
+
+  function searchableTextForProgram(program, derived, fieldName = '') {
+    if (fieldName) {
+      const fromDerived = derived?.searchByField?.[fieldName];
+      if (fromDerived != null) return lower(fromDerived);
+      return lower(program?.[fieldName]);
+    }
+    if (derived?.searchAll != null) return lower(derived.searchAll);
+    return lower(Object.values(program || {}).join(' '));
+  }
+
+  function primaryTopicValues(program, derived = {}) {
+    const values = [
+      ...(Array.isArray(derived.topicValues) ? derived.topicValues : []),
+      ...splitValues(program?.topic),
+      ...splitValues(program?.primary_topic),
+      ...splitValues(program?.program_topic)
+    ];
+    return Array.from(new Set(values.map(norm).filter(Boolean)));
+  }
+
+  function secondaryTopicValues(program, derived = {}) {
+    const values = [
+      ...(Array.isArray(derived.secondaryTopicValues) ? derived.secondaryTopicValues : []),
+      ...splitValues(program?.secondary_topic)
+    ];
+    const byKey = new Map();
+    values.forEach((value) => {
+      const clean = norm(value);
+      const key = lower(clean);
+      if (clean && !byKey.has(key)) byKey.set(key, clean);
+    });
+    return Array.from(byKey.values());
+  }
+
+  function programRating(program) {
+    try {
+      if (typeof getProgramRating === 'function') return getProgramRating(program);
+    } catch {}
+    const raw = program?.rating;
+    if (raw == null || raw === '') return null;
+    const numeric = Math.round(Number(raw));
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  function matchesRatingFilter(program, ratingFilter) {
+    if (!ratingFilter) return true;
+    const rating = programRating(program);
+    switch (ratingFilter) {
+      case 'unrated':
+        return rating == null;
+      case '4plus':
+        return rating != null && rating >= 4;
+      case '3plus':
+        return rating != null && rating >= 3;
+      default: {
+        const exact = Math.round(Number(ratingFilter));
+        return Number.isFinite(exact) && rating === exact;
+      }
+    }
+  }
+
+  function countEpisodes(program) {
+    try {
+      if (typeof extractEpisodeCount === 'function') return extractEpisodeCount(program);
+    } catch {}
+    const raw = norm(program?.episode_season);
+    if (!raw) return null;
+    const slashMatch = raw.match(/\/\s*(\d{1,4})\b/);
+    if (slashMatch) return Number(slashMatch[1]);
+    const epsMatch = raw.match(/\b(\d{1,4})\s*(?:eps?|episodes?)\b/i);
+    if (epsMatch) return Number(epsMatch[1]);
+    if (/series/i.test(norm(program?.program_type)) && /^\d{1,4}$/.test(raw)) return Number(raw);
+    return null;
+  }
+
+  function matchesEpisodeRange(program) {
+    const minRaw = readFieldValue('episodeMinFilter');
+    const maxRaw = readFieldValue('episodeMaxFilter');
+    if (!minRaw && !maxRaw) return true;
+    const count = countEpisodes(program);
+    if (!Number.isFinite(count)) return false;
+    const min = minRaw ? Number(minRaw) : null;
+    const max = maxRaw ? Number(maxRaw) : null;
+    if (Number.isFinite(min) && count < min) return false;
+    if (Number.isFinite(max) && count > max) return false;
+    return true;
+  }
+
+  function programMatchesCurrentFiltersExceptSecondary(program) {
+    const derived = getDerived(program);
+
+    try {
+      if (typeof matchesView === 'function' && state?.currentView && !matchesView(program, state.currentView)) return false;
+    } catch {}
+
+    const search = lower(readFieldValue('searchInput'));
+    if (search) {
+      const searchField = readFieldValue('searchFieldSelect');
+      if (!searchableTextForProgram(program, derived, searchField).includes(search)) return false;
     }
 
-    const matches = new Map();
-    safePrograms().forEach((program) => {
-      const primaryValues = [
-        ...splitValues(program?.topic),
-        ...splitValues(program?.primary_topic),
-        ...splitValues(program?.program_topic)
-      ];
-      const hasSelectedPrimary = primaryValues.some((topic) => selectedSet.has(lower(topic)));
-      if (!hasSelectedPrimary) return;
+    const codeSet = new Set(readSelectValues('codeFilter').map((value) => norm(value).toUpperCase()).filter(Boolean));
+    const legacyCode = norm(derived.legacyCode || program?.legacy_code).toUpperCase();
+    if (codeSet.size && !codeSet.has(legacyCode)) return false;
 
-      splitValues(program?.secondary_topic).forEach((secondary) => {
-        const clean = norm(secondary);
-        if (!clean) return;
-        const key = lower(clean);
-        if (!matches.has(key)) matches.set(key, clean);
+    const topicSet = new Set(readSelectValues('topicFilter').map(lower).filter(Boolean));
+    if (topicSet.size && !primaryTopicValues(program, derived).some((topic) => topicSet.has(lower(topic)))) return false;
+
+    const lengthSet = new Set(readSelectValues('lengthFilter').map(norm).filter(Boolean));
+    const lengthValue = norm(derived.lengthValue || program?.length_minutes);
+    if (lengthSet.size && !lengthSet.has(lengthValue)) return false;
+
+    const distributor = readFieldValue('distributorFilter');
+    if (distributor && norm(program?.distributor) !== distributor) return false;
+
+    const programType = readFieldValue('programTypeFilter');
+    if (programType && norm(program?.program_type) !== programType) return false;
+
+    const statusFilter = readFieldValue('statusFilter');
+    if (statusFilter && statusFilter !== 'expired') {
+      try {
+        if (typeof matchesView === 'function' && !matchesView(program, statusFilter)) return false;
+      } catch {}
+    }
+
+    if (!matchesRatingFilter(program, readFieldValue('ratingFilter'))) return false;
+
+    const rightsStart = readFieldValue('rightsWindowStartFilter');
+    const rightsEnd = readFieldValue('rightsWindowEndFilter');
+    if (rightsStart || rightsEnd) {
+      try {
+        if (typeof programRightsCoverDateRange === 'function' && !programRightsCoverDateRange(program, rightsStart, rightsEnd)) return false;
+      } catch {}
+    }
+
+    if (!matchesEpisodeRange(program)) return false;
+
+    return true;
+  }
+
+  function getSecondaryTopicsForCurrentFilterState() {
+    const matches = new Map();
+
+    safePrograms().forEach((program) => {
+      if (!programMatchesCurrentFiltersExceptSecondary(program)) return;
+      const derived = getDerived(program);
+      secondaryTopicValues(program, derived).forEach((secondary) => {
+        const key = lower(secondary);
+        if (key && !matches.has(key)) matches.set(key, norm(secondary));
       });
     });
 
@@ -120,8 +240,9 @@
     const select = document.getElementById('secondaryTopicFilter');
     if (!select) return false;
 
-    const previous = new Set(selectedValuesFrom(select));
-    const options = getSecondaryTopicsForSelectedPrimaryTopics();
+    const previousValues = selectedValuesFrom(select);
+    const previousKeys = new Set(previousValues.map(lower).filter(Boolean));
+    const options = getSecondaryTopicsForCurrentFilterState();
     const validKeys = new Set(options.map(lower));
 
     select.innerHTML = '';
@@ -129,11 +250,11 @@
       const option = document.createElement('option');
       option.value = value;
       option.textContent = value;
-      option.selected = previous.has(value) || previous.has(lower(value));
+      option.selected = previousKeys.has(lower(value));
       select.appendChild(option);
     });
 
-    const removedSelection = Array.from(previous).some((value) => !validKeys.has(lower(value)));
+    const removedSelection = previousValues.some((value) => !validKeys.has(lower(value)));
     if (removedSelection) {
       if (typeof resetVisibleRowWindow === 'function') resetVisibleRowWindow();
       if (typeof updateQueryStatus === 'function') updateQueryStatus();
@@ -204,6 +325,50 @@
       resetButton.dataset.secondaryNarrowingBound = 'true';
       resetButton.addEventListener('click', () => {
         setTimeout(() => {
+          refillSecondaryTopicFilter();
+          enforceLayout();
+        }, 0);
+      });
+    }
+
+    const refreshDrivers = [
+      'codeFilter',
+      'lengthFilter',
+      'distributorFilter',
+      'programTypeFilter',
+      'searchInput',
+      'searchFieldSelect',
+      'statusFilter',
+      'ratingFilter',
+      'rightsWindowStartFilter',
+      'rightsWindowEndFilter',
+      'episodeMinFilter',
+      'episodeMaxFilter'
+    ];
+
+    refreshDrivers.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.secondaryNarrowingDriver === 'true') return;
+      el.dataset.secondaryNarrowingDriver = 'true';
+      el.addEventListener('change', () => {
+        refillSecondaryTopicFilter();
+        enforceLayout();
+      });
+      el.addEventListener('input', () => {
+        window.clearTimeout(el.__secondaryNarrowingTimer);
+        el.__secondaryNarrowingTimer = window.setTimeout(() => {
+          refillSecondaryTopicFilter();
+          enforceLayout();
+        }, 80);
+      });
+    });
+
+    const quickStrip = document.getElementById('quickStrip');
+    if (quickStrip && quickStrip.dataset.secondaryNarrowingDriver !== 'true') {
+      quickStrip.dataset.secondaryNarrowingDriver = 'true';
+      quickStrip.addEventListener('click', (event) => {
+        if (!event.target.closest('[data-view]')) return;
+        window.setTimeout(() => {
           refillSecondaryTopicFilter();
           enforceLayout();
         }, 0);

@@ -1,9 +1,10 @@
-// v1.5.106 Main Library UI polish
-// Refines the Program / Series toggle, uses the empty row space for Search Text,
-// keeps Distributor readable, keeps Rating inside the panel, and removes description Copy buttons.
+// v1.5.107 Main Library UI polish
+// Refines the Program / Series toggle, keeps Search Text wide,
+// makes Episode min/max filters readable, keeps Distributor/Rating inside the panel,
+// and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.106 main library UI polish';
+  const VERSION = 'v1.5.107 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -11,9 +12,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15106Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15107Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15106Styles';
+    style.id = 'wnmuMainLibraryUiV15107Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -131,6 +132,41 @@
       #controlsPanel .cluster-search-text input {
         min-width: 0 !important;
       }
+      #controlsPanel .cluster-episodes {
+        min-width: 118px !important;
+        max-width: none !important;
+      }
+      #controlsPanel .cluster-episodes .filter-label-row {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+        min-width: 0 !important;
+        overflow: visible !important;
+      }
+      #controlsPanel .cluster-episodes .filter-label {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+      }
+      #controlsPanel .cluster-episodes .mini-clear {
+        flex: 0 0 auto !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+      }
+      #controlsPanel .cluster-episodes .episode-range-filter {
+        grid-template-columns: minmax(48px, 1fr) minmax(48px, 1fr) !important;
+        gap: 6px !important;
+      }
+      #controlsPanel .cluster-episodes .episode-range-filter input {
+        min-width: 48px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        text-align: left !important;
+      }
       #controlsPanel .cluster-rating select {
         min-width: 0 !important;
         max-width: 100% !important;
@@ -246,7 +282,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.106');
+    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.107');
   }
 
   function removeVisibleRefreshButton() {
@@ -379,7 +415,7 @@
 
     if (!window.matchMedia('(min-width: 1180px)').matches) return;
 
-    setImportant(cluster, 'grid-template-columns', 'minmax(132px,.78fr) minmax(96px,.74fr) minmax(96px,.74fr) minmax(96px,.74fr) minmax(86px,.55fr) minmax(122px,.72fr) minmax(58px,.36fr) minmax(78px,.44fr)');
+    setImportant(cluster, 'grid-template-columns', '130px minmax(76px,1fr) minmax(76px,1fr) minmax(76px,1fr) 70px 126px 120px 82px');
     setImportant(cluster, 'column-gap', '7px');
     setImportant(cluster, 'row-gap', '8px');
 
@@ -412,7 +448,14 @@
 
     const distributor = cluster.querySelector('.cluster-distributor');
     if (distributor) {
-      setImportant(distributor, 'max-width', '124px');
+      setImportant(distributor, 'max-width', '128px');
+    }
+
+    const episodes = cluster.querySelector('.cluster-episodes');
+    if (episodes) {
+      setImportant(episodes, 'min-width', '118px');
+      setImportant(episodes, 'max-width', 'none');
+      setImportant(episodes, 'overflow', 'visible');
     }
 
     const rating = cluster.querySelector('.cluster-rating');
@@ -432,7 +475,7 @@
       setImportant(clearHolder, 'justify-content', 'center');
       setImportant(clearHolder, 'align-items', 'start');
       setImportant(clearHolder, 'padding-top', '12px');
-      setImportant(clearHolder, 'max-width', '80px');
+      setImportant(clearHolder, 'max-width', '84px');
     }
   }
 

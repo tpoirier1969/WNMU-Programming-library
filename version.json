@@ -1,7 +1,7 @@
 {
-  "currentAppVersion": "v1.5.106",
-  "requiredAppVersion": "v1.5.106",
-  "publishedVersion": "v1.5.106",
+  "currentAppVersion": "v1.5.107",
+  "requiredAppVersion": "v1.5.107",
+  "publishedVersion": "v1.5.107",
   "appVersion": "v1.5.98",
   "version": "v1.5.98",
   "legacyCompatibilityVersion": "v1.5.98",
@@ -9,6 +9,6 @@
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Pledge-style version checker restored. New checker reads currentAppVersion; legacy appVersion/version fields are intentionally held at v1.5.98 so old cached broken checkers cannot trap users in an update loop.",
-  "updated": "2026-06-18T16:45:00Z"
+  "notes": "Episode min/max filters widened and secondary-topic options now only show topics attached to programs matching the current filter state; Pledge-style checker continues using currentAppVersion while legacy fields remain safe for old cached broken checkers.",
+  "updated": "2026-06-18T17:05:00Z"
 }
