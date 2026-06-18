@@ -1,7 +1,10 @@
 {
-  "appVersion": "v1.5.104",
-  "version": "v1.5.104",
+  "appVersion": "",
+  "version": "",
+  "publishedVersion": "v1.5.105",
+  "enforceUpdates": false,
+  "disableUpdateGate": true,
   "name": "WNMU Programming Library",
-  "notes": "Adds Add New Program UI fixes: no date picker, Aired On defaults to No, and rating stars skipped in tab order.",
-  "updated": "2026-06-18T14:12:09Z"
+  "notes": "Emergency unlock: disables the blocking update gate so cached older version-check scripts cannot trap the app in a refresh loop. Visible app version is v1.5.105.",
+  "updated": "2026-06-18T16:20:00Z"
 }

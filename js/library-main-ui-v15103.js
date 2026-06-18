@@ -1,9 +1,9 @@
-// v1.5.103 Main Library UI polish
+// v1.5.105 Main Library UI polish compatibility for v15103 path
 // Refines the Program / Series toggle, uses the empty row space for Search Text,
 // keeps Distributor readable, keeps Rating inside the panel, and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.103 main library UI polish';
+  const VERSION = 'v1.5.105 main library UI polish compatibility';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -11,9 +11,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15103Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15105Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15103Styles';
+    style.id = 'wnmuMainLibraryUiV15105Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -246,7 +246,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = 'v1.5.103';
+    if (pill) pill.textContent = 'v1.5.105';
   }
 
   function removeVisibleRefreshButton() {
@@ -466,8 +466,8 @@
   }
 
   function patchRenderTable() {
-    if (window.__wnmuMainUiV15103RenderPatch) return;
-    window.__wnmuMainUiV15103RenderPatch = true;
+    if (window.__wnmuMainUiV15105RenderPatch) return;
+    window.__wnmuMainUiV15105RenderPatch = true;
 
     if (typeof renderTable === 'function') {
       const originalRenderTable = renderTable;

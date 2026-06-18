@@ -1,9 +1,9 @@
-// v1.5.105 Main Library UI polish compatibility for v15101 path
+// v1.5.105 Main Library UI polish
 // Refines the Program / Series toggle, uses the empty row space for Search Text,
 // keeps Distributor readable, keeps Rating inside the panel, and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.105 main library UI polish compatibility';
+  const VERSION = 'v1.5.105 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
