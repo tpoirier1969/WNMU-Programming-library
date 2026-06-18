@@ -1,9 +1,9 @@
-// v1.5.105 Main Library UI polish
+// v1.5.106 Main Library UI polish
 // Refines the Program / Series toggle, uses the empty row space for Search Text,
 // keeps Distributor readable, keeps Rating inside the panel, and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.105 main library UI polish';
+  const VERSION = 'v1.5.106 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -11,9 +11,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15105Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15106Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15105Styles';
+    style.id = 'wnmuMainLibraryUiV15106Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -246,7 +246,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = 'v1.5.105';
+    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.106');
   }
 
   function removeVisibleRefreshButton() {
@@ -466,8 +466,8 @@
   }
 
   function patchRenderTable() {
-    if (window.__wnmuMainUiV15105RenderPatch) return;
-    window.__wnmuMainUiV15105RenderPatch = true;
+    if (window.__wnmuMainUiV15106RenderPatch) return;
+    window.__wnmuMainUiV15106RenderPatch = true;
 
     if (typeof renderTable === 'function') {
       const originalRenderTable = renderTable;

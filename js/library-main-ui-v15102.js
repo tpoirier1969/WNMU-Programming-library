@@ -1,9 +1,9 @@
-// v1.5.102 Main Library UI polish
-// Adds the Program / Series three-way toggle, keeps the compact header/list cleanup,
-// and removes description Copy buttons.
+// v1.5.106 Main Library UI polish
+// Refines the Program / Series toggle, uses the empty row space for Search Text,
+// keeps Distributor readable, keeps Rating inside the panel, and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.102 main library UI polish';
+  const VERSION = 'v1.5.106 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -11,9 +11,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15102Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15106Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15102Styles';
+    style.id = 'wnmuMainLibraryUiV15106Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -76,25 +76,25 @@
       #controlsPanel .program-type-toggle {
         display: grid !important;
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-        width: min(100%, 138px) !important;
+        width: min(100%, 148px) !important;
         min-width: 0 !important;
-        height: 31px !important;
+        height: 28px !important;
         overflow: hidden !important;
-        border: 1px solid rgba(18, 134, 127, .26) !important;
+        border: 1px solid rgba(18, 134, 127, .22) !important;
         border-radius: 999px !important;
-        background: #f8fdfe !important;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.7) !important;
+        background: #f9fdfe !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.75) !important;
       }
       #controlsPanel .program-type-toggle button {
         min-width: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        padding: 0 5px !important;
+        padding: 0 4px !important;
         border: 0 !important;
         border-radius: 0 !important;
         background: transparent !important;
         color: var(--pbs-blue-dark) !important;
-        font-size: .68rem !important;
+        font-size: .64rem !important;
         font-weight: 800 !important;
         line-height: 1 !important;
         text-align: center !important;
@@ -105,7 +105,7 @@
         border-left: 1px solid rgba(18, 134, 127, .16) !important;
       }
       #controlsPanel .program-type-toggle button.active {
-        background: linear-gradient(180deg, #126f95, #0f577f) !important;
+        background: linear-gradient(180deg, #167f9e, #0f5b85) !important;
         color: #fff !important;
       }
       #controlsPanel .program-type-toggle button:first-child {
@@ -124,26 +124,33 @@
         letter-spacing: .015em !important;
       }
       #controlsPanel .cluster-distributor select {
-        padding-left: 7px !important;
-        padding-right: 21px !important;
+        padding-left: 8px !important;
+        padding-right: 24px !important;
         text-overflow: clip !important;
+      }
+      #controlsPanel .cluster-search-text input {
+        min-width: 0 !important;
+      }
+      #controlsPanel .cluster-rating select {
+        min-width: 0 !important;
+        max-width: 100% !important;
       }
       #controlsPanel .cluster-clear-all .reset-all {
         display: grid !important;
         place-items: center !important;
-        gap: 1px !important;
+        gap: 2px !important;
         min-width: 0 !important;
-        width: 64px !important;
-        max-width: 64px !important;
-        min-height: 40px !important;
-        padding: 5px 6px !important;
+        width: 78px !important;
+        max-width: 78px !important;
+        min-height: 42px !important;
+        padding: 6px 8px !important;
         white-space: normal !important;
         text-align: center !important;
-        font-size: .71rem !important;
+        font-size: .7rem !important;
         font-weight: 800 !important;
         line-height: 1.12 !important;
         letter-spacing: 0 !important;
-        border-radius: 10px !important;
+        border-radius: 11px !important;
       }
       #controlsPanel .cluster-clear-all .reset-all span {
         display: block !important;
@@ -239,7 +246,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = 'v1.5.102';
+    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.106');
   }
 
   function removeVisibleRefreshButton() {
@@ -372,20 +379,20 @@
 
     if (!window.matchMedia('(min-width: 1180px)').matches) return;
 
-    setImportant(cluster, 'grid-template-columns', 'minmax(138px,.8fr) minmax(112px,1.08fr) minmax(108px,.78fr) minmax(84px,.68fr) minmax(64px,.46fr) minmax(88px,.8fr) minmax(100px,1fr) minmax(100px,1fr)');
+    setImportant(cluster, 'grid-template-columns', 'minmax(132px,.78fr) minmax(96px,.74fr) minmax(96px,.74fr) minmax(96px,.74fr) minmax(86px,.55fr) minmax(122px,.72fr) minmax(58px,.36fr) minmax(78px,.44fr)');
     setImportant(cluster, 'column-gap', '7px');
     setImportant(cluster, 'row-gap', '8px');
 
     const placements = [
       ['.cluster-type', '1', '1'],
-      ['.cluster-search-text', '2', '1'],
-      ['.cluster-distributor', '3', '1'],
-      ['.cluster-episodes', '4', '1'],
-      ['.cluster-clear-all', '5', '1'],
+      ['.cluster-search-text', '2 / span 4', '1'],
+      ['.cluster-distributor', '6', '1'],
+      ['.cluster-episodes', '7', '1'],
+      ['.cluster-clear-all', '8', '1'],
       ['.cluster-search-in', '1', '2'],
-      ['.cluster-rights-start', '2', '2'],
-      ['.cluster-rights-end', '3 / span 2', '2'],
-      ['.cluster-status', '5 / span 2', '2'],
+      ['.cluster-rights-start', '2 / span 2', '2'],
+      ['.cluster-rights-end', '4 / span 2', '2'],
+      ['.cluster-status', '6', '2'],
       ['.cluster-rating', '7 / span 2', '2']
     ];
 
@@ -398,14 +405,25 @@
       setImportant(item, 'max-width', 'none');
     });
 
+    const searchText = cluster.querySelector('.cluster-search-text');
+    if (searchText) {
+      setImportant(searchText, 'max-width', 'none');
+    }
+
     const distributor = cluster.querySelector('.cluster-distributor');
     if (distributor) {
-      setImportant(distributor, 'max-width', '110px');
+      setImportant(distributor, 'max-width', '124px');
+    }
+
+    const rating = cluster.querySelector('.cluster-rating');
+    if (rating) {
+      setImportant(rating, 'max-width', 'none');
+      setImportant(rating, 'overflow', 'hidden');
     }
 
     const typeHolder = cluster.querySelector('.cluster-type');
     if (typeHolder) {
-      setImportant(typeHolder, 'max-width', '142px');
+      setImportant(typeHolder, 'max-width', '152px');
     }
 
     const clearHolder = cluster.querySelector('.cluster-clear-all');
@@ -413,8 +431,8 @@
       setImportant(clearHolder, 'display', 'flex');
       setImportant(clearHolder, 'justify-content', 'center');
       setImportant(clearHolder, 'align-items', 'start');
-      setImportant(clearHolder, 'padding-top', '13px');
-      setImportant(clearHolder, 'max-width', '66px');
+      setImportant(clearHolder, 'padding-top', '12px');
+      setImportant(clearHolder, 'max-width', '80px');
     }
   }
 
@@ -448,8 +466,8 @@
   }
 
   function patchRenderTable() {
-    if (window.__wnmuMainUiV15102RenderPatch) return;
-    window.__wnmuMainUiV15102RenderPatch = true;
+    if (window.__wnmuMainUiV15106RenderPatch) return;
+    window.__wnmuMainUiV15106RenderPatch = true;
 
     if (typeof renderTable === 'function') {
       const originalRenderTable = renderTable;
@@ -463,8 +481,8 @@
   }
 
   function patchRenderFilters() {
-    if (window.__wnmuMainUiV15102FilterPatch) return;
-    window.__wnmuMainUiV15102FilterPatch = true;
+    if (window.__wnmuMainUiV15103FilterPatch) return;
+    window.__wnmuMainUiV15103FilterPatch = true;
 
     if (typeof renderFilters === 'function') {
       const originalRenderFilters = renderFilters;

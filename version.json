@@ -1,10 +1,14 @@
 {
-  "appVersion": "",
-  "version": "",
-  "publishedVersion": "v1.5.105",
-  "enforceUpdates": false,
-  "disableUpdateGate": true,
+  "currentAppVersion": "v1.5.106",
+  "requiredAppVersion": "v1.5.106",
+  "publishedVersion": "v1.5.106",
+  "appVersion": "v1.5.98",
+  "version": "v1.5.98",
+  "legacyCompatibilityVersion": "v1.5.98",
+  "versionManifestSchema": 2,
+  "enforceUpdates": true,
+  "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Emergency unlock: disables the blocking update gate so cached older version-check scripts cannot trap the app in a refresh loop. Visible app version is v1.5.105.",
-  "updated": "2026-06-18T16:20:00Z"
+  "notes": "Pledge-style version checker restored. New checker reads currentAppVersion; legacy appVersion/version fields are intentionally held at v1.5.98 so old cached broken checkers cannot trap users in an update loop.",
+  "updated": "2026-06-18T16:45:00Z"
 }

@@ -1,8 +1,8 @@
-// v1.5.105 Add New Program UI fixes
+// v1.5.106 Add New Program UI fixes
 // Removes date-picker controls, defaults Aired On fields to No, and skips rating stars in Tab order.
 
 (function () {
-  const VERSION = 'v1.5.105 add program ui fixes';
+  const VERSION = 'v1.5.106 add program ui fixes';
   const AIRING_FIELDS = ['aired_13_1', 'aired_13_3'];
 
   function form() {
