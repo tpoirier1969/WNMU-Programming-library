@@ -1,13 +1,13 @@
-// v1.5.103 App version check / required refresh gate
+// v1.5.104 App version check / required refresh gate
 // Adapted from the Pledge Library version.json checker for the WNMU Programming Library.
-// Fetches version.json with cache bypass, compares against this script version, and locks the page if a newer build is published.
+// Fetches version.json with cache bypass, compares against the local version pill, and locks the page if a newer build is published.
 
 (function () {
-  const LOCAL_VERSION = 'v1.5.103';
+  const LOCAL_VERSION = 'v1.5.104';
   const VERSION_MANIFEST = 'version.json';
   const VERSION_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const OVERLAY_ID = 'appVersionGate';
-  const STYLE_ID = 'appVersionGateStylesV15103';
+  const STYLE_ID = 'appVersionGateStylesV15104';
   let timer = 0;
   let gateActive = false;
 
@@ -15,15 +15,9 @@
     return String(value || '').trim().replace(/^v/i, '');
   }
 
-  function localVersion() {
-    return cleanVersion(LOCAL_VERSION);
-  }
-
-  function syncVisibleVersion() {
+  function currentLocalVersion() {
     const pill = document.getElementById('appVersion');
-    if (pill && cleanVersion(pill.textContent) !== localVersion()) {
-      pill.textContent = `v${localVersion()}`;
-    }
+    return cleanVersion(pill?.textContent || LOCAL_VERSION);
   }
 
   function compareVersions(a, b) {
@@ -151,15 +145,8 @@
     return gate;
   }
 
-  function hideGate() {
-    gateActive = false;
-    window.__wnmuVersionGateActive = false;
-    document.body.classList.remove('app-version-gate-active');
-    document.getElementById(OVERLAY_ID)?.classList.add('hidden');
-  }
-
   function showGate(remoteVersion) {
-    const local = localVersion();
+    const local = currentLocalVersion();
     const remote = cleanVersion(remoteVersion);
     const gate = ensureOverlay();
     const message = gate.querySelector('#appVersionGateMessage');
@@ -216,7 +203,7 @@
       // Ignore service worker failures.
     }
 
-    window.location.replace(next.toString());
+    window.location.assign(next.toString());
     window.setTimeout(() => {
       try { window.location.reload(); } catch (_error) { /* ignore */ }
     }, 900);
@@ -228,18 +215,16 @@
 
   async function checkForRemoteUpdate({ silent = true } = {}) {
     try {
-      syncVisibleVersion();
       const response = await window.fetch(`${VERSION_MANIFEST}?_=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`Version check failed (${response.status})`);
       const payload = await response.json();
       const remote = parseRemoteVersion(payload);
-      const local = localVersion();
+      const local = currentLocalVersion();
       window.__wnmuRemoteVersion = remote;
       if (remote && compareVersions(remote, local) > 0) {
         showGate(remote);
         return true;
       }
-      hideGate();
       return false;
     } catch (error) {
       if (!silent) console.warn('Could not check for app updates.', error);
@@ -257,7 +242,6 @@
   }
 
   function startVersionChecks() {
-    syncVisibleVersion();
     window.clearInterval(timer);
     void checkForRemoteUpdate({ silent: true });
     timer = window.setInterval(() => {

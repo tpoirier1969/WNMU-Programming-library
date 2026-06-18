@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.58 · Add Program</title>
+  <title>WNMU TV Programming Library v1.5.104 · Add Program</title>
   <link rel="icon" type="image/svg+xml" href="program-new-tab-icon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="program-new-tab-icon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="program-new-tab-icon-16.png" />
@@ -169,6 +169,17 @@
       width: 100%;
       min-height: 36px;
     }
+    .standalone-page .date-entry-wrap {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      align-items: center;
+      position: relative;
+    }
+    .standalone-page .date-picker-btn,
+    .standalone-page .date-picker-proxy {
+      display: none !important;
+    }
     .new-program-airing-row .editor-rating-row,
     .new-program-airing-row .rating-field {
       margin: 0;
@@ -205,6 +216,7 @@
   <script defer src="js/program-new.js?v=1.5.47"></script>
   <script defer src="js/program-new-bridge.js?v=1.5.57"></script>
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
+  <script defer src="js/program-new-ui-v15104.js?v=1.5.104"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -222,7 +234,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Add New Program</h1>
-            <span class="version-pill">v1.5.58</span>
+            <span class="version-pill">v1.5.104</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
@@ -325,15 +337,11 @@
               <label class="compact-rights">Rights begin
                 <div class="date-entry-wrap">
                   <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
-                  <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
-                  <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
                 </div>
               </label>
               <label class="compact-rights">Rights end
                 <div class="date-entry-wrap">
                   <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
-                  <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
-                  <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
                 </div>
               </label>
               <label class="rights-notes-field">Rights notes
@@ -343,20 +351,20 @@
 
             <div class="new-program-airing-row span-full">
               <label>Aired on 13.1
-                <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+                <input name="aired_13_1" type="text" placeholder="No" />
               </label>
               <label>Aired on 13.3
-                <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+                <input name="aired_13_3" type="text" placeholder="No" />
               </label>
               <div class="editor-rating-row">
                 <label class="rating-field">Rating
                   <input name="rating" type="hidden" />
                   <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
-                    <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
-                    <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
-                    <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
-                    <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
-                    <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
                     <span class="rating-value-label">Not rated</span>
                   </div>
                 </label>

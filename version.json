@@ -1,7 +1,7 @@
 {
-  "appVersion": "v1.5.103",
-  "version": "v1.5.103",
+  "appVersion": "v1.5.104",
+  "version": "v1.5.104",
   "name": "WNMU Programming Library",
-  "notes": "Refines the Program / Series toggle, enlarges Search Text to use the open row space, widens Distributor enough to show All, and keeps the Rating dropdown inside the panel.",
-  "updated": "2026-06-17T20:18:00-04:00"
+  "notes": "Adds Add New Program UI fixes: no date picker, Aired On defaults to No, and rating stars skipped in tab order.",
+  "updated": "2026-06-18T14:12:09Z"
 }
