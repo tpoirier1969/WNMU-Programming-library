@@ -1,10 +1,10 @@
-// v1.5.107 Main Library UI polish
+// v1.5.108 Main Library UI polish
 // Refines the Program / Series toggle, keeps Search Text wide,
 // makes Episode min/max filters readable, keeps Distributor/Rating inside the panel,
 // and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.107 main library UI polish';
+  const VERSION = 'v1.5.108 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -12,9 +12,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15107Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15108Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15107Styles';
+    style.id = 'wnmuMainLibraryUiV15108Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -282,7 +282,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.107');
+    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.108');
   }
 
   function removeVisibleRefreshButton() {
@@ -353,6 +353,42 @@
     });
   }
 
+
+  function resetProgramTypeToggleToAll({ notify = true } = {}) {
+    const select = document.getElementById('programTypeFilter');
+    if (!select) return;
+    const hadValue = Boolean(select.value);
+    select.value = '';
+    updateProgramTypeToggleState();
+    if (notify && hadValue) {
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function bindClearAllProgramTypeReset() {
+    const button = document.getElementById('resetFiltersBtn');
+    if (!button || button.dataset.programTypeResetBound === '1') return;
+    button.dataset.programTypeResetBound = '1';
+    button.addEventListener('click', () => {
+      // Let the app's native Clear All handler run first, then force the custom
+      // segmented control back to All so it cannot visually stay on Program/Series.
+      window.setTimeout(() => resetProgramTypeToggleToAll({ notify: false }), 0);
+    });
+  }
+
+  function patchResetFiltersForProgramTypeToggle() {
+    if (window.__wnmuProgramTypeResetPatchV15108) return;
+    window.__wnmuProgramTypeResetPatchV15108 = true;
+    if (typeof resetFilters !== 'function') return;
+    const originalResetFilters = resetFilters;
+    resetFilters = function patchedResetFilters(...args) {
+      const result = originalResetFilters.apply(this, args);
+      resetProgramTypeToggleToAll({ notify: false });
+      window.setTimeout(() => resetProgramTypeToggleToAll({ notify: false }), 0);
+      return result;
+    };
+  }
+
   function ensureProgramTypeToggle() {
     const select = document.getElementById('programTypeFilter');
     const box = document.querySelector('#controlsPanel .cluster-type');
@@ -412,6 +448,8 @@
 
     stackClearAllButton();
     ensureProgramTypeToggle();
+    bindClearAllProgramTypeReset();
+    patchResetFiltersForProgramTypeToggle();
 
     if (!window.matchMedia('(min-width: 1180px)').matches) return;
 
@@ -532,6 +570,8 @@
       renderFilters = function patchedRenderFilters(...args) {
         const result = originalRenderFilters.apply(this, args);
         ensureProgramTypeToggle();
+        bindClearAllProgramTypeReset();
+        patchResetFiltersForProgramTypeToggle();
         stackClearAllButton();
         applyFilterSizingLayout();
         return result;
@@ -544,6 +584,8 @@
     injectStyles();
     tightenTopbar();
     ensureProgramTypeToggle();
+    bindClearAllProgramTypeReset();
+    patchResetFiltersForProgramTypeToggle();
     stackClearAllButton();
     applyFilterSizingLayout();
     moveQuickAirDatesAfterRating();
