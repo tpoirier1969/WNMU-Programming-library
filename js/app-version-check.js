@@ -1,4 +1,4 @@
-// v1.5.108 App version check / Pledge-style manifest gate
+// v1.5.109 App version check / Pledge-style manifest gate
 // Patterned after the working Pledge Library checker:
 // - compare version.json against this loaded app code version, not the visible flag
 // - fetch version.json with cache: 'no-store' and a timestamp
@@ -6,11 +6,11 @@
 // - keep legacy manifest fields safe so older broken checkers cannot trap the page
 
 (function () {
-  const APP_VERSION = String(window.WNMU_APP_VERSION || 'v1.5.108');
+  const APP_VERSION = String(window.WNMU_APP_VERSION || 'v1.5.109');
   const VERSION_MANIFEST = String(window.WNMU_VERSION_MANIFEST || 'version.json');
   const VERSION_CHECK_INTERVAL_MS = 10 * 60 * 1000;
   const OVERLAY_ID = 'appVersionGate';
-  const STYLE_ID = 'appVersionGateStylesV15108';
+  const STYLE_ID = 'appVersionGateStylesV15109';
   let versionCheckTimer = 0;
   let gateActive = false;
   let remoteVersionInfo = { localVersion: cleanVersion(APP_VERSION), remoteVersion: '', blocked: false };

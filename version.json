@@ -1,7 +1,7 @@
 {
-  "currentAppVersion": "v1.5.108",
-  "requiredAppVersion": "v1.5.108",
-  "publishedVersion": "v1.5.108",
+  "currentAppVersion": "v1.5.109",
+  "requiredAppVersion": "v1.5.109",
+  "publishedVersion": "v1.5.109",
   "appVersion": "v1.5.98",
   "version": "v1.5.98",
   "legacyCompatibilityVersion": "v1.5.98",
@@ -9,6 +9,6 @@
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Clear All Filters now also resets the custom Program/Series/All segmented toggle to All. Pledge-style checker continues using currentAppVersion while legacy fields remain safe for old cached broken checkers.",
-  "updated": "2026-06-18T19:20:00Z"
+  "notes": "Fixes Admin GitHub login redirect by mirroring the Pledge Library redirect helper: use ADMIN_REDIRECT_URL if configured, otherwise return to the current page with the OAuth hash removed. Keeps legacy manifest fields safe for old cached broken checkers.",
+  "updated": "2026-06-22T16:30:00Z"
 }

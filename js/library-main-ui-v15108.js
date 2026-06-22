@@ -1,10 +1,10 @@
-// v1.5.108 Main Library UI polish
+// v1.5.109 Main Library UI polish
 // Refines the Program / Series toggle, keeps Search Text wide,
 // makes Episode min/max filters readable, keeps Distributor/Rating inside the panel,
 // and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.108 main library UI polish';
+  const VERSION = 'v1.5.109 main library UI polish compatibility library-main-ui-v15108.js';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -12,9 +12,9 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('wnmuMainLibraryUiV15108Styles')) return;
+    if (document.getElementById('wnmuMainLibraryUiV15109Styles')) return;
     const style = document.createElement('style');
-    style.id = 'wnmuMainLibraryUiV15108Styles';
+    style.id = 'wnmuMainLibraryUiV15109Styles';
     style.textContent = `
       #appShell .topbar {
         padding: 8px 12px !important;
@@ -282,7 +282,7 @@
 
   function syncVisibleVersionFlag() {
     const pill = document.getElementById('appVersion');
-    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.108');
+    if (pill) pill.textContent = String(window.WNMU_APP_VERSION || 'v1.5.109');
   }
 
   function removeVisibleRefreshButton() {
@@ -377,8 +377,8 @@
   }
 
   function patchResetFiltersForProgramTypeToggle() {
-    if (window.__wnmuProgramTypeResetPatchV15108) return;
-    window.__wnmuProgramTypeResetPatchV15108 = true;
+    if (window.__wnmuProgramTypeResetPatchV15109) return;
+    window.__wnmuProgramTypeResetPatchV15109 = true;
     if (typeof resetFilters !== 'function') return;
     const originalResetFilters = resetFilters;
     resetFilters = function patchedResetFilters(...args) {

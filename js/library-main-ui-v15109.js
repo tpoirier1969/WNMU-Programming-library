@@ -4,7 +4,7 @@
 // and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.109 main library UI polish compatibility library-main-ui-v15102.js';
+  const VERSION = 'v1.5.109 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
