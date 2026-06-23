@@ -183,36 +183,218 @@
           const style = doc.createElement('style');
           style.id = 'wnmuSplitWorkspaceInjectedStyles';
           style.textContent = kind === 'library' ? `
-            html, body { min-height: 100% !important; }
+            html, body { height: 100% !important; min-height: 100% !important; overflow: hidden !important; }
             body { background: #e9f5f7 !important; }
             #setupNotice, #authShell { max-width: none !important; }
             #appShell {
               max-width: none !important;
               width: 100% !important;
+              height: 100vh !important;
               margin: 0 !important;
-              padding: 6px 8px !important;
+              padding: 5px 7px !important;
+              display: grid !important;
+              grid-template-rows: auto auto minmax(0, 1fr) !important;
+              gap: 6px !important;
+              overflow: hidden !important;
             }
             #appShell .topbar {
-              margin-bottom: 8px !important;
-              padding: 8px 10px !important;
-              gap: 8px !important;
+              margin: 0 !important;
+              padding: 7px 9px !important;
+              gap: 7px !important;
+              min-height: 74px !important;
             }
             #appShell .brand-block img,
             #appShell .topbar img,
-            #appShell .logo { max-height: 44px !important; width: auto !important; }
-            #appShell h1 { font-size: 1.25rem !important; line-height: 1 !important; }
+            #appShell .logo { max-height: 42px !important; width: auto !important; }
+            #appShell h1 { font-size: 1.12rem !important; line-height: 1 !important; }
+            #appShell .brand-name { font-size: .88rem !important; line-height: 1 !important; }
+            #appShell .version-pill { font-size: .68rem !important; min-height: 20px !important; padding: 2px 7px !important; }
             #appShell .topbar-actions,
-            #appShell .main-actions { gap: 6px !important; }
+            #appShell .main-actions { gap: 5px !important; }
             #appShell button,
             #appShell .ghost,
             #appShell .primary,
             #appShell a.ghost,
-            #appShell a.primary { font-size: .78rem !important; padding: 6px 9px !important; min-height: 32px !important; }
-            #controlsPanel { margin-bottom: 8px !important; }
-            #listPanel { margin-top: 8px !important; }
+            #appShell a.primary { font-size: .72rem !important; padding: 5px 8px !important; min-height: 28px !important; border-radius: 9px !important; }
+            #controlsPanel {
+              margin: 0 !important;
+              padding: 7px 8px !important;
+              overflow: visible !important;
+            }
+            #quickStrip.quick-strip {
+              display: grid !important;
+              grid-template-columns: repeat(11, minmax(0, 1fr)) !important;
+              gap: 5px !important;
+              margin: 0 0 6px 0 !important;
+            }
+            #quickStrip .quick-card,
+            #quickStrip .stat-card {
+              min-width: 0 !important;
+              width: auto !important;
+              min-height: 48px !important;
+              height: 48px !important;
+              padding: 5px 6px !important;
+              border-radius: 10px !important;
+              overflow: hidden !important;
+              align-items: start !important;
+            }
+            #quickStrip .stat-label {
+              font-size: .50rem !important;
+              line-height: 1 !important;
+              letter-spacing: .035em !important;
+              margin-bottom: 3px !important;
+            }
+            #quickStrip .stat-value {
+              font-size: .86rem !important;
+              line-height: 1.02 !important;
+              white-space: normal !important;
+            }
+            #quickStrip .stat-value.small {
+              font-size: .72rem !important;
+              line-height: 1.05 !important;
+            }
+            #controlsPanel .filters-grid {
+              display: grid !important;
+              grid-template-columns: minmax(118px, 1fr) minmax(154px, 1.35fr) minmax(82px, .72fr) minmax(94px, .78fr) minmax(0, 2.85fr) !important;
+              gap: 5px !important;
+              align-items: end !important;
+            }
+            #controlsPanel .filter-box {
+              min-width: 0 !important;
+              margin: 0 !important;
+            }
+            #controlsPanel .filter-label,
+            #controlsPanel label.filter-label {
+              font-size: .58rem !important;
+              line-height: 1 !important;
+              letter-spacing: .045em !important;
+              white-space: nowrap !important;
+            }
+            #controlsPanel .filter-label-row {
+              min-height: 15px !important;
+              margin-bottom: 2px !important;
+            }
+            #controlsPanel .mini-clear {
+              font-size: .58rem !important;
+              padding: 2px 6px !important;
+              min-height: 18px !important;
+              line-height: 1 !important;
+            }
+            #controlsPanel select[multiple] {
+              height: 55px !important;
+              min-height: 55px !important;
+              font-size: .78rem !important;
+              line-height: 1.1 !important;
+              padding: 3px 4px !important;
+              border-radius: 8px !important;
+            }
+            #controlsPanel input,
+            #controlsPanel select:not([multiple]) {
+              min-height: 31px !important;
+              height: 31px !important;
+              font-size: .82rem !important;
+              padding: 5px 7px !important;
+              border-radius: 8px !important;
+            }
+            #controlsPanel .filters-cluster {
+              display: grid !important;
+              grid-template-columns: minmax(84px, .7fr) minmax(160px, 2.2fr) minmax(96px, .85fr) minmax(82px, .72fr) minmax(82px, .72fr) minmax(72px, .58fr) minmax(78px, .65fr) !important;
+              grid-auto-rows: auto !important;
+              gap: 4px 5px !important;
+              align-items: end !important;
+            }
+            #controlsPanel .cluster-type { grid-column: 1; grid-row: 1; }
+            #controlsPanel .cluster-search-text { grid-column: 2; grid-row: 1; }
+            #controlsPanel .cluster-distributor { grid-column: 3; grid-row: 1; }
+            #controlsPanel .cluster-episodes { grid-column: 4 / span 2; grid-row: 1; }
+            #controlsPanel .cluster-search-in { grid-column: 1; grid-row: 2; }
+            #controlsPanel .cluster-rights-start { grid-column: 2; grid-row: 2; }
+            #controlsPanel .cluster-rights-end { grid-column: 3; grid-row: 2; }
+            #controlsPanel .cluster-status { grid-column: 4 / span 2; grid-row: 2; }
+            #controlsPanel .cluster-rating { grid-column: 6 / span 2; grid-row: 2; }
+            #controlsPanel .episode-range-filter {
+              display: grid !important;
+              grid-template-columns: 1fr 1fr !important;
+              gap: 4px !important;
+            }
+            #controlsPanel .episode-range-filter input { min-width: 0 !important; }
+            #controlsPanel .filter-foot {
+              margin: 0 !important;
+              align-self: end !important;
+            }
+            #controlsPanel .reset-all,
+            #resetFiltersBtn {
+              min-width: 82px !important;
+              max-width: 92px !important;
+              min-height: 31px !important;
+              height: 31px !important;
+              white-space: normal !important;
+              line-height: 1.05 !important;
+              font-size: .58rem !important;
+              padding: 4px 7px !important;
+            }
+            #listPanel {
+              margin: 0 !important;
+              min-height: 0 !important;
+              display: grid !important;
+              grid-template-rows: auto minmax(0, 1fr) !important;
+              overflow: hidden !important;
+            }
+            #listPanel .list-meta {
+              padding: 8px 10px !important;
+              min-height: 48px !important;
+            }
+            #listPanel .list-title { font-size: .95rem !important; }
+            #listPanel .list-summary,
+            #listPanel .list-perf-text { font-size: .76rem !important; }
             #listPanel .table-wrap,
             #listPanel .table-scroll,
-            #programTableWrap { max-height: none !important; }
+            #programTableWrap {
+              min-height: 0 !important;
+              max-height: none !important;
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
+            }
+            #listPanel .programs-table {
+              width: 100% !important;
+              min-width: 0 !important;
+              table-layout: fixed !important;
+            }
+            #listPanel .programs-table th,
+            #listPanel .programs-table td {
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
+              padding-left: 8px !important;
+              padding-right: 8px !important;
+              font-size: .78rem !important;
+              line-height: 1.16 !important;
+            }
+            #listPanel .programs-table th.col-title,
+            #listPanel .programs-table td:nth-child(1) { width: 22% !important; }
+            #listPanel .programs-table th.col-notes,
+            #listPanel .programs-table td:nth-child(2) { width: 31% !important; }
+            #listPanel .programs-table th.col-details,
+            #listPanel .programs-table td:nth-child(3) { width: 17% !important; }
+            #listPanel .programs-table th.col-airing,
+            #listPanel .programs-table td:nth-child(4),
+            #listPanel .programs-table td:nth-child(5) { width: 7% !important; }
+            #listPanel .programs-table th.col-type,
+            #listPanel .programs-table td:nth-child(6) { width: 7% !important; }
+            #listPanel .programs-table th.col-rights,
+            #listPanel .programs-table td:nth-child(7) { width: 9% !important; }
+            #listPanel .programs-table th.col-distributor,
+            #listPanel .programs-table td:nth-child(8),
+            #listPanel .programs-table th.col-flags,
+            #listPanel .programs-table td:nth-child(9) { display: none !important; }
+            #listPanel .sort-header { font-size: .70rem !important; line-height: 1.05 !important; white-space: normal !important; }
+            #listPanel .program-title,
+            #listPanel strong { font-size: .84rem !important; line-height: 1.08 !important; }
+            #listPanel .note-preview,
+            #listPanel .program-notes,
+            #listPanel td.col-notes { font-size: .73rem !important; line-height: 1.18 !important; }
+            #listPanel .topic-pill,
+            #listPanel .secondary-topic-pill,
+            #listPanel .tag-pill { font-size: .68rem !important; padding: 2px 6px !important; }
           ` : `
             html, body { min-height: 100% !important; }
             body.standalone-page { background: #e9f5f7 !important; }
@@ -230,6 +412,11 @@
           doc.head.appendChild(style);
 
           if (kind === 'library') {
+            doc.querySelectorAll('#topicFilter, #secondaryTopicFilter, #lengthFilter, #codeFilter').forEach((select) => {
+              select.setAttribute('size', '3');
+            });
+            const quickStrip = doc.getElementById('quickStrip');
+            if (quickStrip) quickStrip.dataset.splitWorkspaceCompact = '1';
             const newProgramBtn = doc.getElementById('newProgramBtn');
             if (newProgramBtn && !newProgramBtn.dataset.splitWorkspaceBound) {
               newProgramBtn.dataset.splitWorkspaceBound = '1';
