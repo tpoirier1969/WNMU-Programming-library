@@ -1,0 +1,76 @@
+BUILD NOTES — v23.1.24
+Tod’s Boondocking & Camping Maps
+Date: 2026-06-23
+
+Baseline used:
+- Full uploaded repo/package ZIP: Camping-map-new-3-23-26-main.zip
+- The uploaded full repo already reported v23.1.23 and loaded data/states-manifest-v23.1.23.js and app-v23.1.23.js, so it was treated as the v23.1.23 overlaid runtime baseline.
+- Worker proof ledger: Pasted text(9).txt / WI-JACKSON-CLARK-NEW-CANDIDATE-PROOF-PASS.
+
+Package type:
+- Fixed-files replacement ZIP only.
+- No full repo copy.
+- No config.js, icons, CSS, or unrelated files included.
+
+Files changed:
+- version.json
+- index.html
+- app-v23.1.24.js
+- data/states-manifest-v23.1.24.js
+- data/supplements/wi-jackson-clark-new-candidates-v23.1.24.js
+- BUILD-NOTES-v23.1.24.txt
+- QA_v23.1.24.txt
+
+Files intentionally not changed:
+- config.js
+- manifest.webmanifest / site.webmanifest
+- icon/image assets
+- CSS files
+- data/states/WI.js
+- data/states-manifest.js root legacy manifest
+- Existing broad Black River State Forest Campgrounds row s97 was not demoted/deleted in this package; it remains a separate supervisor correction/supersession decision.
+
+Runtime impact:
+- Wisconsin manifest count changes from 606 to 621.
+- Adds 15 Wisconsin records:
+  1. East Arbutus County Park
+  2. West Arbutus County Park
+  3. Wazee Lake Recreation Area Rustic Campsites
+  4. Crawford Hills County Park
+  5. Merlin Lambert County Park
+  6. Black River State Forest Indoor Group Camp
+  7. Black River State Forest Outdoor Group Camp
+  8. Levis/Trow Mound Trailhead Campground
+  9. Wild Rock Park and Campground
+  10. Greenwood Park and Campground
+  11. Mead Lake Park and Campground
+  12. Rock Dam Park and Campground
+  13. Russell Memorial Park and Campground
+  14. Sherwood Park and Campground
+  15. Snyder Park and Campground
+
+Layer distribution of new adds:
+- Modern: 8
+- Rustic / Primitive: 7
+- Boondocking / Dispersed: 0 new adds
+- Boat / Backpack: 0 new adds
+
+Corrections included:
+- wi-jackson-county-forest-camping-area-v23113 moved to Boondocking / Dispersed and clarified as county forest permit-area/rule marker, not exact campsite pin.
+- wi-clark-county-forest-camping-area-v23113 moved to Boondocking / Dispersed and clarified as county forest permit-area/rule marker, not exact campsite pin. No duplicate Wildcat row was added.
+- wi-black-river-sf-backpack-rule-area-v23113 kept in Boat / Backpack but popup/source details were enriched from the current DNR backpack camping page.
+
+Coordinate handling:
+- Official/operator source proof was used for overnight legality and amenities.
+- Where official pages did not expose machine-readable coordinates, campground-level coordinates were taken from campground directory/community map listings and documented as such in coordinateSource/locationPrecision.
+- No individual campsite pins were created.
+- No park/lake center, boat launch, county office, or random trailhead was used as an exact campsite pin.
+- Black River group camps are area/system facility markers, not exact campsite pins.
+
+Merlin Lambert supervisor correction:
+- The worker returned Merlin Lambert as EXTERNAL ACCESS REQUIRED.
+- Official Jackson County proof was recovered and the site was included as a Rustic / Primitive build-ready public county campground.
+
+Known caution:
+- Several records use directory/community coordinates because official accessible pages did not expose a coordinate table. These are campground-level/system markers and are labeled honestly.
+- Russell Memorial/Snyder details rely partly on official Clark County page context plus the accepted worker proof ledger for specific amenity wording where the accessible page text was sparse.

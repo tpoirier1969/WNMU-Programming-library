@@ -1,0 +1,64 @@
+QA — v23.1.24
+Tod’s Boondocking & Camping Maps
+Date: 2026-06-23
+
+Baseline:
+- Full uploaded repo/package ZIP: Camping-map-new-3-23-26-main.zip
+- Baseline app/version was v23.1.23.
+- Baseline Wisconsin manifest count was 606.
+
+Syntax checks:
+- node --check app-v23.1.24.js — PASS
+- node --check data/states-manifest-v23.1.24.js — PASS
+- node --check data/supplements/wi-jackson-clark-new-candidates-v23.1.24.js — PASS
+
+Version/loader checks:
+- version.json version is v23.1.24 — PASS
+- app-v23.1.24.js VERSION constant is v23.1.24 — PASS
+- index.html loads data/states-manifest-v23.1.24.js — PASS
+- index.html loads app-v23.1.24.js — PASS
+
+Manifest/runtime checks:
+- Wisconsin manifest count updated to 621 — PASS
+- Wisconsin manifest files include data/supplements/wi-jackson-clark-new-candidates-v23.1.24.js — PASS
+- Runtime load of all Wisconsin manifest files produced 621 records — PASS
+- Manifest count and loaded count match — PASS
+
+New record load checks:
+- All 15 v23.1.24 new candidate IDs loaded exactly once — PASS
+- No duplicate IDs in loaded Wisconsin runtime — PASS
+- No new record triggered the exact-coordinate guard against an existing active record — PASS
+- New record layer counts: Modern 8, Rustic / Primitive 7 — PASS
+
+New records smoke tested:
+- wi-east-arbutus-county-park-v23124 — Modern
+- wi-west-arbutus-county-park-v23124 — Modern
+- wi-wazee-lake-recreation-area-rustic-campsites-v23124 — Rustic / Primitive
+- wi-crawford-hills-county-park-v23124 — Rustic / Primitive
+- wi-merlin-lambert-county-park-v23124 — Rustic / Primitive
+- wi-black-river-sf-indoor-group-camp-v23124 — Modern area/system facility marker
+- wi-black-river-sf-outdoor-group-camp-v23124 — Rustic / Primitive area/system facility marker
+- wi-levis-trow-mound-trailhead-campground-v23124 — Rustic / Primitive
+- wi-wild-rock-park-campground-v23124 — Rustic / Primitive
+- wi-greenwood-park-campground-v23124 — Rustic / Primitive
+- wi-mead-lake-park-campground-v23124 — Modern
+- wi-rock-dam-park-campground-v23124 — Modern
+- wi-russell-memorial-park-campground-v23124 — Modern
+- wi-sherwood-park-campground-v23124 — Modern
+- wi-snyder-park-campground-v23124 — Modern
+
+Correction smoke checks:
+- wi-jackson-county-forest-camping-area-v23113 layer is now boondocking — PASS
+- wi-clark-county-forest-camping-area-v23113 layer is now boondocking — PASS
+- wi-black-river-sf-backpack-rule-area-v23113 remains boat-backpack, with enriched DNR backpack source/popup details — PASS
+- s97 Black River State Forest Campgrounds was intentionally not changed — PASS
+
+Non-change checks:
+- config.js not changed/included — PASS
+- icon/image assets not changed/included — PASS
+- CSS not changed/included — PASS
+- data/states/WI.js not changed/included — PASS
+- Existing broad Black River row s97 was not demoted/deleted — PASS
+
+Known QA caution:
+- Some new records use campground-directory/community coordinate sources because official accessible pages did not expose machine-readable coordinates. Each affected record documents this in coordinateSource/locationPrecision and is represented as a campground-level or area/system marker, not an individual campsite pin.
