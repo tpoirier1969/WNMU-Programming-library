@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library · Add Program Split Test</title>
+  <link rel="icon" type="image/svg+xml" href="program-new-tab-icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="program-new-tab-icon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="program-new-tab-icon-16.png" />
+  <link rel="shortcut icon" href="program-new-tab-icon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="program-new-tab-icon-180.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.51" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    :root {
+      --test-bg: #e9f5f7;
+      --test-card: #ffffff;
+      --test-line: #b9e5e7;
+      --test-ink: #082e4f;
+      --test-teal: #008f8c;
+      --test-muted: #536d82;
+      --test-shadow: 0 10px 28px rgba(12,39,68,.08);
+    }
+
+    body.standalone-page {
+      overflow-y: auto;
+      background: var(--test-bg);
+      color: var(--test-ink);
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .hidden { display: none !important; }
+
+    .standalone-shell {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 10px 14px;
+    }
+
+    .standalone-topbar,
+    .standalone-card {
+      background: var(--test-card);
+      border-radius: 18px;
+      box-shadow: var(--test-shadow);
+      border: 1px solid rgba(0, 143, 140, .12);
+    }
+
+    .standalone-topbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 10px 14px;
+      align-items: center;
+      padding: 10px 16px;
+      margin-bottom: 10px;
+    }
+
+    .standalone-brand {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .standalone-brand img {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+    }
+
+    .brand-name {
+      color: var(--test-teal);
+      font-size: 1rem;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .title-row h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4.5vw, 2.55rem);
+      line-height: .95;
+      color: var(--test-ink);
+    }
+
+    .version-pill,
+    .test-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      border-radius: 999px;
+      border: 1px solid #8fd2d3;
+      background: #dff7f5;
+      color: #007b78;
+      font-size: .74rem;
+      font-weight: 900;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .test-pill { background: #fff9d9; border-color: #e5c95c; color: #7d5d00; }
+
+    .status-line {
+      color: var(--test-muted);
+      font-size: .9rem;
+      margin-top: 2px;
+    }
+
+    .standalone-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      align-items: center;
+      max-width: 520px;
+    }
+
+    .standalone-actions a,
+    .standalone-actions button,
+    .drawer-actions button,
+    .drawer-actions a {
+      min-height: 34px;
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: .9rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .standalone-grid { display: grid; gap: 10px; }
+    .standalone-card { padding: 14px 16px; }
+
+    .test-note {
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: #fffceb;
+      border: 1px solid #f0df89;
+      color: #5d4700;
+      font-weight: 800;
+    }
+
+    .pbs-import-card.hidden { display: none !important; }
+    .pbs-import-panel:not(.hidden) { display: grid; gap: 8px; }
+    .pbs-import-field textarea { min-height: 110px; }
+    .pbs-import-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    .pbs-import-mode-field { min-width: 250px; }
+
+    .program-form .form-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 9px 10px;
+      align-items: end;
+    }
+
+    .program-form label {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+      color: var(--test-ink);
+      font-size: .89rem;
+      font-weight: 900;
+    }
+
+    .program-form input,
+    .program-form select,
+    .program-form textarea {
+      width: 100%;
+      min-width: 0;
+      border-radius: 9px;
+      border: 1px solid #b9e0e5;
+      background: #fff;
+      color: var(--test-ink);
+      font-size: .96rem;
+      padding: 7px 9px;
+      min-height: 34px;
+    }
+
+    .program-form textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .row-title { grid-column: span 7; }
+    .row-nola { grid-column: span 3; }
+    .row-length { grid-column: span 1; }
+    .row-use { grid-column: span 1; }
+    .span-full { grid-column: 1 / -1; }
+
+    .program-form textarea[name="notes"] {
+      min-height: 72px;
+    }
+
+    .new-program-core-row,
+    .new-program-distribution-row,
+    .new-program-rights-row,
+    .new-program-airing-row {
+      display: grid;
+      grid-column: 1 / -1;
+      gap: 9px 10px;
+      align-items: end;
+    }
+
+    .new-program-core-row {
+      grid-template-columns: minmax(132px, .75fr) minmax(132px, .8fr) minmax(150px, 1fr) minmax(190px, 1.35fr);
+    }
+
+    .new-program-distribution-row {
+      grid-template-columns: minmax(210px, 1.45fr) minmax(120px, .75fr) minmax(130px, .85fr) minmax(70px, .35fr);
+    }
+
+    .new-program-rights-row {
+      grid-template-columns: minmax(112px, .52fr) minmax(112px, .52fr) minmax(160px, .9fr);
+      justify-content: start;
+    }
+
+    .new-program-airing-row {
+      grid-template-columns: minmax(130px, .7fr) minmax(130px, .7fr) minmax(210px, 1fr);
+      justify-content: start;
+    }
+
+    .compact-rights input,
+    .new-program-airing-row input[name="aired_13_1"],
+    .new-program-airing-row input[name="aired_13_3"] {
+      max-width: 160px;
+    }
+
+    .rights-notes-field input { max-width: 220px; }
+
+    .date-entry-wrap {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      position: relative;
+    }
+
+    .date-picker-btn,
+    .date-picker-proxy { display: none !important; }
+
+    .editor-rating-row,
+    .rating-field { margin: 0; min-width: 0; }
+
+    .editor-star-rating {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-height: 34px;
+      padding: 5px 9px;
+      border-radius: 9px;
+      border: 1px solid #b9e0e5;
+      background: #fff;
+    }
+
+    .star-rating-btn {
+      font-size: 1.18rem;
+      line-height: 1;
+      padding: 0 2px;
+    }
+
+    .rating-value-label {
+      margin-left: 8px;
+      font-size: .9rem;
+      white-space: nowrap;
+    }
+
+    .standalone-feedback {
+      min-height: 1rem;
+      margin-top: 7px;
+      font-size: .95rem;
+      font-weight: 900;
+    }
+    .standalone-feedback.info { color:#325d85; }
+    .standalone-feedback.success { color:#0f6b3d; }
+    .standalone-feedback.warn { color:#8a5a11; }
+    .standalone-feedback.error { color:#8a1e1e; }
+    .standalone-success { margin-top: 7px; padding: 7px 10px; border-radius: 12px; background:#edf9f1; border:1px solid #b9e1c4; color:#145a31; font-weight:800; }
+    .standalone-success.hidden { display:none; }
+    .standalone-actions-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 9px; }
+
+    @media (max-width: 900px) {
+      .standalone-topbar { grid-template-columns: 1fr; }
+      .standalone-actions { justify-content: flex-start; max-width: none; }
+      .program-form .form-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .row-title { grid-column: span 4; }
+      .row-nola { grid-column: span 2; }
+      .row-length { grid-column: span 2; }
+      .row-use { grid-column: span 2; }
+      .new-program-core-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .new-program-distribution-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, .8fr) minmax(0, .8fr); }
+      .new-program-rights-row { grid-template-columns: minmax(112px, .5fr) minmax(112px, .5fr) minmax(150px, .9fr); }
+      .new-program-airing-row { grid-template-columns: minmax(130px, .7fr) minmax(130px, .7fr) minmax(210px, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .standalone-shell { padding: 8px; }
+      .standalone-brand { grid-template-columns: 46px minmax(0, 1fr); }
+      .standalone-brand img { width: 46px; height: 46px; }
+      .program-form .form-grid,
+      .new-program-core-row,
+      .new-program-distribution-row,
+      .new-program-rights-row,
+      .new-program-airing-row { grid-template-columns: 1fr; }
+      .row-title,
+      .row-nola,
+      .row-length,
+      .row-use { grid-column: 1 / -1; }
+      .compact-rights input,
+      .rights-notes-field input,
+      .new-program-airing-row input[name="aired_13_1"],
+      .new-program-airing-row input[name="aired_13_3"] { max-width: none; }
+    }
+  </style>
+  <script defer src="js/program-new.js?v=1.5.47"></script>
+  <script defer src="js/program-new-bridge.js?v=1.5.57"></script>
+  <script defer src="js/import-pbs.js?v=1.5.47"></script>
+  <script defer src="js/auth-login-fix-v15109.js?v=1.5.109"></script>
+  <script defer src="js/program-new-ui-v15109.js?v=1.5.109"></script>
+</head>
+<body class="standalone-page">
+  <div id="setupNotice" class="standalone-shell hidden">
+    <div class="standalone-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+    </div>
+  </div>
+
+  <div id="pageShell" class="standalone-shell hidden">
+    <header class="standalone-topbar">
+      <div class="standalone-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row">
+            <h1>Add New Program</h1>
+            <span class="version-pill">v1.5.109</span>
+            <span class="test-pill">split test</span>
+          </div>
+          <div id="statusLine" class="status-line">Starting up…</div>
+        </div>
+      </div>
+      <div class="standalone-actions">
+        <a href="index.html" class="ghost" id="backToLibraryTop">Back to library</a>
+        <a href="monthly-media.html" class="ghost">Monthly media</a>
+        <a href="holidays-calendar.html" class="ghost">Holidays / events</a>
+        <button type="button" id="togglePbsImportBtn" class="secondary compact-pbs-btn">Paste PBS offer</button>
+        <button type="button" id="loginGitHubBtn" class="primary">Sign in with GitHub</button>
+        <button type="button" id="logoutBtn" class="hidden">Sign out</button>
+      </div>
+      <div id="authStateText" class="hidden" aria-live="polite"></div>
+      <div id="authMessage" class="hidden" aria-live="polite"></div>
+    </header>
+
+    <div class="standalone-grid">
+      <section id="pbsImportCard" class="standalone-card pbs-import-card hidden">
+        <div id="pbsImportPanel" class="pbs-import-panel hidden">
+          <label class="pbs-import-field">PBS offer text
+            <textarea id="pbsOfferInput" rows="8" placeholder="Paste the PBS program offer here."></textarea>
+          </label>
+          <div class="pbs-import-controls">
+            <label class="pbs-import-mode-field">Draft style
+              <select id="pbsImportMode">
+                <option value="series">Series record from release title</option>
+                <option value="program">Program draft from first listed episode</option>
+              </select>
+            </label>
+            <button type="button" id="parsePbsOfferBtn" class="primary">Parse PBS offer</button>
+            <button type="button" id="clearPbsOfferBtn" class="ghost">Clear</button>
+          </div>
+          <div id="pbsImportPreview" class="pbs-import-preview hidden"></div>
+        </div>
+      </section>
+
+      <section class="standalone-card">
+        <p class="test-note">Split-view layout test. This page uses the live Programming Library data and Save will create real program records.</p>
+        <div id="duplicateCheck" class="duplicate-check hidden"></div>
+        <form id="programForm" class="program-form">
+          <div class="form-grid">
+            <label class="row-title">Title
+              <input name="title" type="text" required />
+            </label>
+            <label class="row-nola">NOLA
+              <input name="nola_eidr" type="text" />
+            </label>
+            <label class="row-length">Length
+              <input name="length_minutes" type="text" />
+            </label>
+            <label class="row-use">Use?
+              <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
+            </label>
+
+            <label class="span-full">Description
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="new-program-core-row span-full">
+              <label>Program or series
+                <select name="program_type">
+                  <option value=""></option>
+                  <option value="Program">Program</option>
+                  <option value="Series">Series</option>
+                </select>
+              </label>
+              <label>Season / Episode
+                <input name="episode_season" type="text" placeholder="100's / 8" />
+              </label>
+              <label>Topic
+                <select name="topic"></select>
+              </label>
+              <label class="secondary-topic-field">Secondary topic
+                <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics" />
+                <datalist id="secondaryTopicList"></datalist>
+              </label>
+            </div>
+
+            <div class="new-program-distribution-row span-full">
+              <label class="distributor-field">Distributor
+                <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
+                <datalist id="distributorList"></datalist>
+              </label>
+              <label>Source
+                <select name="server_tape"></select>
+              </label>
+              <label>Package type
+                <select name="package_type"></select>
+              </label>
+              <label class="hidden-field" id="voteFieldWrap">Vote
+                <select name="vote">
+                  <option value=""></option>
+                  <option value="Y">Y</option>
+                  <option value="N">N</option>
+                  <option value="M">M</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="new-program-rights-row span-full">
+              <label class="compact-rights">Rights begin
+                <div class="date-entry-wrap">
+                  <input name="rights_begin" type="text" inputmode="numeric" placeholder="9/1/26" />
+                </div>
+              </label>
+              <label class="compact-rights">Rights end
+                <div class="date-entry-wrap">
+                  <input name="rights_end" type="text" inputmode="numeric" placeholder="8/31/29" />
+                </div>
+              </label>
+              <label class="rights-notes-field">Rights notes
+                <input name="rights_notes" type="text" placeholder="Unlim / 6 releases" />
+              </label>
+            </div>
+
+            <div class="new-program-airing-row span-full">
+              <label>Aired on 13.1
+                <input name="aired_13_1" type="text" placeholder="No" />
+              </label>
+              <label>Aired on 13.3
+                <input name="aired_13_3" type="text" placeholder="No" />
+              </label>
+              <div class="editor-rating-row">
+                <label class="rating-field">Rating
+                  <input name="rating" type="hidden" />
+                  <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
+                    <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false" tabindex="-1">★</button>
+                    <span class="rating-value-label">Not rated</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div id="formFeedback" class="standalone-feedback"></div>
+          <div id="successBox" class="standalone-success hidden"></div>
+
+          <div class="drawer-actions standalone-actions-row">
+            <button type="submit" id="saveAnotherBtn" class="primary" data-submit-action="another">Save and start another</button>
+            <button type="button" id="clearFormBtn" class="ghost">Clear form</button>
+            <a href="index.html" class="ghost">Open library</a>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
