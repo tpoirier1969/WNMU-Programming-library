@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library · Split Workspace Test</title>
+  <style>
+    :root {
+      --split-bg: #e6f4f6;
+      --split-line: #b9e5e7;
+      --split-ink: #092e4f;
+      --split-teal: #009790;
+      --split-shadow: 0 10px 28px rgba(12,39,68,.12);
+      --left-width: 56%;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--split-bg);
+      color: var(--split-ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    .split-test-shell {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+      padding: 8px;
+    }
+    .split-test-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #fff;
+      border: 1px solid var(--split-line);
+      border-radius: 16px;
+      box-shadow: var(--split-shadow);
+      padding: 8px 12px;
+    }
+    .split-test-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .split-test-title h1 { margin: 0; font-size: 1.1rem; color: #007b76; letter-spacing: .02em; }
+    .split-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 9px;
+      border: 1px solid var(--split-line);
+      border-radius: 999px;
+      background: #e9fbfa;
+      color: #00746e;
+      font-size: .78rem;
+      font-weight: 800;
+    }
+    .split-test-note { margin: 0; color: #46657d; font-size: .86rem; }
+    .split-test-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .split-test-actions button,
+    .split-test-actions a {
+      border: 1px solid var(--split-line);
+      background: #f5ffff;
+      color: #07345c;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-weight: 800;
+      font-size: .84rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .split-grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(420px, var(--left-width)) 8px minmax(380px, 1fr);
+      gap: 0;
+    }
+    .pane {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: rgba(255,255,255,.74);
+      border: 1px solid var(--split-line);
+      box-shadow: var(--split-shadow);
+      overflow: hidden;
+    }
+    .pane.left { border-radius: 16px 0 0 16px; }
+    .pane.right { border-radius: 0 16px 16px 0; }
+    .pane-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--split-line);
+      background: #f7ffff;
+    }
+    .pane-title { margin: 0; font-size: .88rem; font-weight: 900; color: #007b76; text-transform: uppercase; letter-spacing: .04em; }
+    .pane-bar small { color: #526d82; font-weight: 700; }
+    .splitter {
+      width: 8px;
+      cursor: col-resize;
+      background: linear-gradient(90deg, transparent, rgba(0,143,140,.22), transparent);
+      border-top: 1px solid var(--split-line);
+      border-bottom: 1px solid var(--split-line);
+    }
+    .splitter::before {
+      content: "";
+      display: block;
+      width: 3px;
+      height: 48px;
+      margin: calc(50vh - 72px) auto 0;
+      border-radius: 4px;
+      background: rgba(0,76,94,.35);
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #e9f5f7;
+    }
+    @media (max-width: 920px) {
+      body { overflow: auto; }
+      .split-test-shell { height: auto; min-height: 100vh; }
+      .split-grid { grid-template-columns: 1fr; grid-template-rows: 78vh 8px 78vh; }
+      .pane.left, .pane.right { border-radius: 16px; }
+      .splitter { width: auto; height: 8px; cursor: row-resize; }
+      .splitter::before { width: 48px; height: 3px; margin: 2px auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="split-test-shell">
+    <header class="split-test-header">
+      <div>
+        <div class="split-test-title">
+          <h1>WNMU Programming Split Workspace Test</h1>
+          <span class="split-pill">test shell</span>
+        </div>
+        <p class="split-test-note">Left pane loads the live Program Library. Right pane loads the Add New Program test form. Existing app files are not overwritten.</p>
+      </div>
+      <div class="split-test-actions">
+        <button type="button" id="reloadBothBtn">Reload both panes</button>
+        <a href="index.html" target="_blank" rel="noopener">Open Library full page</a>
+        <a href="program-new-split-test.html" target="_blank" rel="noopener">Open Add test full page</a>
+      </div>
+    </header>
+
+    <main class="split-grid" id="splitGrid">
+      <section class="pane left" aria-label="Program Library pane">
+        <div class="pane-bar">
+          <h2 class="pane-title">Program Library</h2>
+          <small>current live data</small>
+        </div>
+        <iframe id="libraryFrame" title="Program Library" src="index.html?splitPane=library"></iframe>
+      </section>
+
+      <div class="splitter" id="splitter" aria-hidden="true"></div>
+
+      <section class="pane right" aria-label="Add New Program pane">
+        <div class="pane-bar">
+          <h2 class="pane-title">Add New Program</h2>
+          <small>test layout · live save</small>
+        </div>
+        <iframe id="newProgramFrame" title="Add New Program" src="program-new-split-test.html?splitPane=new"></iframe>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const grid = document.getElementById('splitGrid');
+      const splitter = document.getElementById('splitter');
+      const libraryFrame = document.getElementById('libraryFrame');
+      const newProgramFrame = document.getElementById('newProgramFrame');
+      const reloadBothBtn = document.getElementById('reloadBothBtn');
+
+      function injectFrameStyles(frame, kind) {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc || doc.getElementById('wnmuSplitWorkspaceInjectedStyles')) return;
+          const style = doc.createElement('style');
+          style.id = 'wnmuSplitWorkspaceInjectedStyles';
+          style.textContent = kind === 'library' ? `
+            html, body { min-height: 100% !important; }
+            body { background: #e9f5f7 !important; }
+            #setupNotice, #authShell { max-width: none !important; }
+            #appShell {
+              max-width: none !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 6px 8px !important;
+            }
+            #appShell .topbar {
+              margin-bottom: 8px !important;
+              padding: 8px 10px !important;
+              gap: 8px !important;
+            }
+            #appShell .brand-block img,
+            #appShell .topbar img,
+            #appShell .logo { max-height: 44px !important; width: auto !important; }
+            #appShell h1 { font-size: 1.25rem !important; line-height: 1 !important; }
+            #appShell .topbar-actions,
+            #appShell .main-actions { gap: 6px !important; }
+            #appShell button,
+            #appShell .ghost,
+            #appShell .primary,
+            #appShell a.ghost,
+            #appShell a.primary { font-size: .78rem !important; padding: 6px 9px !important; min-height: 32px !important; }
+            #controlsPanel { margin-bottom: 8px !important; }
+            #listPanel { margin-top: 8px !important; }
+            #listPanel .table-wrap,
+            #listPanel .table-scroll,
+            #programTableWrap { max-height: none !important; }
+          ` : `
+            html, body { min-height: 100% !important; }
+            body.standalone-page { background: #e9f5f7 !important; }
+            .standalone-shell { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 7px 9px !important; }
+            .standalone-topbar { margin-bottom: 8px !important; padding: 8px 10px !important; gap: 8px !important; }
+            .standalone-brand img { max-height: 40px !important; width: auto !important; }
+            .standalone-brand h1 { font-size: 1.55rem !important; }
+            .standalone-actions { gap: 6px !important; }
+            .standalone-actions button,
+            .standalone-actions a,
+            .drawer-actions button,
+            .drawer-actions a { font-size: .78rem !important; padding: 6px 9px !important; min-height: 32px !important; }
+            .standalone-card { padding: 10px 12px !important; }
+          `;
+          doc.head.appendChild(style);
+
+          if (kind === 'library') {
+            const newProgramBtn = doc.getElementById('newProgramBtn');
+            if (newProgramBtn && !newProgramBtn.dataset.splitWorkspaceBound) {
+              newProgramBtn.dataset.splitWorkspaceBound = '1';
+              newProgramBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                newProgramFrame.src = 'program-new-split-test.html?splitPane=new&_=' + Date.now();
+              }, true);
+            }
+          }
+        } catch (error) {
+          // Same-origin access should work on GitHub Pages. If it does not, the panes still load normally.
+          console.warn('Could not inject split workspace styles into iframe.', error);
+        }
+      }
+
+      libraryFrame.addEventListener('load', () => injectFrameStyles(libraryFrame, 'library'));
+      newProgramFrame.addEventListener('load', () => injectFrameStyles(newProgramFrame, 'new'));
+
+      reloadBothBtn.addEventListener('click', () => {
+        libraryFrame.src = 'index.html?splitPane=library&_=' + Date.now();
+        newProgramFrame.src = 'program-new-split-test.html?splitPane=new&_=' + Date.now();
+      });
+
+      let dragging = false;
+      splitter.addEventListener('pointerdown', (event) => {
+        if (window.matchMedia('(max-width: 920px)').matches) return;
+        dragging = true;
+        splitter.setPointerCapture?.(event.pointerId);
+        document.body.style.userSelect = 'none';
+      });
+      splitter.addEventListener('pointermove', (event) => {
+        if (!dragging) return;
+        const rect = grid.getBoundingClientRect();
+        const pct = ((event.clientX - rect.left) / rect.width) * 100;
+        const clamped = Math.max(40, Math.min(66, pct));
+        document.documentElement.style.setProperty('--left-width', clamped + '%');
+      });
+      splitter.addEventListener('pointerup', (event) => {
+        dragging = false;
+        splitter.releasePointerCapture?.(event.pointerId);
+        document.body.style.userSelect = '';
+      });
+      splitter.addEventListener('pointercancel', () => {
+        dragging = false;
+        document.body.style.userSelect = '';
+      });
+    })();
+  </script>
+</body>
+</html>
