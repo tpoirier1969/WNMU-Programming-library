@@ -1,67 +1,438 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#294f3f">
-  <link rel="icon" type="image/svg+xml" href="assets/icon-camping.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-  <link rel="manifest" href="site.webmanifest">
-  <title>Boondocking & Camping Maps</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="styles/marker-icons.css">
-  <style>
-:root{--bg:#edf1ea;--panel:rgba(248,247,241,.98);--panel-border:#c9cfbf;--text:#1c241f;--muted:#5b665d;--accent:#2f5f4a;--accent-2:#6f8f63;--accent-soft:#e5efe8;--shadow:0 10px 30px rgba(24,33,27,.18);--radius:16px}*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}body{overflow:hidden}a{color:#215fcb}button,input,select,textarea{font:inherit}button{cursor:pointer}#app{position:relative;width:100%;height:100%}#map{position:absolute;inset:0;background:#d7e4d2}.hidden{display:none!important}
-#menuToggle{position:absolute;z-index:1100;top:16px;left:16px;width:46px;height:46px;border-radius:12px;border:1px solid rgba(27,49,36,.15);background:linear-gradient(180deg,#f7fbf8,#edf3ec);box-shadow:var(--shadow)}#sidebar{position:absolute;z-index:1050;top:16px;left:16px;bottom:16px;width:min(430px,calc(100vw - 32px));background:var(--panel);border:1px solid rgba(36,60,46,.14);border-radius:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;transform:translateX(0);transition:transform .2s ease}#sidebar.closed{transform:translateX(calc(-100% - 22px))}.sidebar-scroll{overflow:auto;padding:18px 18px 26px}.panel-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin:-18px -18px 14px;padding:18px;background:linear-gradient(135deg,#335f4d 0%,#6f8f63 100%);color:#fff}.brand-icon{width:58px;height:58px;border-radius:16px;border:2px solid rgba(255,255,255,.55);background:#fff;object-fit:cover;box-shadow:0 6px 14px rgba(0,0,0,.16)}.panel-head h1{margin:0;font-size:1.28rem;line-height:1.05;letter-spacing:.02em;text-transform:uppercase;color:#fff}.brand-sub{margin:4px 0 0;color:rgba(255,255,255,.86);font-size:.86rem}.state-badge{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.18);font-size:.82rem}#closeSidebar{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.14);color:#fff;border-radius:10px;width:36px;height:36px}.section{padding:14px 0 18px;border-top:1px solid #d8ddd2}.section:first-of-type{border-top:0}.section h2{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:1.05rem;color:#274634}.mini-note,.muted{color:var(--muted);font-size:.92rem}.row{display:flex;gap:8px;align-items:center}.row.wrap,.route-row{flex-wrap:wrap}.field-grid,.route-grid,.section-launch,.toggle-grid,.reference-panel,.reference-list{display:grid;gap:8px}input[type=text],input[type=url],input[type=email],input[type=password],input[type=number],select,textarea{width:100%;border:1px solid #c8d2c6;background:#fff;color:var(--text);border-radius:12px;padding:10px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}textarea{min-height:90px;resize:vertical}.primary,.secondary,.chip{border-radius:12px;border:1px solid #b8c8ba;padding:9px 12px;background:#fff}.primary{background:linear-gradient(180deg,#356a52,#294f3f);color:#fff;border-color:#294f3f}.secondary.active,.chip.active{background:linear-gradient(180deg,#356a52,#294f3f);color:#fff;border-color:#294f3f}.chip{padding:7px 10px;font-size:.9rem}.check{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid #d6ddd2;border-radius:12px;background:#fff}.check input{margin-top:3px}.check .meta{margin-left:auto;color:var(--muted);font-size:.86rem;white-space:nowrap}.dropdown-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid #bfd0c0;background:linear-gradient(180deg,#f8fcf9,#eef5ef);color:#214031;font-weight:600}.dropdown-panel{margin-top:10px;border:1px solid #cfe0d0;border-radius:16px;background:rgba(255,255,255,.92);box-shadow:0 8px 20px rgba(31,45,35,.08);padding:12px}.layer-toolbar,.quick-filters,.filter-chip-row,.state-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.layer-site-count{margin-left:auto;color:var(--muted);font-size:.86rem;white-space:nowrap}.dev-notice{margin:8px 0 0;color:rgba(255,255,255,.92);font-size:.82rem;line-height:1.28}.dev-notice a{color:#fff;text-decoration:underline}.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.access-filter-group{border:1px solid #c8d2c6;background:#fff;border-radius:12px;padding:9px 11px;margin:0;display:grid;gap:7px}.mini-check{display:flex!important;align-items:center;gap:8px}.filter-status,.route-status{font-size:.82rem;color:var(--muted);margin-top:8px}#mapLoading{position:absolute;z-index:1000;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(243,241,234,.6);color:#19311f;font-weight:600;pointer-events:none}.map-legend-panel{position:absolute;z-index:1000;right:16px;bottom:76px;max-width:min(360px,calc(100vw - 32px));padding:12px 14px;border-radius:14px;border:1px solid rgba(34,43,39,.16);background:rgba(251,250,246,.96);box-shadow:var(--shadow);font-size:.88rem}.legend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 14px;margin-top:8px}.legend-item{display:flex;align-items:center;gap:8px;min-width:0}.modal-backdrop{position:absolute;inset:0;z-index:1800;background:rgba(13,20,16,.42);display:none;align-items:center;justify-content:center;padding:16px}.modal-backdrop.open{display:flex}.modal-card{width:min(650px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--panel-border);border-radius:20px;box-shadow:0 22px 70px rgba(0,0,0,.34);padding:16px}.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-4px 0 12px}.modal-close{border:1px solid #cfd8cd;background:#fff;border-radius:12px;width:40px;height:40px;font-size:1.2rem}#statusBar{position:absolute;z-index:900;right:16px;bottom:16px;max-width:min(520px,calc(100vw - 32px));padding:10px 14px;border-radius:12px;background:rgba(27,34,30,.82);color:#fff;box-shadow:var(--shadow)}.mobile-action-bar{display:none}.legend-mobile-wrap{display:none}.popup-title{font-weight:700;font-size:1rem}.popup-meta{color:var(--muted);font-size:.9rem;margin-bottom:8px}.popup-grid{display:grid;gap:6px;margin:8px 0}.popup-row{display:grid;grid-template-columns:110px 1fr;gap:8px}.popup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.popup-notice{margin:8px 0;padding:8px 10px;border-radius:12px;border:1px solid #d8c99b;background:#fff8dc;color:#5b4611;font-weight:700;line-height:1.25}.sidebar-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 10px}.sidebar-tab{border-radius:12px;border:1px solid #b8c8ba;padding:10px 12px;background:#fff;font-weight:700;color:#274634}.sidebar-tab.active{background:linear-gradient(180deg,#356a52,#294f3f);border-color:#294f3f;color:#fff}.tab-panel[hidden]{display:none!important}.desktop-action-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 12px}.desktop-action-bar button{border:1px solid rgba(36,60,46,.18);border-radius:14px;background:rgba(251,250,246,.96);box-shadow:0 4px 12px rgba(24,33,27,.10);padding:9px 4px;font-size:.82rem;font-weight:800;color:#274634}.desktop-action-bar button.active{background:linear-gradient(180deg,#356a52,#294f3f);color:#fff;border-color:#294f3f}.area-outline-checklist{display:grid;gap:6px;max-height:260px;overflow:auto;border:1px solid #d6ddd2;border-radius:12px;background:#fff;padding:8px;margin:8px 0}.area-outline-status{font-size:.82rem;line-height:1.35;color:#405246;background:#fff;border:1px solid #d6ddd2;border-radius:12px;padding:9px 10px;margin-bottom:8px}.leaflet-interactive.area-outline-shape{pointer-events:auto}.route-stop-row{display:grid;grid-template-columns:1fr auto;gap:8px}.route-summary{display:grid;gap:3px;margin-top:8px;padding:8px 10px;border:1px solid rgba(40,93,66,.18);border-radius:10px;background:rgba(255,255,255,.68);font-size:.82rem;color:#26382e}.route-summary[hidden]{display:none}.route-service-note{font-size:.78rem;color:var(--muted);line-height:1.35;margin-top:8px}
-@media(max-width:900px){#mapLegendDesktop{display:none}.legend-mobile-wrap{display:block}.legend-grid{grid-template-columns:1fr}}
-@media(max-width:700px){#menuToggle{top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));width:44px;height:44px;z-index:1250}#sidebar{top:max(62px,calc(env(safe-area-inset-top) + 58px));left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:64px;width:auto;border-radius:16px}.sidebar-scroll{padding:14px 14px 22px}.panel-head{margin:-14px -14px 12px;padding:14px}.brand-icon{width:48px;height:48px;border-radius:13px}.panel-head h1{font-size:1.05rem}.brand-sub{font-size:.76rem}.row:not(.wrap),.route-stop-row{grid-template-columns:1fr;flex-direction:column;align-items:stretch}.primary,.secondary,.chip{min-height:42px}.leaflet-control-zoom{margin-top:62px!important}.leaflet-popup-content-wrapper{max-width:calc(100vw - 34px)}.leaflet-popup-content{max-width:calc(100vw - 62px);max-height:62vh;overflow:auto}.popup-row{grid-template-columns:1fr;gap:2px}.filter-grid{grid-template-columns:1fr}.modal-backdrop{align-items:flex-end;padding:8px}.modal-card{width:100%;max-height:88vh;border-radius:18px 18px 14px 14px}.mobile-action-bar{position:absolute;z-index:1250;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.mobile-action-bar button{border:1px solid rgba(36,60,46,.18);border-radius:14px;background:rgba(251,250,246,.96);box-shadow:0 6px 18px rgba(24,33,27,.16);padding:9px 4px;font-size:.78rem;font-weight:700}#statusBar{left:8px;right:8px;bottom:64px;max-width:none;font-size:.88rem;padding:8px 10px}.desktop-action-bar{display:none!important}}
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WNMU TV Programming Library</title>
+  <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="programming-library-tab-icon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="programming-library-tab-icon-16.png" />
+  <link rel="shortcut icon" href="programming-library-tab-icon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="programming-library-tab-icon-180.png" />
+  <link rel="stylesheet" href="styles.css?v=1.5.94" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>window.WNMU_APP_VERSION = 'v1.5.109'; window.WNMU_VERSION_MANIFEST = 'version.json';</script>
+  <script defer src="js/core.js?v=1.5.93"></script>
+  <script defer src="js/auth-init.js?v=1.5.47"></script>
+  <script defer src="js/data-store.js?v=1.5.47"></script>
+  <script defer src="js/quick-airdates-fix.js?v=1.5.95"></script>
+  <script defer src="js/filters-list.js?v=1.5.93"></script>
+  <script defer src="js/editor-export.js?v=1.5.47"></script>
+  <script defer src="js/import-pbs.js?v=1.5.47"></script>
+  <script defer src="js/lookup.js?v=1.5.47"></script>
+  <script defer src="js/events.js?v=1.5.93"></script>
+  <script defer src="js/auth-login-fix-v15109.js?v=1.5.109"></script>
+  <script defer src="js/library-workflow.js?v=1.5.61"></script>
+  <script defer src="js/library-filter-layout-v1596.js?v=1.5.106"></script>
+  <script defer src="js/app-version-check.js?v=1.5.109"></script>
+  <script defer src="js/library-main-ui-v15109.js?v=1.5.109"></script>
 </head>
-<body class="desktop-panel-active desktop-mode-where">
-<div id="app">
-  <div id="map"></div>
-  <div id="mapLoading">Loading map…</div>
-  <div id="mapLegendDesktop" class="map-legend-panel" aria-label="Map legend"></div>
-  <button id="menuToggle" aria-label="Open controls">☰</button>
-  <aside id="sidebar">
-    <div class="sidebar-scroll">
-      <div class="panel-head">
-        <img class="brand-icon" src="assets/icon-192.png" alt="Boondocking and Camping Maps icon">
-        <div><h1>Boondocking<br>&amp; Camping Maps</h1><p class="brand-sub">Public-land camping planner</p><div class="state-badge">Build <strong id="versionTag">loading…</strong></div></div>
-        <button id="closeSidebar" aria-label="Close panel">✕</button>
-      </div>
-      <p id="statusLine" class="dev-notice">This app is still in active development. Errors may occur but should be corrected quickly. To report issues contact: <a href="mailto:tpoirier@nmu.edu">tpoirier@nmu.edu</a></p>
-      <p id="dataStats" class="mini-note" hidden></p>
-      <div class="sidebar-tabs" role="tablist" aria-label="Menu tabs"><button id="mainTabButton" class="sidebar-tab active" type="button" data-sidebar-tab="main">Map controls</button><button id="referenceTabButton" class="sidebar-tab" type="button" data-sidebar-tab="reference">Information &amp; reference</button></div>
-      <div class="desktop-action-bar" aria-label="Map control sections"><button type="button" data-desktop-action="map">Map</button><button type="button" data-desktop-action="where">Where</button><button type="button" data-desktop-action="layers">Layers</button><button type="button" data-desktop-action="more">More</button></div>
-      <div id="mainTabPanel" class="tab-panel" role="tabpanel">
-        <section class="section" id="basemapSection"><h2>Basemap</h2><select id="basemapSelect"><option value="topo">Topo</option><option value="opentopo">OpenTopo</option><option value="osm">OpenStreetMap</option><option value="satellite">Satellite</option></select></section>
-        <section class="section" id="stateSection"><h2>State view</h2><div class="state-dropdown"><button id="stateMenuButton" class="dropdown-btn" type="button" aria-expanded="false" aria-controls="stateMenuPanel"><span>Choose states</span><span id="stateSelectionSummary" class="summary-note">Michigan selected</span><span class="caret">▾</span></button><div id="stateMenuPanel" class="dropdown-panel" hidden><div class="state-toolbar" aria-label="Multi-state controls"><button id="selectAllStates" class="secondary" type="button">Select all mapped</button><button id="clearStates" class="secondary" type="button">Clear states</button></div><div id="stateChecklist" class="state-checklist" aria-label="Choose one or more states"></div></div></div><div id="stateSelectionNote" class="mini-note state-note">Choose one or more states. The map will zoom to the selected state area.</div></section>
-        <section class="section" id="searchSection"><h2>Find / Near Me / Route</h2><div class="field-grid"><div class="row"><input id="searchInput" type="text" placeholder="Search loaded sites or paste coordinates"><button id="searchBtn" class="primary" type="button">Search</button></div><div id="searchResults" class="field-grid"></div><div class="row wrap"><button id="nearMeBtn" class="primary" type="button">Near Me — 180 miles</button><button id="enableLocationBtn" class="secondary" type="button">Use live location</button></div><div id="locationStatus" class="filter-status">Location is off.</div></div><div class="route-grid" style="margin-top:12px;"><label>Route start<input id="routeStart" type="text" placeholder="Start address, town, or lat,lng"></label><div id="routeStops" class="field-grid"></div><button id="routeAddStopBtn" class="secondary" type="button">Add stop</button><label>Route destination<input id="routeEnd" type="text" placeholder="Destination address, town, or lat,lng"></label><div class="route-row"><label>Route buffer: <span id="routeMilesValue">25</span> miles<input id="routeMiles" type="range" min="1" max="150" step="1" value="25"></label><input id="routeMilesNumber" type="number" min="1" max="150" step="1" value="25" aria-label="Route buffer miles"></div><div class="row wrap"><button id="routeGoBtn" class="primary" type="button">Map route</button><button id="routeClearBtn" class="secondary" type="button">Clear route</button></div><div id="routeStatus" class="route-status">Route Search is off.</div><div id="routeSummary" class="route-summary" hidden></div><div class="route-service-note">Route Search uses OSRM/OpenStreetMap routing and filters loaded sites within the selected mileage buffer.</div><div class="field-grid"><label>Cloud saved routes<select id="routeSavedSelect"><option value="">Cloud saved routes</option></select></label><input id="routeSaveName" type="text" placeholder="Route save name"><div class="row wrap"><button id="routeSaveBtn" class="secondary" type="button">Save route</button><button id="routeLoadBtn" class="secondary" type="button">Load route</button><button id="routeDeleteBtn" class="secondary" type="button">Delete route</button></div><div id="routeSavedStatus" class="filter-status">Cloud saved routes not loaded yet.</div><div id="routeAccountStatus" class="filter-status">Create an account or sign in to save routes across devices.</div><div id="routeAuthControls" class="field-grid"><div class="row"><input id="routeAuthEmail" type="email" placeholder="Email" autocomplete="username email"><input id="routeAuthPassword" type="password" placeholder="Password" autocomplete="current-password"></div><div class="row wrap"><button id="routeSignInBtn" class="secondary" type="button">Sign in</button><button id="routeCreateAccountBtn" class="secondary" type="button">Create account</button></div></div><button id="routeSignOutBtn" class="secondary" type="button" hidden>Log out</button></div></div></section>
-        <section class="section" id="layersSection"><h2>Map layers</h2><div class="layer-toolbar"><button id="selectAllLayers" class="secondary" type="button">Select all</button><button id="clearAllLayers" class="secondary" type="button">Clear all</button><button id="restOnlyToggle" class="secondary rest-focus-btn" type="button" aria-pressed="false">Rest stops only</button><span id="layerSiteCount" class="layer-site-count">Showing 0 of 0 loaded sites</span></div><div id="restRoadsideStats" class="filter-status" hidden></div><div id="layerList" class="toggle-grid"></div></section>
-        <section class="section" id="areaOutlineSection"><h2>Official area outline</h2><div id="areaOutlineCount" class="mini-note">No official context outlines loaded.</div><div class="area-outline-dropdown"><button id="areaOutlineMenuButton" class="dropdown-btn" type="button" aria-expanded="false" aria-controls="areaOutlineMenuPanel"><span>Choose area outlines by state</span><span id="areaOutlineSelectionSummary" class="summary-note">None available</span><span class="caret">▾</span></button><div id="areaOutlineMenuPanel" class="dropdown-panel" hidden><div id="areaOutlineChecklist" class="area-outline-checklist"></div></div></div><div class="route-row"><button id="showBoondockingOutlinesBtn" class="secondary" type="button">Show boondocking outlines</button><button id="showAreaOutlineBtn" class="secondary" type="button">Fit shown outlines</button><button id="clearAreaOutlineBtn" class="secondary" type="button">Clear area outlines</button></div><div id="areaOutlineStatus" class="area-outline-status">No official area outline is currently shown.</div><div class="mini-note">Outlines are listed only for selected states. Check a state group to show all official area outlines for that state; labels stay hidden until you zoom near individual outlines.</div></section>
-        <section class="section" id="filterSection"><h2>Filters</h2><div class="filter-chip-row"><button type="button" class="chip" data-filter-chip="free">Free</button><button type="button" class="chip" data-filter-chip="under20">≤ $20</button><button type="button" class="chip" data-filter-chip="showers">Showers</button><button type="button" class="chip" data-filter-chip="twowd">2WD</button><button id="clearFiltersBtn" type="button" class="secondary">Clear filters</button></div><div class="filter-grid"><label>Max cost<select id="costFilter"><option value="">Any cost</option><option value="0">Free only</option><option value="20">$20 or less</option><option value="30">$30 or less</option></select></label><fieldset class="access-filter-group water-filter-group"><legend>Waterfront / bordering water</legend><label class="mini-check"><input type="checkbox" data-water-filter="lake"> Lake / pond / flowage</label><label class="mini-check"><input type="checkbox" data-water-filter="rivercreek"> River / creek</label></fieldset><fieldset class="access-filter-group"><legend>Access</legend><label class="mini-check"><input type="checkbox" data-access-filter="twowd"> 2WD friendly</label><label class="mini-check"><input type="checkbox" data-access-filter="hc"> High clearance</label><label class="mini-check"><input type="checkbox" data-access-filter="fw"> 4WD noted</label></fieldset></div><div id="filterStatus" class="filter-status">No filters active.</div></section>
-        <section class="section legend-mobile-wrap" id="mobileLegendSection"><details id="legendPanelMobile" class="legend-mobile"><summary>Map legend</summary><div id="mapLegendMobile" class="legend-mobile-body"></div></details></section>
-        <section class="section" id="syncSection"><h2>Account / cloud sync</h2><div id="supabaseStatus" class="mini-note">Static fallback mode.</div><form id="sbAuthForm" class="field-grid" style="margin-top:10px;"><div id="accountAuthControls" class="field-grid"><div class="row"><input id="sbEmail" type="email" placeholder="Email" autocomplete="username email"><input id="sbPassword" type="password" placeholder="Password" autocomplete="current-password"></div><div class="row wrap"><button id="sbSignInBtn" class="primary" type="submit">Sign in</button><button id="sbCreateAccountBtn" class="secondary" type="button">Create account</button></div></div><button id="sbSignOutBtn" class="secondary" type="button" hidden>Log out</button><div class="mini-note">Accounts use Supabase Auth. Once signed in, saved routes are tied to that user and can load on another device.</div><label class="check"><input id="showPendingLayer" type="checkbox"><span>Needs Verification layer</span><span class="meta" id="pendingMeta">off</span></label></form></section>
-        <section class="section section-launch" id="toolsSection"><button id="openAddSiteBtn" class="primary" type="button">Add a site <span>›</span></button><button id="openQueueBtn" class="secondary" type="button">Manual site queue <span>›</span></button></section>
-      </div>
-      <div id="referenceTabPanel" class="tab-panel" role="tabpanel" hidden><section class="section"><h2>Information &amp; reference</h2><div class="reference-note">Broad reference items are listed here instead of being plotted as tiny map dots. Campgrounds, boondocking, overnight parking, rest areas, and needs-verification items remain on the map.</div><div id="referenceContent" class="reference-panel" style="margin-top:12px;"></div></section></div>
-      <button id="mobileBackToMap" class="mobile-back-to-map" type="button" data-mobile-close>Back to Map</button>
+<body>
+  <div id="setupNotice" class="setup-notice hidden">
+    <div class="setup-card">
+      <h1>WNMU TV Programming Library</h1>
+      <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+      <p>The app will wake up after that.</p>
     </div>
+  </div>
+
+  <div id="authShell" class="auth-shell hidden">
+    <div class="auth-card">
+      <div class="brand-auth">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="brand-logo auth-logo program-brand-mark" />
+        <div>
+          <h1 id="authTitle">WNMU TV Programming Library</h1>
+          <div class="brand-subtitle">PROGRAMMING LIBRARY</div>
+        </div>
+      </div>
+      <p class="muted">Sign in with GitHub for admin access. Everyone else can keep using the library in read-only mode.</p>
+      <div class="auth-form">
+        <button type="button" id="loginGitHubBtn" class="primary auth-provider-btn">Sign in with GitHub</button>
+      </div>
+      <div id="authMessage" class="auth-message"></div>
+      <div class="auth-actions">
+        <button type="button" id="cancelLoginBtn" class="ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="brand-logo program-brand-mark" />
+        <div>
+          <div class="brand-name">WNMU-TV PBS</div>
+          <div class="title-row compact-title-row">
+            <h1 id="appTitle">WNMU TV Programming Library</h1>
+            <span id="appVersion" class="version-pill">v1.5.109</span>
+            <span id="statusLine" class="status-line topbar-status-inline">Loading…</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="adminBtn" class="primary">Admin sign in</button>
+        <button id="undoViewBtn" class="hidden">Undo view</button>
+        <button id="newProgramBtn" class="primary hidden">New program</button>
+        <button id="monthlyMediaBtn">Monthly media</button>
+        <button id="holidayCalendarBtn">Holidays / events</button>
+        <button id="exportBtn">Export current view</button>
+        <button id="logoutBtn" class="hidden">Sign out</button>
+        <button id="refreshBtn" class="hidden" aria-hidden="true" tabindex="-1">Refresh</button>
+      </div>
+    </header>
+
+    <nav class="mobile-section-nav" id="mobileSectionNav" aria-label="Phone sections">
+      <button type="button" id="showFiltersBtn" class="mobile-section-btn active" data-mobile-section="filters">Filters</button>
+      <button type="button" id="showProgramsBtn" class="mobile-section-btn" data-mobile-section="programs">Programs</button>
+    </nav>
+
+    <section id="controlsPanel" class="controls compact-controls">
+      <div class="quick-strip" id="quickStrip">
+        <button type="button" class="stat-card quick-card quick-view" data-view="all">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">All programs</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="active">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Active</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">New to 13.1</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_3">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">New to 13.3</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Michigan programming</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Evergreens</div>
+        </button>
+        <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
+          <div class="stat-label">Quick filter</div>
+          <div class="stat-value small">Missing info</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
+          <div class="stat-label">APT check</div>
+          <div id="statApt" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="ending_soon">
+          <div class="stat-label">Ending in 90 days</div>
+          <div id="statEnding" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="missing_rights">
+          <div class="stat-label">Missing rights</div>
+          <div id="statMissingRights" class="stat-value">0</div>
+        </button>
+        <button type="button" class="stat-card quick-card" data-view="archived">
+          <div class="stat-label">Archived</div>
+          <div id="statArchived" class="stat-value">0</div>
+        </button>
+      </div>
+      <div class="filters filters-grid">
+        <div class="filter-box wide">
+          <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></div>
+          <select id="topicFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box wide">
+          <div class="filter-label-row"><label class="filter-label" for="secondaryTopicFilter">Secondary topics</label><button type="button" id="clearSecondaryTopicFilter" class="mini-clear">Clear</button></div>
+          <select id="secondaryTopicFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box">
+          <div class="filter-label-row"><label class="filter-label" for="lengthFilter">Lengths</label><button type="button" id="clearLengthFilter" class="mini-clear">Clear</button></div>
+          <select id="lengthFilter" multiple size="5"></select>
+        </div>
+        <div class="filter-box">
+          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Uses</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
+          <select id="codeFilter" multiple size="5"></select>
+        </div>
+        <div class="filters-cluster compact-search-cluster">
+          <div class="filter-box cluster-search-text">
+            <label class="filter-label" for="searchInput">Search text</label>
+            <input id="searchInput" type="search" placeholder="Search programs" />
+          </div>
+          <div class="filter-box cluster-rights-start rights-range-filter-box">
+            <div class="filter-label-row">
+              <label class="filter-label" for="rightsWindowStartFilter">Rights begin</label>
+              <button type="button" id="clearRightsWindowFilter" class="mini-clear">Clear</button>
+            </div>
+            <input id="rightsWindowStartFilter" type="date" aria-label="Rights window begin date" />
+          </div>
+          <div class="filter-box cluster-distributor">
+            <label class="filter-label" for="distributorFilter">Distributor</label>
+            <select id="distributorFilter"><option value="">All distributors</option></select>
+          </div>
+          <div class="filter-box cluster-type">
+            <label class="filter-label" for="programTypeFilter">Program / Series</label>
+            <select id="programTypeFilter"><option value="">All types</option></select>
+          </div>
+          <div id="episodeFilterBox" class="filter-box cluster-episodes">
+            <div class="filter-label-row">
+              <label class="filter-label" for="episodeMinFilter">Episodes</label>
+              <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
+            </div>
+            <div class="episode-range-filter">
+              <input id="episodeMinFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Min" aria-label="Minimum episode count" />
+              <input id="episodeMaxFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Max" aria-label="Maximum episode count" />
+            </div>
+          </div>
+          <div class="filter-box cluster-search-in">
+            <label class="filter-label" for="searchFieldSelect">Search in</label>
+            <select id="searchFieldSelect">
+              <option value="">All fields</option>
+              <option value="title">Title</option>
+              <option value="notes">Description</option>
+              <option value="legacy_code">Uses</option>
+              <option value="nola_eidr">NOLA</option>
+              <option value="topic">Topic</option>
+              <option value="secondary_topic">Secondary topic</option>
+              <option value="aired_13_1">Aired on 13.1</option>
+              <option value="aired_13_3">Aired on 13.3</option>
+              <option value="distributor">Distributor</option>
+              <option value="rights_notes">Rights notes</option>
+            </select>
+          </div>
+          <div class="filter-box cluster-rights-end rights-range-filter-box">
+            <label class="filter-label" for="rightsWindowEndFilter">Rights end</label>
+            <input id="rightsWindowEndFilter" type="date" aria-label="Rights window end date" />
+          </div>
+          <div class="filter-box cluster-status">
+            <label class="filter-label" for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="">All statuses</option>
+              <option value="needs_apt_check">Needs APT check</option>
+              <option value="ending_soon">Ending within 90 days</option>
+              <option value="new_to_13_1">New to 13.1</option>
+              <option value="new_to_13_3">New to 13.3</option>
+              <option value="archive_candidate">Archive candidate</option>
+              <option value="missing_rights">Missing rights begin or end</option>
+              <option value="missing_info">Missing info</option>
+            </select>
+          </div>
+          <div class="filter-box cluster-rating">
+            <label class="filter-label" for="ratingFilter">Rating</label>
+            <select id="ratingFilter">
+              <option value="">All ratings</option>
+              <option value="unrated">Unrated</option>
+              <option value="1">1 star</option>
+              <option value="2">2 stars</option>
+              <option value="3">3 stars</option>
+              <option value="4">4 stars</option>
+              <option value="5">5 stars</option>
+              <option value="4plus">4+ stars</option>
+              <option value="3plus">3+ stars</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="filter-foot">
+        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
+      </div>
+    </section>
+
+    <section id="listPanel" class="list-panel">
+      <div class="list-meta">
+        <div>
+          <div class="list-title">Program list</div>
+          <div id="listSummary" class="list-summary">Showing 0 programs.</div>
+        </div>
+        <div id="listPerfPanel" class="list-perf-panel hidden">
+          <div id="listPerfText" class="list-perf-text">Fast view is active.</div>
+          <div class="list-perf-actions">
+            <button type="button" id="showMoreRowsBtn" class="mini-clear">Show more</button>
+            <button type="button" id="showAllRowsBtn" class="mini-clear">Show all</button>
+            <button type="button" id="showFastRowsBtn" class="mini-clear hidden">Back to fast view</button>
+          </div>
+        </div>
+      </div>
+      <div id="windowReactivateShield" class="window-reactivate-shield hidden" aria-hidden="true"></div>
+      <div class="table-wrap">
+        <table class="programs-table compact-table">
+          <thead>
+            <tr>
+              <th class="col-title"><button type="button" class="sort-header" data-sort-field="title">Title <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-notes"><button type="button" class="sort-header" data-sort-field="notes">Description <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-details"><button type="button" class="sort-header" data-sort-field="topic">Topic <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_1">Aired on 13.1 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_3">Aired on 13.3 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-type"><button type="button" class="sort-header" data-sort-field="package_type">Package type <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights window <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-distributor"><button type="button" class="sort-header" data-sort-field="distributor">Distributor <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-flags">Flags</th>
+            </tr>
+          </thead>
+          <tbody id="programTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite">
+    <div class="loading-card">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <div class="loading-title">Loading library</div>
+      <div id="loadingDetail" class="loading-detail">Loading data…</div>
+    </div>
+  </div>
+
+  <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
+  <aside id="editorDrawer" class="drawer hidden" aria-modal="true" role="dialog">
+    <div class="drawer-header">
+      <div class="drawer-title-wrap"><h2 id="drawerTitle">Program</h2><span id="drawerModeBadge" class="drawer-mode-badge">Read only</span></div>
+      <button id="closeDrawerBtn" class="ghost">Close</button>
+    </div>
+
+    <form id="programForm" class="program-form">
+      <div class="template-tools span-2" id="templateTools">
+        <label class="template-field">Copy details from existing
+          <input id="templateSourceInput" type="text" list="templateSourceList" placeholder="Start typing a title, then choose one and click Load" />
+          <datalist id="templateSourceList"></datalist>
+        </label>
+        <button type="button" id="loadTemplateBtn">Load</button>
+      </div>
+
+      <div class="pbs-import-tools span-2 hidden" id="pbsImportTools">
+        <div class="pbs-import-head">
+          <div>
+            <div class="pbs-import-title">Import PBS offer</div>
+            <div class="pbs-import-note">Paste a PBS offer, preview what will map, then fill a new draft for review.</div>
+          </div>
+          <button type="button" id="togglePbsImportBtn" class="secondary">Paste PBS offer</button>
+        </div>
+        <div id="pbsImportPanel" class="pbs-import-panel hidden">
+          <label class="pbs-import-field">PBS offer text
+            <textarea id="pbsOfferInput" rows="12" placeholder="Paste the PBS program offer here."></textarea>
+          </label>
+          <div class="pbs-import-controls">
+            <label class="pbs-import-mode-field">Draft style
+              <select id="pbsImportMode">
+                <option value="series">Series record from release title</option>
+                <option value="program">Program draft from first listed episode</option>
+              </select>
+            </label>
+            <button type="button" id="parsePbsOfferBtn" class="primary">Parse PBS offer</button>
+            <button type="button" id="clearPbsOfferBtn" class="ghost">Clear</button>
+          </div>
+          <div id="pbsImportPreview" class="pbs-import-preview hidden"></div>
+        </div>
+      </div>
+
+      <div id="duplicateCheck" class="duplicate-check span-2 hidden"></div>
+
+      <div class="form-grid">
+        <label class="row-title">Title
+          <input name="title" type="text" required />
+        </label>
+        <label class="row-nola">NOLA
+          <input name="nola_eidr" type="text" />
+        </label>
+        <label class="row-length">Length
+          <input name="length_minutes" type="text" />
+        </label>
+        <label class="row-use">Use?
+          <input name="legacy_code" type="text" placeholder="AM250 / Y / N / M" />
+        </label>
+
+        <div class="lookup-tools span-full">
+          <button type="button" id="lookupBtn" class="secondary" disabled>Lookup online</button>
+          <div id="lookupMessage" class="lookup-message muted">Enter a title to enable lookup.</div>
+        </div>
+
+        <label class="span-full">Description
+          <textarea name="notes" rows="4"></textarea>
+        </label>
+
+        <div class="editor-rating-row span-full">
+          <label class="rating-field">Rating
+            <input name="rating" type="hidden" />
+            <div id="editorRating" class="star-rating editor-star-rating" role="radiogroup" aria-label="Program rating">
+              <button type="button" class="star-rating-btn" data-editor-rating="1" aria-label="1 star" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="2" aria-label="2 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="3" aria-label="3 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="4" aria-label="4 stars" role="radio" aria-checked="false">★</button>
+              <button type="button" class="star-rating-btn" data-editor-rating="5" aria-label="5 stars" role="radio" aria-checked="false">★</button>
+              <span class="rating-value-label">Not rated</span>
+            </div>
+            <div class="rating-help muted">Click a star to rate. Click the same star again to clear.</div>
+          </label>
+        </div>
+
+        <div class="program-rights-row span-full">
+          <label>Program or series
+            <select name="program_type"></select>
+          </label>
+          <label>Season / Episode
+            <input name="episode_season" type="text" placeholder="100's / 8" />
+          </label>
+          <label class="compact-rights">Rights begin
+            <div class="date-entry-wrap">
+              <input name="rights_begin" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+              <button type="button" class="date-picker-btn" data-date-picker="rights_begin" aria-label="Pick rights begin date" title="Pick rights begin date">📅</button>
+              <input name="rights_begin_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+            </div>
+          </label>
+          <label class="compact-rights">Rights end
+            <div class="date-entry-wrap">
+              <input name="rights_end" type="text" inputmode="numeric" placeholder="3/20/26 or 3/20/2026" />
+              <button type="button" class="date-picker-btn" data-date-picker="rights_end" aria-label="Pick rights end date" title="Pick rights end date">📅</button>
+              <input name="rights_end_picker" type="date" class="date-picker-proxy" tabindex="-1" aria-hidden="true" />
+            </div>
+          </label>
+        </div>
+        <label>Topic
+          <select name="topic"></select>
+        </label>
+        <label class="secondary-topic-field">Secondary topic
+          <input name="secondary_topic" type="text" list="secondaryTopicList" placeholder="Select or type one or more topics, separated by commas" />
+          <datalist id="secondaryTopicList"></datalist>
+        </label>
+
+        <div class="compact-form-row span-full compact-form-row-rights">
+          <label class="compact-field rights-notes-field">Rights notes
+            <textarea name="rights_notes" rows="2"></textarea>
+          </label>
+          <label class="compact-field distributor-field">Distributor
+            <input name="distributor" type="text" list="distributorList" placeholder="Choose or type a new distributor" />
+            <datalist id="distributorList"></datalist>
+          </label>
+          <label class="compact-field" id="voteFieldWrap">Vote
+            <select name="vote">
+              <option value=""></option>
+              <option value="Y">Y</option>
+              <option value="N">N</option>
+              <option value="M">M</option>
+            </select>
+          </label>
+          <label class="compact-field">Package type
+            <select name="package_type"></select>
+          </label>
+          <label class="compact-field">Source
+            <select name="server_tape"></select>
+          </label>
+          <label class="compact-field compact-airing">Aired on 13.1
+            <input name="aired_13_1" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+          </label>
+          <label class="compact-field compact-airing">Aired on 13.3
+            <input name="aired_13_3" type="text" placeholder="3/20/26 20:00; 3/22/26 13:00" />
+          </label>
+        </div>
+      </div>
+
+      <div id="formFlags" class="form-flags"></div>
+
+      <div id="readOnlyNote" class="read-only-note hidden">Read-only mode. Use Admin sign in with GitHub to add, edit, duplicate, or delete programs.</div>
+      <div class="drawer-actions">
+        <button type="submit" id="saveBtn" class="primary">Save</button>
+        <button type="button" id="duplicateBtn">Duplicate</button>
+        <button type="button" id="restoreBtn" class="secondary hidden">Restore to active</button>
+        <button type="button" id="deleteBtn" class="danger">Delete permanently</button>
+      </div>
+    </form>
   </aside>
-  <div id="addSiteModal" class="modal-backdrop" aria-hidden="true"><div class="modal-card"><div class="modal-head"><h2>Add a site</h2><button class="modal-close" type="button" data-close-modal="addSiteModal">✕</button></div><label class="check"><input id="addMode" type="checkbox"><span>Click the map to drop a draft pin</span></label><div class="field-grid" style="margin-top:10px;"><div class="mini-note" id="draftCoords">No draft point selected.</div><input id="draftName" type="text" placeholder="Site name"><div class="row"><input id="draftState" type="text" maxlength="2" placeholder="State code"><select id="draftCategory"><option value="modern">Modern campground</option><option value="rustic">Rustic campground</option><option value="private">Private campground</option><option value="boondocking">Boondocking / dispersed</option><option value="overnight-parking">Overnight parking</option><option value="rest-truck">Roadside stop / rest area</option><option value="info">Info / reference</option></select></div><input id="draftWebsite" type="url" placeholder="Website URL"><textarea id="draftNotes" placeholder="Description / site summary"></textarea><div class="row"><input id="draftCost" type="text" placeholder="Cost / fees"><input id="draftShowers" type="text" placeholder="Showers"></div><input id="draftAccess" type="text" placeholder="Access / road notes (2WD, 4WD, tight turns, etc.)"><textarea id="draftAmenities" placeholder="Amenities (vault toilet, pump, hookups, boat launch, etc.)"></textarea><input id="draftTrailheads" type="text" placeholder="Trailheads / nearby activities"><input id="draftSeason" type="text" placeholder="Season / closure notes"><div class="row"><input id="draftReview" type="text" placeholder="Review summary"><input id="draftRating" type="text" placeholder="Rating (for example 4.3/5)"></div><textarea id="draftExtraLinks" placeholder="Extra links or image links, one per line"></textarea><div class="row wrap"><button id="appendDraftBtn" class="primary" type="button">Append to queue</button><button id="sendDraftSupabaseBtn" class="secondary" type="button">Send to Needs Verification</button><button id="clearDraftBtn" class="secondary" type="button">Clear draft pin</button></div><button class="secondary mobile-modal-bottom-close" type="button" data-close-modal="addSiteModal">Close</button></div></div></div>
-  <div id="queueModal" class="modal-backdrop" aria-hidden="true"><div class="modal-card"><div class="modal-head"><h2>Manual site queue</h2><button class="modal-close" type="button" data-close-modal="queueModal">✕</button></div><textarea id="draftQueue" readonly></textarea><div class="row wrap" style="margin-top:10px;"><button id="copyQueueBtn" class="secondary" type="button">Copy queue</button><button id="clearQueueBtn" class="secondary" type="button">Clear queue</button></div><button class="secondary mobile-modal-bottom-close" type="button" data-close-modal="queueModal">Close</button></div></div>
-  <div class="mobile-action-bar"><button type="button" data-mobile-action="map">Map</button><button type="button" data-mobile-action="where">Where</button><button type="button" data-mobile-action="layers">Layers</button><button type="button" data-mobile-action="more">More</button></div>
-  <div id="statusBar" hidden></div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>window.CAMPING_APP_ENTRY = new URL('index.html', document.baseURI).href;</script>
-<script src="data/states-manifest-v23.1.24.js"></script>
-<script src="data/pending-sites-v22.3.3.js"></script>
-<script src="data/area-outlines-v23.1.10.js"></script>
-<script src="config.js"></script>
-<script src="app-v23.1.24.js"></script>
 </body>
 </html>

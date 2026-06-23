@@ -1,5 +1,14 @@
 {
-  "version": "v23.1.24",
-  "released": "2026-06-23",
-  "summary": "Wisconsin Jackson/Clark proof-build package: adds 15 official public campground/group-camp records, corrects Jackson/Clark county forest permit-area layers to Boondocking / Dispersed, and enriches Black River backpack rule-area popup/source details."
+  "currentAppVersion": "v1.5.109",
+  "requiredAppVersion": "v1.5.109",
+  "publishedVersion": "v1.5.109",
+  "appVersion": "v1.5.98",
+  "version": "v1.5.98",
+  "legacyCompatibilityVersion": "v1.5.98",
+  "versionManifestSchema": 2,
+  "enforceUpdates": true,
+  "disableUpdateGate": false,
+  "name": "WNMU Programming Library",
+  "notes": "Fixes Admin GitHub login redirect by mirroring the Pledge Library redirect helper: use ADMIN_REDIRECT_URL if configured, otherwise return to the current page with the OAuth hash removed. Keeps legacy manifest fields safe for old cached broken checkers.",
+  "updated": "2026-06-22T16:30:00Z"
 }
