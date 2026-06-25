@@ -418,6 +418,12 @@
         color: #335b67 !important;
         font-size: .73rem !important;
       }
+      body.workspace-test-page #workspaceFilterBody {
+        display: block !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed #workspaceFilterBody,
       body.workspace-test-page #controlsPanel.workspace-filters-collapsed #quickStrip,
       body.workspace-test-page #controlsPanel.workspace-filters-collapsed .filters-grid,
       body.workspace-test-page #controlsPanel.workspace-filters-collapsed .filter-foot {
@@ -843,10 +849,40 @@
     updateWorkspaceFilterSummary();
   }
 
+  function ensureWorkspaceFilterBody() {
+    const controls = document.getElementById('controlsPanel');
+    if (!controls) return null;
+
+    let body = document.getElementById('workspaceFilterBody');
+    if (!body) {
+      body = document.createElement('div');
+      body.id = 'workspaceFilterBody';
+      body.className = 'workspace-filter-body';
+      const row = document.getElementById('workspaceFilterToggleRow');
+      if (row && row.parentElement === controls) {
+        controls.insertBefore(body, row.nextSibling);
+      } else {
+        controls.appendChild(body);
+      }
+    }
+
+    const pieces = [
+      document.getElementById('quickStrip'),
+      controls.querySelector('.filters.filters-grid'),
+      controls.querySelector('.filter-foot')
+    ].filter(Boolean);
+
+    pieces.forEach((piece) => {
+      if (piece.parentElement !== body) body.appendChild(piece);
+    });
+
+    return body;
+  }
+
   function installWorkspaceFilterToggle() {
     const controls = document.getElementById('controlsPanel');
     const quickStrip = document.getElementById('quickStrip');
-    if (!controls || !quickStrip) return;
+    if (!controls) return;
 
     let row = document.getElementById('workspaceFilterToggleRow');
     if (!row) {
@@ -854,8 +890,13 @@
       row.id = 'workspaceFilterToggleRow';
       row.className = 'workspace-filter-toggle-row';
       row.innerHTML = '<button type="button" id="workspaceFilterToggleBtn" class="mini-clear" aria-controls="controlsPanel" aria-expanded="true">Hide filters</button><div id="workspaceActiveFilters" class="workspace-active-filters" aria-live="polite">No filters in use</div>';
-      controls.insertBefore(row, quickStrip);
+      if (quickStrip && quickStrip.parentElement === controls) controls.insertBefore(row, quickStrip);
+      else controls.insertBefore(row, controls.firstChild);
+    } else if (row.parentElement !== controls) {
+      controls.insertBefore(row, controls.firstChild);
     }
+
+    ensureWorkspaceFilterBody();
 
     const button = document.getElementById('workspaceFilterToggleBtn');
     if (button && button.dataset.workspaceToggleBound !== 'true') {
