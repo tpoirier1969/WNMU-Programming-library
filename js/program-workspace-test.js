@@ -4,6 +4,7 @@
   'use strict';
 
   const WORKSPACE_KEY = 'wnmu-programming-workspace-left-width';
+  const FILTERS_COLLAPSED_KEY = 'wnmu-programming-workspace-filters-collapsed';
   const DEFAULT_LEFT_WIDTH = 58;
   let shellInstalled = false;
   let splitterInstalled = false;
@@ -385,6 +386,50 @@
         line-height: 1.12 !important;
       }
 
+
+
+      body.workspace-test-page #controlsPanel .workspace-filter-toggle-row {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) !important;
+        gap: 7px !important;
+        align-items: center !important;
+        margin: 0 0 5px 0 !important;
+        min-width: 0 !important;
+      }
+      body.workspace-test-page #workspaceFilterToggleBtn {
+        min-height: 28px !important;
+        padding: 4px 9px !important;
+        border-radius: 999px !important;
+        font-size: .74rem !important;
+        white-space: nowrap !important;
+      }
+      body.workspace-test-page #workspaceActiveFilters {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 28px !important;
+        line-height: 28px !important;
+        padding: 0 9px !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        border: 1px solid rgba(18,134,127,.17) !important;
+        border-radius: 999px !important;
+        background: rgba(255,255,255,.72) !important;
+        color: #335b67 !important;
+        font-size: .73rem !important;
+      }
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed #quickStrip,
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed .filters-grid,
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed .filter-foot {
+        display: none !important;
+      }
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed {
+        padding: 6px !important;
+      }
+      body.workspace-test-page #controlsPanel.workspace-filters-collapsed .workspace-filter-toggle-row {
+        margin-bottom: 0 !important;
+      }
+
       @media (max-width: 980px) {
         body.workspace-admin #appShell.workspace-layout { height: auto !important; min-height: 100dvh !important; overflow: visible !important; }
         body.workspace-admin #workspaceSplitGrid { grid-template-columns: 1fr !important; grid-template-rows: minmax(62vh, auto) 8px minmax(60vh, auto); overflow: visible !important; }
@@ -667,6 +712,7 @@
     renderStats = function workspaceRenderStats(...args) {
       const result = originalRenderStats.apply(this, args);
       updateWorkspaceDiagnosticStats();
+      updateWorkspaceFilterSummary();
       return result;
     };
   }
@@ -675,8 +721,10 @@
     if (window.__wnmuWorkspaceFilterLayoutPatched) return;
     window.__wnmuWorkspaceFilterLayoutPatched = true;
     const rerun = () => window.requestAnimationFrame(() => {
+      installWorkspaceFilterToggle();
       applyWorkspaceFilterLayout();
       updateWorkspaceDiagnosticStats();
+      updateWorkspaceFilterSummary();
     });
     [0, 80, 220, 500, 1000, 1800].forEach((delay) => window.setTimeout(rerun, delay));
     window.addEventListener('resize', rerun);
@@ -686,6 +734,144 @@
     // Deliberately do not recalculate the filter grid on search keystrokes.
     // The old production filter-layout helper did that, which made the buttons jump rows while typing.
     // This one-page test page owns its filter layout directly so typing only changes results, not geometry.
+  }
+
+
+  function readFiltersCollapsedPreference() {
+    try { return window.localStorage?.getItem(FILTERS_COLLAPSED_KEY) === '1'; }
+    catch { return false; }
+  }
+
+  function saveFiltersCollapsedPreference(collapsed) {
+    try { window.localStorage?.setItem(FILTERS_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch {}
+  }
+
+  function labelForSelectedOption(select) {
+    const option = select?.selectedOptions?.[0];
+    if (!option) return '';
+    return (option.textContent || option.value || '').trim();
+  }
+
+  function selectedOptionLabels(select) {
+    return Array.from(select?.selectedOptions || [])
+      .map((option) => (option.textContent || option.value || '').trim())
+      .filter(Boolean);
+  }
+
+  function shortDateValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return raw;
+    return `${Number(m[2])}/${Number(m[3])}/${m[1].slice(2)}`;
+  }
+
+  function addFilterSummaryPart(parts, label, value) {
+    const text = String(value || '').trim();
+    if (!text) return;
+    parts.push(`${label}: ${text}`);
+  }
+
+  function getWorkspaceFilterSummaryParts() {
+    const parts = [];
+    const viewLabels = {
+      active: 'Active',
+      archived: 'Archived',
+      new_to_13_1: 'New to 13.1',
+      new_to_13_3: 'New to 13.3',
+      evergreens: 'Evergreens',
+      needs_apt_check: 'APT check',
+      missing_info: 'Missing info',
+      ending_soon: 'Ending within 90 days',
+      missing_rights: 'Missing rights'
+    };
+    if (state?.currentView && state.currentView !== 'all') parts.push(viewLabels[state.currentView] || state.currentView);
+
+    const search = document.getElementById('searchInput')?.value?.trim();
+    if (search) {
+      const clipped = search.length > 48 ? `${search.slice(0, 45)}...` : search;
+      parts.push(`Search: “${clipped}”`);
+      const searchField = labelForSelectedOption(document.getElementById('searchFieldSelect'));
+      if (searchField && searchField !== 'All fields') addFilterSummaryPart(parts, 'In', searchField);
+    }
+
+    addFilterSummaryPart(parts, 'Type', labelForSelectedOption(document.getElementById('programTypeFilter')).replace(/^All types$/i, ''));
+    addFilterSummaryPart(parts, 'Distributor', labelForSelectedOption(document.getElementById('distributorFilter')).replace(/^All distributors$/i, ''));
+
+    const topics = selectedOptionLabels(document.getElementById('topicFilter'));
+    if (topics.length) addFilterSummaryPart(parts, 'Topics', topics.slice(0, 3).join(', ') + (topics.length > 3 ? ` +${topics.length - 3}` : ''));
+    const secondary = selectedOptionLabels(document.getElementById('secondaryTopicFilter'));
+    if (secondary.length) addFilterSummaryPart(parts, 'Secondary', secondary.slice(0, 3).join(', ') + (secondary.length > 3 ? ` +${secondary.length - 3}` : ''));
+    const lengths = selectedOptionLabels(document.getElementById('lengthFilter'));
+    if (lengths.length) addFilterSummaryPart(parts, 'Lengths', lengths.slice(0, 4).join(', ') + (lengths.length > 4 ? ` +${lengths.length - 4}` : ''));
+    const uses = selectedOptionLabels(document.getElementById('codeFilter'));
+    if (uses.length) addFilterSummaryPart(parts, 'Uses', uses.slice(0, 4).join(', ') + (uses.length > 4 ? ` +${uses.length - 4}` : ''));
+
+    const minEpisode = document.getElementById('episodeMinFilter')?.value?.trim();
+    const maxEpisode = document.getElementById('episodeMaxFilter')?.value?.trim();
+    if (minEpisode || maxEpisode) addFilterSummaryPart(parts, 'Episodes', `${minEpisode || 'any'}–${maxEpisode || 'any'}`);
+
+    const rightsBegin = shortDateValue(document.getElementById('rightsWindowStartFilter')?.value);
+    if (rightsBegin) addFilterSummaryPart(parts, 'Rights begin', rightsBegin);
+    const rightsEnd = shortDateValue(document.getElementById('rightsWindowEndFilter')?.value);
+    if (rightsEnd) addFilterSummaryPart(parts, 'Rights end', rightsEnd);
+
+    const status = labelForSelectedOption(document.getElementById('statusFilter'));
+    if (status && status !== 'All statuses') addFilterSummaryPart(parts, 'Status', status);
+    const rating = labelForSelectedOption(document.getElementById('ratingFilter'));
+    if (rating && rating !== 'All ratings') addFilterSummaryPart(parts, 'Rating', rating);
+
+    return parts;
+  }
+
+  function updateWorkspaceFilterSummary() {
+    const target = document.getElementById('workspaceActiveFilters');
+    if (!target) return;
+    const parts = getWorkspaceFilterSummaryParts();
+    target.textContent = parts.length ? parts.join(' · ') : 'No filters in use';
+    target.title = target.textContent;
+  }
+
+  function setWorkspaceFiltersCollapsed(collapsed) {
+    const controls = document.getElementById('controlsPanel');
+    const button = document.getElementById('workspaceFilterToggleBtn');
+    if (!controls || !button) return;
+    controls.classList.toggle('workspace-filters-collapsed', Boolean(collapsed));
+    button.textContent = collapsed ? 'Show filters' : 'Hide filters';
+    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    saveFiltersCollapsedPreference(Boolean(collapsed));
+    updateWorkspaceFilterSummary();
+  }
+
+  function installWorkspaceFilterToggle() {
+    const controls = document.getElementById('controlsPanel');
+    const quickStrip = document.getElementById('quickStrip');
+    if (!controls || !quickStrip) return;
+
+    let row = document.getElementById('workspaceFilterToggleRow');
+    if (!row) {
+      row = document.createElement('div');
+      row.id = 'workspaceFilterToggleRow';
+      row.className = 'workspace-filter-toggle-row';
+      row.innerHTML = '<button type="button" id="workspaceFilterToggleBtn" class="mini-clear" aria-controls="controlsPanel" aria-expanded="true">Hide filters</button><div id="workspaceActiveFilters" class="workspace-active-filters" aria-live="polite">No filters in use</div>';
+      controls.insertBefore(row, quickStrip);
+    }
+
+    const button = document.getElementById('workspaceFilterToggleBtn');
+    if (button && button.dataset.workspaceToggleBound !== 'true') {
+      button.dataset.workspaceToggleBound = 'true';
+      button.addEventListener('click', () => setWorkspaceFiltersCollapsed(!controls.classList.contains('workspace-filters-collapsed')));
+    }
+
+    if (controls.dataset.workspaceFilterSummaryBound !== 'true') {
+      controls.dataset.workspaceFilterSummaryBound = 'true';
+      controls.addEventListener('input', () => window.requestAnimationFrame(updateWorkspaceFilterSummary), true);
+      controls.addEventListener('change', () => window.requestAnimationFrame(updateWorkspaceFilterSummary), true);
+      controls.addEventListener('click', () => window.setTimeout(updateWorkspaceFilterSummary, 0), true);
+    }
+
+    setWorkspaceFiltersCollapsed(readFiltersCollapsedPreference());
+    updateWorkspaceFilterSummary();
   }
 
   function syncWorkspaceMode() {
@@ -833,8 +1019,10 @@
     installWorkspaceShell();
     patchSaveProgram();
     patchRenderStats();
+    installWorkspaceFilterToggle();
     installWorkspaceFilterLayoutPatch();
     applyWorkspaceFilterLayout();
+    updateWorkspaceFilterSummary();
 
     if (typeof bindEvents === 'function' && !window.__wnmuWorkspaceBindPatched) {
       window.__wnmuWorkspaceBindPatched = true;
