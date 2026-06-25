@@ -33,3 +33,8 @@ Changes from one-page workspace test v1:
 - Changed the table header from Rights window to Rights end to make the sort behavior clearer.
 - The Rights End sort already uses rights_end/end date, not rights_begin.
 - Retained the test-page save behavior that auto-archives expired Rights End dates and restores archived records to active when Rights End is current/future.
+
+
+Version flag fix:
+- program-workspace-test.html now declares and displays v1.5.110.
+- version.json is intentionally NOT included, because changing the production manifest without updating production index.html would create a version-check mismatch for the default production page.
