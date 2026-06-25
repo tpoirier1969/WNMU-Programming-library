@@ -1,4 +1,4 @@
-WNMU Programming Library — One-Page Workspace Test v2
+WNMU Programming Library — One-Page Workspace Test v6 / v1.5.114
 
 Upload these files to the root of the WNMU-Programming-library repo, preserving the js/ folder:
 
@@ -36,24 +36,30 @@ Changes from one-page workspace test v1:
 
 
 Version flag fix:
-- program-workspace-test.html now declares and displays v1.5.113.
+- program-workspace-test.html now declares and displays v1.5.114.
 - version.json is intentionally NOT included, because changing the production manifest without updating production index.html would create a version-check mismatch for the default production page.
 
 
 V1.5.111 notes:
 - This package is still test-only and does not change production index.html, program-new.html, config.js, version.json, SQL, or schema.
-- The workspace version flag/cache-buster is v1.5.113.
+- The workspace version flag/cache-buster is v1.5.114.
 - The one-page workspace does NOT push the Library filter area across the full Add/Edit panel.
 - Removed the old production filter-layout helper from this test page so typing in Search Text filters results without recalculating/wrapping the filter layout.
 - Clear All Filters remains in normal layout flow under the Library filters instead of overlaying controls.
 
 
-v1.5.113 notes:
+v1.5.114 notes:
 - Keeps Library filters inside the left workspace pane.
 - Adds a collapsible filter section that preserves active filters and shows a one-line summary of filters in use.
 - Does not show a duplicate matching-program count in the filter summary.
 
 
-v1.5.113 notes:
+v1.5.114 notes:
 - Corrected the filter collapse behavior so the entire Library filter body collapses, not just the quick-filter strip.
 - The collapsed row remains visible and summarizes filters in use; matching-program count is not duplicated there.
+
+
+v1.5.114 notes:
+- Restored Aired on 13.1 and Aired on 13.3 columns in the Program List for the one-page workspace.
+- Kept Package type, Distributor, and Flags hidden in the split workspace table to preserve width.
+- Rebalanced Program List column widths so Title, Description, Topic, both air-date columns, and Rights end remain visible.

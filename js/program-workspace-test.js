@@ -243,15 +243,20 @@
       body.workspace-admin .programs-table { min-width: 0 !important; width: 100% !important; table-layout: fixed !important; }
       body.workspace-admin .programs-table th,
       body.workspace-admin .programs-table td { padding: 6px 7px !important; font-size: .78rem !important; }
-      body.workspace-admin .programs-table th:nth-child(4), body.workspace-admin .programs-table td:nth-child(4),
-      body.workspace-admin .programs-table th:nth-child(5), body.workspace-admin .programs-table td:nth-child(5),
       body.workspace-admin .programs-table th:nth-child(6), body.workspace-admin .programs-table td:nth-child(6),
       body.workspace-admin .programs-table th:nth-child(8), body.workspace-admin .programs-table td:nth-child(8),
       body.workspace-admin .programs-table th:nth-child(9), body.workspace-admin .programs-table td:nth-child(9) { display: none !important; }
-      body.workspace-admin .programs-table .col-title { width: 30% !important; }
-      body.workspace-admin .programs-table .col-notes { width: 36% !important; }
-      body.workspace-admin .programs-table .col-details { width: 16% !important; }
-      body.workspace-admin .programs-table .col-rights { width: 18% !important; }
+      body.workspace-admin .programs-table .col-title { width: 25% !important; }
+      body.workspace-admin .programs-table .col-notes { width: 27% !important; }
+      body.workspace-admin .programs-table .col-details { width: 12% !important; }
+      body.workspace-admin .programs-table .col-airing { width: 12% !important; }
+      body.workspace-admin .programs-table .col-rights { width: 12% !important; }
+      body.workspace-admin .programs-table td:nth-child(4),
+      body.workspace-admin .programs-table td:nth-child(5) {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.18 !important;
+      }
 
 
 
