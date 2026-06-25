@@ -270,9 +270,13 @@
       body.workspace-test-page .workspace-test-pill { display: none !important; }
       body.workspace-test-page #quickStrip.quick-strip {
         display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)) !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
         gap: 4px !important;
         margin: 0 0 5px 0 !important;
+        min-width: 0 !important;
+      }
+      body.workspace-test-page.workspace-admin #quickStrip.quick-strip {
+        grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
       }
       body.workspace-test-page #quickStrip .quick-card,
       body.workspace-test-page #quickStrip .stat-card {
@@ -307,8 +311,45 @@
       body.workspace-test-page #controlsPanel input,
       body.workspace-test-page #controlsPanel select,
       body.workspace-test-page #controlsPanel button { font-size: .73rem !important; min-height: 27px !important; padding: 4px 7px !important; }
+      body.workspace-test-page #controlsPanel input,
+      body.workspace-test-page #controlsPanel select,
+      body.workspace-test-page #controlsPanel .filter-box,
+      body.workspace-test-page #controlsPanel .filters-cluster,
+      body.workspace-test-page #controlsPanel .compact-search-cluster > .filter-box {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      body.workspace-test-page #searchInput {
+        inline-size: 100% !important;
+        min-inline-size: 0 !important;
+        max-inline-size: 100% !important;
+      }
+      body.workspace-test-page #controlsPanel .cluster-search-text {
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
       body.workspace-test-page #controlsPanel .cluster-clear-all { padding-top: 0 !important; align-self: end !important; }
       body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all { width: 100% !important; white-space: nowrap !important; }
+      body.workspace-test-page #controlsPanel .filter-foot {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        margin: 5px 0 0 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      body.workspace-test-page #controlsPanel .filter-foot .reset-all {
+        width: auto !important;
+        min-width: 98px !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+      }
+      body.workspace-test-page #controlsPanel .compact-search-cluster {
+        contain: layout style !important;
+      }
 
       body.workspace-test-page #secondaryTopicFilter.workspace-native-secondary-select { display: none !important; }
       body.workspace-test-page #secondaryTopicChecklist {
@@ -444,7 +485,7 @@
     setWorkspaceImportant(el, 'grid-column', column);
     setWorkspaceImportant(el, 'grid-row', row);
     setWorkspaceImportant(el, 'min-width', '0');
-    setWorkspaceImportant(el, 'max-width', 'none');
+    setWorkspaceImportant(el, 'max-width', '100%');
   }
 
   function applyWorkspaceFilterLayout() {
@@ -642,9 +683,9 @@
     document.addEventListener('change', (event) => {
       if (event.target?.closest?.('#controlsPanel')) window.setTimeout(rerun, 0);
     }, true);
-    document.addEventListener('input', (event) => {
-      if (event.target?.closest?.('#controlsPanel')) window.setTimeout(rerun, 80);
-    }, true);
+    // Deliberately do not recalculate the filter grid on search keystrokes.
+    // The old production filter-layout helper did that, which made the buttons jump rows while typing.
+    // This one-page test page owns its filter layout directly so typing only changes results, not geometry.
   }
 
   function syncWorkspaceMode() {

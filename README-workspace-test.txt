@@ -38,3 +38,11 @@ Changes from one-page workspace test v1:
 Version flag fix:
 - program-workspace-test.html now declares and displays v1.5.110.
 - version.json is intentionally NOT included, because changing the production manifest without updating production index.html would create a version-check mismatch for the default production page.
+
+
+V1.5.111 notes:
+- This package is still test-only and does not change production index.html, program-new.html, config.js, version.json, SQL, or schema.
+- The workspace version flag/cache-buster is v1.5.111.
+- The one-page workspace does NOT push the Library filter area across the full Add/Edit panel.
+- Removed the old production filter-layout helper from this test page so typing in Search Text filters results without recalculating/wrapping the filter layout.
+- Clear All Filters remains in normal layout flow under the Library filters instead of overlaying controls.
