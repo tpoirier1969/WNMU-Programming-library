@@ -252,6 +252,98 @@
       body.workspace-admin .programs-table .col-details { width: 16% !important; }
       body.workspace-admin .programs-table .col-rights { width: 18% !important; }
 
+
+
+      body.workspace-test-page #undoViewBtn.removed-control,
+      body.workspace-test-page #undoViewBtn { display: none !important; }
+      body.workspace-test-page #statusLine.topbar-status-inline {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+      body.workspace-test-page .workspace-test-pill { display: none !important; }
+      body.workspace-test-page #quickStrip.quick-strip {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)) !important;
+        gap: 4px !important;
+        margin: 0 0 5px 0 !important;
+      }
+      body.workspace-test-page #quickStrip .quick-card,
+      body.workspace-test-page #quickStrip .stat-card {
+        min-width: 0 !important;
+        min-height: 38px !important;
+        height: 38px !important;
+        padding: 3px 5px !important;
+        border-radius: 9px !important;
+        overflow: hidden !important;
+      }
+      body.workspace-test-page #quickStrip .stat-label { font-size: .54rem !important; line-height: 1 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      body.workspace-test-page #quickStrip .stat-value { font-size: .78rem !important; line-height: 1.05 !important; white-space: normal !important; }
+      body.workspace-test-page #quickStrip .stat-value.small { font-size: .68rem !important; }
+      body.workspace-test-page #quickStrip .admin-diagnostic-card { display: none !important; }
+      body.workspace-admin #quickStrip .admin-diagnostic-card { display: block !important; }
+      body.workspace-test-page #quickStrip .stat-shadow { display: none !important; }
+
+      body.workspace-test-page #controlsPanel {
+        padding: 6px !important;
+        overflow: visible !important;
+      }
+      body.workspace-test-page #controlsPanel .filters-grid,
+      body.workspace-test-page #controlsPanel .compact-search-cluster {
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+      body.workspace-test-page #controlsPanel select[multiple] { min-height: 66px !important; max-height: 66px !important; height: 66px !important; }
+      body.workspace-test-page #controlsPanel .filter-box { min-width: 0 !important; gap: 3px !important; }
+      body.workspace-test-page #controlsPanel .filter-label { font-size: .65rem !important; }
+      body.workspace-test-page #controlsPanel .filter-label-row { min-width: 0 !important; gap: 3px !important; align-items: center !important; }
+      body.workspace-test-page #controlsPanel .mini-clear { padding: 2px 6px !important; font-size: .66rem !important; line-height: 1 !important; }
+      body.workspace-test-page #controlsPanel input,
+      body.workspace-test-page #controlsPanel select,
+      body.workspace-test-page #controlsPanel button { font-size: .73rem !important; min-height: 27px !important; padding: 4px 7px !important; }
+      body.workspace-test-page #controlsPanel .cluster-clear-all { padding-top: 0 !important; align-self: end !important; }
+      body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all { width: 100% !important; white-space: nowrap !important; }
+
+      body.workspace-test-page #secondaryTopicFilter.workspace-native-secondary-select { display: none !important; }
+      body.workspace-test-page #secondaryTopicChecklist {
+        height: 66px !important;
+        max-height: 66px !important;
+        overflow: auto !important;
+        padding: 4px 5px !important;
+        border: 1px solid rgba(12, 78, 97, .22) !important;
+        border-radius: 9px !important;
+        background: #fff !important;
+        box-sizing: border-box !important;
+      }
+      body.workspace-test-page #secondaryTopicChecklist .workspace-check-row {
+        display: grid !important;
+        grid-template-columns: 14px minmax(0, 1fr) !important;
+        gap: 5px !important;
+        align-items: start !important;
+        margin: 0 0 3px 0 !important;
+        font-size: .72rem !important;
+        line-height: 1.12 !important;
+        cursor: pointer !important;
+      }
+      body.workspace-test-page #secondaryTopicChecklist .workspace-check-row input {
+        width: 13px !important;
+        min-height: 13px !important;
+        height: 13px !important;
+        margin: 1px 0 0 0 !important;
+        padding: 0 !important;
+      }
+      body.workspace-test-page #secondaryTopicChecklist .workspace-check-text {
+        min-width: 0 !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.12 !important;
+      }
+
       @media (max-width: 980px) {
         body.workspace-admin #appShell.workspace-layout { height: auto !important; min-height: 100dvh !important; overflow: visible !important; }
         body.workspace-admin #workspaceSplitGrid { grid-template-columns: 1fr !important; grid-template-rows: minmax(62vh, auto) 8px minmax(60vh, auto); overflow: visible !important; }
@@ -338,6 +430,221 @@
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
+  }
+
+
+
+  function setWorkspaceImportant(el, property, value) {
+    if (!el) return;
+    el.style.setProperty(property, value, 'important');
+  }
+
+  function placeGridItem(el, column, row) {
+    if (!el) return;
+    setWorkspaceImportant(el, 'grid-column', column);
+    setWorkspaceImportant(el, 'grid-row', row);
+    setWorkspaceImportant(el, 'min-width', '0');
+    setWorkspaceImportant(el, 'max-width', 'none');
+  }
+
+  function applyWorkspaceFilterLayout() {
+    const controls = document.getElementById('controlsPanel');
+    const grid = controls?.querySelector('.filters.filters-grid');
+    const cluster = controls?.querySelector('.compact-search-cluster');
+    if (!controls || !grid || !cluster) return;
+
+    const width = Math.max(0, Math.floor(controls.getBoundingClientRect().width || controls.clientWidth || 0));
+    const gridChildren = Array.from(grid.children);
+    const compact = width && width < 560;
+
+    setWorkspaceImportant(controls, 'overflow', 'visible');
+    setWorkspaceImportant(grid, 'display', 'grid');
+    setWorkspaceImportant(grid, 'width', '100%');
+    setWorkspaceImportant(grid, 'min-width', '0');
+    setWorkspaceImportant(grid, 'gap', '5px 6px');
+    setWorkspaceImportant(grid, 'align-items', 'start');
+    setWorkspaceImportant(grid, 'align-content', 'start');
+    setWorkspaceImportant(grid, 'grid-auto-flow', 'row');
+    setWorkspaceImportant(grid, 'grid-template-columns', compact
+      ? 'minmax(0, 1fr) minmax(0, 1fr)'
+      : 'minmax(118px, .78fr) minmax(126px, .85fr) minmax(68px, .36fr) minmax(64px, .34fr)');
+
+    if (compact) {
+      placeGridItem(gridChildren[0], '1', '1');
+      placeGridItem(gridChildren[1], '2', '1');
+      placeGridItem(gridChildren[2], '1', '2');
+      placeGridItem(gridChildren[3], '2', '2');
+      placeGridItem(cluster, '1 / -1', '3');
+    } else {
+      placeGridItem(gridChildren[0], '1', '1');
+      placeGridItem(gridChildren[1], '2', '1');
+      placeGridItem(gridChildren[2], '3', '1');
+      placeGridItem(gridChildren[3], '4', '1');
+      placeGridItem(cluster, '1 / -1', '2');
+    }
+
+    const multiSelects = controls.querySelectorAll('.filters-grid > .filter-box select[multiple]');
+    multiSelects.forEach((select) => {
+      setWorkspaceImportant(select, 'height', '66px');
+      setWorkspaceImportant(select, 'min-height', '66px');
+      setWorkspaceImportant(select, 'max-height', '66px');
+      setWorkspaceImportant(select, 'min-width', '0');
+      setWorkspaceImportant(select, 'width', '100%');
+    });
+
+    setWorkspaceImportant(cluster, 'display', 'grid');
+    setWorkspaceImportant(cluster, 'width', '100%');
+    setWorkspaceImportant(cluster, 'min-width', '0');
+    setWorkspaceImportant(cluster, 'column-gap', '6px');
+    setWorkspaceImportant(cluster, 'row-gap', '6px');
+    setWorkspaceImportant(cluster, 'align-items', 'start');
+    setWorkspaceImportant(cluster, 'align-content', 'start');
+
+    const narrowCluster = width && width < 720;
+    setWorkspaceImportant(cluster, 'grid-template-columns', narrowCluster
+      ? 'repeat(6, minmax(0, 1fr))'
+      : 'repeat(12, minmax(0, 1fr))');
+
+    const placements = narrowCluster ? [
+      ['.cluster-type', '1 / span 2', '1'],
+      ['.cluster-search-text', '3 / span 4', '1'],
+      ['.cluster-distributor', '1 / span 2', '2'],
+      ['.cluster-episodes', '3 / span 2', '2'],
+      ['.cluster-clear-all', '5 / span 2', '2'],
+      ['.cluster-search-in', '1 / span 2', '3'],
+      ['.cluster-rights-start', '3 / span 2', '3'],
+      ['.cluster-rights-end', '5 / span 2', '3'],
+      ['.cluster-status', '1 / span 3', '4'],
+      ['.cluster-rating', '4 / span 3', '4']
+    ] : [
+      ['.cluster-type', '1 / span 2', '1'],
+      ['.cluster-search-text', '3 / span 4', '1'],
+      ['.cluster-distributor', '7 / span 2', '1'],
+      ['.cluster-episodes', '9 / span 2', '1'],
+      ['.cluster-clear-all', '11 / span 2', '1'],
+      ['.cluster-search-in', '1 / span 2', '2'],
+      ['.cluster-rights-start', '3 / span 2', '2'],
+      ['.cluster-rights-end', '5 / span 2', '2'],
+      ['.cluster-status', '7 / span 3', '2'],
+      ['.cluster-rating', '10 / span 3', '2']
+    ];
+
+    placements.forEach(([selector, column, row]) => placeGridItem(cluster.querySelector(selector), column, row));
+
+    const clearHolder = cluster.querySelector('.cluster-clear-all');
+    if (clearHolder) {
+      setWorkspaceImportant(clearHolder, 'display', 'flex');
+      setWorkspaceImportant(clearHolder, 'align-items', 'end');
+      setWorkspaceImportant(clearHolder, 'justify-content', 'stretch');
+      setWorkspaceImportant(clearHolder, 'padding-top', '0');
+    }
+
+    installSecondaryTopicChecklist();
+  }
+
+  function selectedValues(select) {
+    return new Set(Array.from(select?.selectedOptions || []).map((option) => option.value));
+  }
+
+  function escapeTextForHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  function installSecondaryTopicChecklist() {
+    const select = document.getElementById('secondaryTopicFilter');
+    if (!select) return;
+
+    let checklist = document.getElementById('secondaryTopicChecklist');
+    if (!checklist) {
+      checklist = document.createElement('div');
+      checklist.id = 'secondaryTopicChecklist';
+      checklist.setAttribute('role', 'group');
+      checklist.setAttribute('aria-label', 'Secondary topics');
+      select.insertAdjacentElement('afterend', checklist);
+    }
+    select.classList.add('workspace-native-secondary-select');
+
+    if (select.dataset.workspaceChecklistBound !== 'true') {
+      select.dataset.workspaceChecklistBound = 'true';
+      select.addEventListener('change', () => window.setTimeout(renderSecondaryTopicChecklist, 0));
+      const observer = new MutationObserver(() => window.setTimeout(renderSecondaryTopicChecklist, 0));
+      observer.observe(select, { childList: true, subtree: false, attributes: true, attributeFilter: ['selected'] });
+    }
+
+    if (checklist.dataset.workspaceChecklistBound !== 'true') {
+      checklist.dataset.workspaceChecklistBound = 'true';
+      checklist.addEventListener('change', (event) => {
+        const input = event.target.closest('input[type="checkbox"][data-secondary-topic-value]');
+        if (!input) return;
+        const option = Array.from(select.options).find((item) => item.value === input.dataset.secondaryTopicValue);
+        if (!option) return;
+        option.selected = input.checked;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+
+    renderSecondaryTopicChecklist();
+  }
+
+  function renderSecondaryTopicChecklist() {
+    const select = document.getElementById('secondaryTopicFilter');
+    const checklist = document.getElementById('secondaryTopicChecklist');
+    if (!select || !checklist) return;
+    const selected = selectedValues(select);
+    const options = Array.from(select.options || []).filter((option) => option.value);
+    if (!options.length) {
+      checklist.innerHTML = '<div class="workspace-check-empty">No secondary topics</div>';
+      return;
+    }
+    checklist.innerHTML = options.map((option, index) => {
+      const id = `secondaryTopicCheck_${index}`;
+      const value = option.value;
+      const label = option.textContent || value;
+      return `<label class="workspace-check-row" for="${id}"><input id="${id}" type="checkbox" data-secondary-topic-value="${escapeTextForHtml(value)}" ${selected.has(value) ? 'checked' : ''}><span class="workspace-check-text">${escapeTextForHtml(label)}</span></label>`;
+    }).join('');
+  }
+
+  function updateWorkspaceDiagnosticStats() {
+    const missingTarget = document.getElementById('statMissingInfo');
+    if (!missingTarget || !Array.isArray(state?.programs)) return;
+    const activePrograms = state.programs.filter((program) => !program.is_archived);
+    let missingCount = 0;
+    activePrograms.forEach((program) => {
+      try {
+        if (typeof matchesView === 'function' && matchesView(program, 'missing_info')) missingCount += 1;
+      } catch {}
+    });
+    missingTarget.textContent = missingCount.toLocaleString();
+  }
+
+  function patchRenderStats() {
+    if (typeof renderStats !== 'function' || window.__wnmuWorkspaceStatsPatched) return;
+    window.__wnmuWorkspaceStatsPatched = true;
+    const originalRenderStats = renderStats;
+    renderStats = function workspaceRenderStats(...args) {
+      const result = originalRenderStats.apply(this, args);
+      updateWorkspaceDiagnosticStats();
+      return result;
+    };
+  }
+
+  function installWorkspaceFilterLayoutPatch() {
+    if (window.__wnmuWorkspaceFilterLayoutPatched) return;
+    window.__wnmuWorkspaceFilterLayoutPatched = true;
+    const rerun = () => window.requestAnimationFrame(() => {
+      applyWorkspaceFilterLayout();
+      updateWorkspaceDiagnosticStats();
+    });
+    [0, 80, 220, 500, 1000, 1800].forEach((delay) => window.setTimeout(rerun, delay));
+    window.addEventListener('resize', rerun);
+    document.addEventListener('change', (event) => {
+      if (event.target?.closest?.('#controlsPanel')) window.setTimeout(rerun, 0);
+    }, true);
+    document.addEventListener('input', (event) => {
+      if (event.target?.closest?.('#controlsPanel')) window.setTimeout(rerun, 80);
+    }, true);
   }
 
   function syncWorkspaceMode() {
@@ -484,6 +791,9 @@
     injectWorkspaceStyles();
     installWorkspaceShell();
     patchSaveProgram();
+    patchRenderStats();
+    installWorkspaceFilterLayoutPatch();
+    applyWorkspaceFilterLayout();
 
     if (typeof bindEvents === 'function' && !window.__wnmuWorkspaceBindPatched) {
       window.__wnmuWorkspaceBindPatched = true;

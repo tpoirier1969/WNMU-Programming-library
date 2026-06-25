@@ -26,7 +26,7 @@
   <script defer src="js/library-filter-layout-v1596.js?v=1.5.106"></script>
   <script defer src="js/app-version-check.js?v=1.5.109"></script>
   <script defer src="js/library-main-ui-v15109.js?v=1.5.109"></script>
-  <script defer src="js/program-workspace-test.js?v=1.0.0"></script>
+  <script defer src="js/program-workspace-test.js?v=1.1.0"></script>
 </head>
 <body class="workspace-test-page">
   <div id="setupNotice" class="setup-notice hidden">
@@ -65,14 +65,14 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row compact-title-row">
             <h1 id="appTitle">Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.109</span><span class="version-pill workspace-test-pill">one-page test</span>
+            <span id="appVersion" class="version-pill">v1.5.109</span>
             <span id="statusLine" class="status-line topbar-status-inline">Loading…</span>
           </div>
         </div>
       </div>
       <div class="topbar-actions">
         <button id="adminBtn" class="primary">Admin sign in</button>
-        <button id="undoViewBtn" class="hidden">Undo view</button>
+        <button id="undoViewBtn" class="hidden removed-control" aria-hidden="true" tabindex="-1">Undo view</button>
         <button id="newProgramBtn" class="primary hidden">Add new program</button>
         <button id="monthlyMediaBtn">Monthly media</button>
         <button id="holidayCalendarBtn">Holidays / events</button>
@@ -105,34 +105,24 @@
           <div class="stat-label">Quick filter</div>
           <div class="stat-value small">New to 13.3</div>
         </button>
-        <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
-          <div class="stat-label">Quick filter</div>
-          <div class="stat-value small">Michigan programming</div>
-        </button>
         <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
           <div class="stat-label">Quick filter</div>
           <div class="stat-value small">Evergreens</div>
         </button>
-        <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
+        <button type="button" class="stat-card quick-card quick-view" data-view="archived">
           <div class="stat-label">Quick filter</div>
-          <div class="stat-value small">Missing info</div>
+          <div id="statArchived" class="stat-value small">0</div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
-          <div class="stat-label">APT check</div>
-          <div id="statApt" class="stat-value">0</div>
+        <button type="button" class="stat-card quick-card admin-diagnostic-card" data-view="needs_apt_check">
+          <div class="stat-label">Admin check</div>
+          <div class="stat-value small">APT <span id="statApt">0</span></div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="ending_soon">
-          <div class="stat-label">Ending in 90 days</div>
-          <div id="statEnding" class="stat-value">0</div>
+        <button type="button" class="stat-card quick-card admin-diagnostic-card" data-view="missing_info">
+          <div class="stat-label">Admin check</div>
+          <div class="stat-value small">Missing info <span id="statMissingInfo">0</span></div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="missing_rights">
-          <div class="stat-label">Missing rights</div>
-          <div id="statMissingRights" class="stat-value">0</div>
-        </button>
-        <button type="button" class="stat-card quick-card" data-view="archived">
-          <div class="stat-label">Archived</div>
-          <div id="statArchived" class="stat-value">0</div>
-        </button>
+        <span id="statEnding" class="hidden stat-shadow" aria-hidden="true">0</span>
+        <span id="statMissingRights" class="hidden stat-shadow" aria-hidden="true">0</span>
       </div>
       <div class="filters filters-grid">
         <div class="filter-box wide">
@@ -261,7 +251,7 @@
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_1">Aired on 13.1 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_3">Aired on 13.3 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-type"><button type="button" class="sort-header" data-sort-field="package_type">Package type <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights window <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights end <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-distributor"><button type="button" class="sort-header" data-sort-field="distributor">Distributor <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-flags">Flags</th>
             </tr>
