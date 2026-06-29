@@ -165,7 +165,7 @@
         gap: 0;
         overflow: hidden;
       }
-      body.workspace-admin #workspaceSplitGrid {
+      body.workspace-test-page #workspaceSplitGrid {
         grid-template-columns: minmax(420px, var(--workspace-left-width)) 8px minmax(360px, 1fr);
       }
       body.workspace-test-page #workspaceLibraryPane,
@@ -186,7 +186,7 @@
         border-radius: 0 16px 16px 0;
         box-shadow: 0 10px 28px rgba(12,39,68,.10);
       }
-      body.workspace-admin #workspaceEditorPane { display: block; }
+      body.workspace-test-page #workspaceEditorPane { display: block; }
       body.workspace-test-page #workspaceSplitter {
         display: none;
         width: 8px;
@@ -195,7 +195,7 @@
         border-top: 1px solid rgba(18,134,127,.18);
         border-bottom: 1px solid rgba(18,134,127,.18);
       }
-      body.workspace-admin #workspaceSplitter { display: block; }
+      body.workspace-test-page #workspaceSplitter { display: block; }
       body.workspace-test-page #workspaceSplitter::before {
         content: '';
         display: block;
@@ -206,8 +206,8 @@
         background: rgba(0,76,94,.35);
       }
 
-      body.workspace-admin #drawerBackdrop { display: none !important; }
-      body.workspace-admin #editorDrawer {
+      body.workspace-test-page #drawerBackdrop { display: none !important; }
+      body.workspace-test-page #editorDrawer {
         position: relative !important;
         inset: auto !important;
         left: auto !important;
@@ -226,8 +226,8 @@
         box-shadow: none !important;
         background: rgba(255,255,255,.96) !important;
       }
-      body.workspace-admin #editorDrawer.hidden { display: none !important; }
-      body.workspace-admin #editorDrawer .drawer-header {
+      body.workspace-test-page #editorDrawer.hidden { display: none !important; }
+      body.workspace-test-page #editorDrawer .drawer-header {
         position: sticky !important;
         top: -10px !important;
         z-index: 3 !important;
@@ -236,59 +236,59 @@
         border-bottom: 1px solid rgba(18,134,127,.16) !important;
         background: rgba(255,255,255,.98) !important;
       }
-      body.workspace-admin #drawerTitle {
+      body.workspace-test-page #drawerTitle {
         font-size: 1.04rem !important;
         line-height: 1.05 !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
       }
-      body.workspace-admin #closeDrawerBtn { font-size: .76rem !important; padding: 6px 9px !important; }
-      body.workspace-admin #editorDrawer .program-form { gap: 7px !important; }
-      body.workspace-admin #editorDrawer .form-grid {
+      body.workspace-test-page #closeDrawerBtn { font-size: .76rem !important; padding: 6px 9px !important; }
+      body.workspace-test-page #editorDrawer .program-form { gap: 7px !important; }
+      body.workspace-test-page #editorDrawer .form-grid {
         grid-template-columns: minmax(0, 1.75fr) minmax(120px, .7fr) minmax(64px, .36fr) minmax(70px, .36fr) !important;
         gap: 7px 8px !important;
       }
-      body.workspace-admin #editorDrawer .program-form label { gap: 3px !important; font-size: .78rem !important; }
-      body.workspace-admin #editorDrawer .program-form input,
-      body.workspace-admin #editorDrawer .program-form select,
-      body.workspace-admin #editorDrawer .program-form textarea {
+      body.workspace-test-page #editorDrawer .program-form label { gap: 3px !important; font-size: .78rem !important; }
+      body.workspace-test-page #editorDrawer .program-form input,
+      body.workspace-test-page #editorDrawer .program-form select,
+      body.workspace-test-page #editorDrawer .program-form textarea {
         padding: 6px 8px !important;
         min-height: 32px !important;
         border-radius: 9px !important;
         font-size: .84rem !important;
       }
-      body.workspace-admin #editorDrawer textarea[name="notes"] { min-height: 58px !important; rows: 2; }
-      body.workspace-admin #editorDrawer textarea[name="rights_notes"] { min-height: 32px !important; }
-      body.workspace-admin #editorDrawer .lookup-tools,
-      body.workspace-admin #editorDrawer .template-tools { grid-template-columns: minmax(0,1fr) auto !important; gap: 6px !important; }
-      body.workspace-admin #editorDrawer .program-rights-row {
+      body.workspace-test-page #editorDrawer textarea[name="notes"] { min-height: 58px !important; rows: 2; }
+      body.workspace-test-page #editorDrawer textarea[name="rights_notes"] { min-height: 32px !important; }
+      body.workspace-test-page #editorDrawer .lookup-tools,
+      body.workspace-test-page #editorDrawer .template-tools { grid-template-columns: minmax(0,1fr) auto !important; gap: 6px !important; }
+      body.workspace-test-page #editorDrawer .program-rights-row {
         grid-template-columns: minmax(110px, .8fr) minmax(92px, .64fr) minmax(86px,.52fr) minmax(86px,.52fr) !important;
         gap: 7px !important;
       }
-      body.workspace-admin #editorDrawer .compact-form-row {
+      body.workspace-test-page #editorDrawer .compact-form-row {
         grid-template-columns: minmax(80px,.6fr) minmax(122px,.95fr) minmax(54px,.35fr) minmax(74px,.5fr) minmax(74px,.5fr) minmax(76px,.55fr) minmax(76px,.55fr) !important;
         gap: 7px !important;
       }
-      body.workspace-admin #editorDrawer .editor-rating-row { margin: 0 !important; }
-      body.workspace-admin #editorDrawer .editor-star-rating { min-height: 32px !important; padding: 4px 8px !important; }
-      body.workspace-admin #editorDrawer .star-rating-btn { font-size: 1.05rem !important; padding: 0 2px !important; }
-      body.workspace-admin #editorDrawer .rating-help { display: none !important; }
-      body.workspace-admin #editorDrawer .drawer-actions { margin-top: 8px !important; gap: 6px !important; }
-      body.workspace-admin #editorDrawer .drawer-actions button { padding: 7px 10px !important; font-size: .82rem !important; }
+      body.workspace-test-page #editorDrawer .editor-rating-row { margin: 0 !important; }
+      body.workspace-test-page #editorDrawer .editor-star-rating { min-height: 32px !important; padding: 4px 8px !important; }
+      body.workspace-test-page #editorDrawer .star-rating-btn { font-size: 1.05rem !important; padding: 0 2px !important; }
+      body.workspace-test-page #editorDrawer .rating-help { display: none !important; }
+      body.workspace-test-page #editorDrawer .drawer-actions { margin-top: 8px !important; gap: 6px !important; }
+      body.workspace-test-page #editorDrawer .drawer-actions button { padding: 7px 10px !important; font-size: .82rem !important; }
 
-      body.workspace-admin #controlsPanel {
+      body.workspace-test-page #controlsPanel {
         padding: 7px !important;
         overflow: visible !important;
       }
-      body.workspace-admin #quickStrip.quick-strip {
+      body.workspace-test-page #quickStrip.quick-strip {
         display: grid !important;
         grid-template-columns: repeat(11, minmax(0, 1fr)) !important;
         gap: 4px !important;
         margin: 0 0 5px 0 !important;
       }
-      body.workspace-admin #quickStrip .quick-card,
-      body.workspace-admin #quickStrip .stat-card {
+      body.workspace-test-page #quickStrip .quick-card,
+      body.workspace-test-page #quickStrip .stat-card {
         min-width: 0 !important;
         min-height: 44px !important;
         height: 44px !important;
@@ -296,40 +296,40 @@
         border-radius: 9px !important;
         overflow: hidden !important;
       }
-      body.workspace-admin #quickStrip .stat-label { font-size: .55rem !important; line-height: 1 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
-      body.workspace-admin #quickStrip .stat-value { font-size: .8rem !important; line-height: 1.05 !important; white-space: normal !important; }
-      body.workspace-admin #quickStrip .stat-value.small { font-size: .68rem !important; }
-      body.workspace-admin #controlsPanel .filters-grid {
+      body.workspace-test-page #quickStrip .stat-label { font-size: .55rem !important; line-height: 1 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      body.workspace-test-page #quickStrip .stat-value { font-size: .8rem !important; line-height: 1.05 !important; white-space: normal !important; }
+      body.workspace-test-page #quickStrip .stat-value.small { font-size: .68rem !important; }
+      body.workspace-test-page #controlsPanel .filters-grid {
         grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(78px,.42fr) minmax(78px,.42fr) !important;
         gap: 6px !important;
       }
-      body.workspace-admin #controlsPanel select[multiple] { min-height: 70px !important; max-height: 70px !important; }
-      body.workspace-admin #controlsPanel .filter-box { gap: 3px !important; }
-      body.workspace-admin #controlsPanel .filter-label { font-size: .66rem !important; }
-      body.workspace-admin #controlsPanel input,
-      body.workspace-admin #controlsPanel select,
-      body.workspace-admin #controlsPanel button { font-size: .74rem !important; min-height: 28px !important; padding: 4px 7px !important; }
-      body.workspace-admin #controlsPanel .filters-cluster { gap: 6px !important; }
-      body.workspace-admin #listPanel {
+      body.workspace-test-page #controlsPanel select[multiple] { min-height: 70px !important; max-height: 70px !important; }
+      body.workspace-test-page #controlsPanel .filter-box { gap: 3px !important; }
+      body.workspace-test-page #controlsPanel .filter-label { font-size: .66rem !important; }
+      body.workspace-test-page #controlsPanel input,
+      body.workspace-test-page #controlsPanel select,
+      body.workspace-test-page #controlsPanel button { font-size: .74rem !important; min-height: 28px !important; padding: 4px 7px !important; }
+      body.workspace-test-page #controlsPanel .filters-cluster { gap: 6px !important; }
+      body.workspace-test-page #listPanel {
         min-height: 0 !important;
         display: grid !important;
         grid-template-rows: auto minmax(0, 1fr) !important;
         overflow: hidden !important;
       }
-      body.workspace-admin #listPanel .table-wrap { height: 100% !important; overflow: auto !important; }
-      body.workspace-admin .programs-table { min-width: 0 !important; width: 100% !important; table-layout: fixed !important; }
-      body.workspace-admin .programs-table th,
-      body.workspace-admin .programs-table td { padding: 6px 7px !important; font-size: .78rem !important; }
-      body.workspace-admin .programs-table th:nth-child(6), body.workspace-admin .programs-table td:nth-child(6),
-      body.workspace-admin .programs-table th:nth-child(8), body.workspace-admin .programs-table td:nth-child(8),
-      body.workspace-admin .programs-table th:nth-child(9), body.workspace-admin .programs-table td:nth-child(9) { display: none !important; }
-      body.workspace-admin .programs-table .col-title { width: 25% !important; }
-      body.workspace-admin .programs-table .col-notes { width: 27% !important; }
-      body.workspace-admin .programs-table .col-details { width: 12% !important; }
-      body.workspace-admin .programs-table .col-airing { width: 12% !important; }
-      body.workspace-admin .programs-table .col-rights { width: 12% !important; }
-      body.workspace-admin .programs-table td:nth-child(4),
-      body.workspace-admin .programs-table td:nth-child(5) {
+      body.workspace-test-page #listPanel .table-wrap { height: 100% !important; overflow: auto !important; }
+      body.workspace-test-page .programs-table { min-width: 0 !important; width: 100% !important; table-layout: fixed !important; }
+      body.workspace-test-page .programs-table th,
+      body.workspace-test-page .programs-table td { padding: 6px 7px !important; font-size: .78rem !important; }
+      body.workspace-test-page .programs-table th:nth-child(6), body.workspace-test-page .programs-table td:nth-child(6),
+      body.workspace-test-page .programs-table th:nth-child(8), body.workspace-test-page .programs-table td:nth-child(8),
+      body.workspace-test-page .programs-table th:nth-child(9), body.workspace-test-page .programs-table td:nth-child(9) { display: none !important; }
+      body.workspace-test-page .programs-table .col-title { width: 25% !important; }
+      body.workspace-test-page .programs-table .col-notes { width: 27% !important; }
+      body.workspace-test-page .programs-table .col-details { width: 12% !important; }
+      body.workspace-test-page .programs-table .col-airing { width: 12% !important; }
+      body.workspace-test-page .programs-table .col-rights { width: 12% !important; }
+      body.workspace-test-page .programs-table td:nth-child(4),
+      body.workspace-test-page .programs-table td:nth-child(5) {
         white-space: normal !important;
         overflow-wrap: anywhere !important;
         line-height: 1.18 !important;
@@ -374,7 +374,7 @@
       body.workspace-test-page #quickStrip .stat-value { font-size: .78rem !important; line-height: 1.05 !important; white-space: normal !important; }
       body.workspace-test-page #quickStrip .stat-value.small { font-size: .68rem !important; }
       body.workspace-test-page #quickStrip .admin-diagnostic-card { display: none !important; }
-      body.workspace-admin #quickStrip .admin-diagnostic-card { display: block !important; }
+      body.workspace-test-page.workspace-admin #quickStrip .admin-diagnostic-card { display: block !important; }
       body.workspace-test-page #quickStrip .stat-shadow { display: none !important; }
 
       body.workspace-test-page #controlsPanel {
@@ -518,78 +518,110 @@
         margin-bottom: 0 !important;
       }
 
+
+      body.workspace-test-page #workspaceEditorEmpty {
+        height: 100%;
+        min-height: 220px;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        color: #365f6e;
+        text-align: center;
+        background: rgba(255,255,255,.82);
+        border-radius: 0 16px 16px 0;
+      }
+      body.workspace-test-page.workspace-editor-open #workspaceEditorEmpty { display: none !important; }
+      body.workspace-test-page #workspaceEditorEmpty .workspace-empty-card {
+        max-width: 360px;
+        padding: 18px 20px;
+        border: 1px solid rgba(18,134,127,.18);
+        border-radius: 16px;
+        background: rgba(255,255,255,.9);
+        box-shadow: 0 10px 24px rgba(12,39,68,.09);
+      }
+      body.workspace-test-page #workspaceEditorEmpty .workspace-empty-title {
+        font-weight: 800;
+        font-size: 1rem;
+        margin-bottom: 6px;
+        color: #12384a;
+      }
+      body.workspace-test-page #workspaceEditorEmpty .workspace-empty-text {
+        font-size: .86rem;
+        line-height: 1.35;
+      }
+
       @media (max-width: 1180px) {
-        body.workspace-admin #appShell.workspace-layout {
+        body.workspace-test-page #appShell.workspace-layout {
           height: auto !important;
           min-height: 100dvh !important;
           overflow: visible !important;
           grid-template-rows: auto minmax(0, 1fr) !important;
         }
-        body.workspace-admin #workspaceSplitGrid {
+        body.workspace-test-page #workspaceSplitGrid {
           grid-template-columns: 1fr !important;
           grid-template-rows: auto auto !important;
           gap: 8px !important;
           overflow: visible !important;
         }
-        body.workspace-admin #workspaceSplitter { display: none !important; }
-        body.workspace-admin #workspaceLibraryPane {
+        body.workspace-test-page #workspaceSplitter { display: none !important; }
+        body.workspace-test-page #workspaceLibraryPane {
           min-height: 0 !important;
           overflow: visible !important;
           grid-template-rows: auto auto minmax(360px, 62vh) !important;
         }
-        body.workspace-admin #workspaceEditorPane {
+        body.workspace-test-page #workspaceEditorPane {
           border-radius: 16px !important;
           overflow: visible !important;
         }
-        body.workspace-admin #editorDrawer {
+        body.workspace-test-page #editorDrawer {
           border-radius: 16px !important;
           height: auto !important;
           max-height: none !important;
         }
-        body.workspace-admin #listPanel .table-wrap { max-height: 62vh !important; }
-        body.workspace-admin #quickStrip.quick-strip { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+        body.workspace-test-page #listPanel .table-wrap { max-height: 62vh !important; }
+        body.workspace-test-page #quickStrip.quick-strip { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
       }
 
       @media (max-width: 780px) {
-        body.workspace-admin #appShell.workspace-layout {
+        body.workspace-test-page #appShell.workspace-layout {
           height: 100dvh !important;
           min-height: 100dvh !important;
           overflow: hidden !important;
           grid-template-rows: auto auto minmax(0, 1fr) !important;
         }
-        body.workspace-admin #workspaceResponsiveNav { display: flex !important; }
-        body.workspace-admin #workspaceSplitGrid {
+        body.workspace-test-page #workspaceResponsiveNav { display: flex !important; }
+        body.workspace-test-page #workspaceSplitGrid {
           grid-template-columns: 1fr !important;
           grid-template-rows: minmax(0, 1fr) !important;
           min-height: 0 !important;
           overflow: hidden !important;
         }
-        body.workspace-admin #workspaceLibraryPane,
-        body.workspace-admin #workspaceEditorPane {
+        body.workspace-test-page #workspaceLibraryPane,
+        body.workspace-test-page #workspaceEditorPane {
           min-height: 0 !important;
           overflow: hidden !important;
         }
-        body.workspace-narrow.workspace-admin:not(.workspace-show-editor) #workspaceEditorPane { display: none !important; }
-        body.workspace-narrow.workspace-admin.workspace-show-editor #workspaceLibraryPane { display: none !important; }
-        body.workspace-admin #workspaceLibraryPane {
+        body.workspace-narrow:not(.workspace-show-editor) #workspaceEditorPane { display: none !important; }
+        body.workspace-narrow.workspace-show-editor #workspaceLibraryPane { display: none !important; }
+        body.workspace-test-page #workspaceLibraryPane {
           grid-template-rows: auto auto minmax(0, 1fr) !important;
         }
-        body.workspace-admin #listPanel .table-wrap {
+        body.workspace-test-page #listPanel .table-wrap {
           height: 100% !important;
           max-height: none !important;
         }
-        body.workspace-admin #workspaceEditorPane {
+        body.workspace-test-page #workspaceEditorPane {
           border-radius: 16px !important;
           height: 100% !important;
         }
-        body.workspace-admin #editorDrawer {
+        body.workspace-test-page #editorDrawer {
           border-radius: 16px !important;
           height: 100% !important;
           max-height: none !important;
           overflow: auto !important;
         }
-        body.workspace-admin #quickStrip.quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-        body.workspace-admin #controlsPanel .filters-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+        body.workspace-test-page #quickStrip.quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        body.workspace-test-page #controlsPanel .filters-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
       }
     `;
     document.head.appendChild(style);
@@ -620,11 +652,16 @@
 
     const editorPane = document.createElement('section');
     editorPane.id = 'workspaceEditorPane';
-    editorPane.setAttribute('aria-label', 'Add or edit program');
+    editorPane.setAttribute('aria-label', 'Program details or add/edit form');
+
+    const editorEmpty = document.createElement('div');
+    editorEmpty.id = 'workspaceEditorEmpty';
+    editorEmpty.innerHTML = '<div class="workspace-empty-card"><div class="workspace-empty-title">Select a program to see details</div><div class="workspace-empty-text">The Library list controls what appears here. Admin users can also add or edit programs in this panel.</div></div>';
 
     if (mobileNav) libraryPane.appendChild(mobileNav);
     libraryPane.appendChild(controls);
     libraryPane.appendChild(list);
+    editorPane.appendChild(editorEmpty);
     editorPane.appendChild(drawer);
     grid.appendChild(libraryPane);
     grid.appendChild(splitter);
@@ -655,7 +692,6 @@
 
     let dragging = false;
     const start = (event) => {
-      if (!document.body.classList.contains('workspace-admin')) return;
       if (isStackedWorkspace()) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       dragging = true;
@@ -857,10 +893,53 @@
     }).join('');
   }
 
+
+  function workspaceRightsEndIso(program) {
+    try { return normalizeIsoDate(program?.rights_end); }
+    catch { return ''; }
+  }
+
+  function workspaceProgramOutOfRights(program) {
+    const end = workspaceRightsEndIso(program);
+    return Boolean(end && end < isoTodayValue());
+  }
+
+  function workspaceProgramInRights(program) {
+    const end = workspaceRightsEndIso(program);
+    return Boolean(end && end >= isoTodayValue());
+  }
+
+  function workspaceRightsPoolForView(view) {
+    const programs = Array.isArray(state?.programs) ? state.programs : [];
+    switch (view) {
+      case 'active':
+        return programs.filter(workspaceProgramInRights);
+      case 'archived':
+      case 'expired':
+      case 'archive_candidate':
+        return programs.filter(workspaceProgramOutOfRights);
+      case 'all':
+      case '':
+      case null:
+      case undefined:
+        return programs;
+      default:
+        return programs.filter(workspaceProgramInRights);
+    }
+  }
+
+  function applyWorkspaceRightsArchiveOverlay() {
+    if (!Array.isArray(state?.programs)) return;
+    state.programs.forEach((program) => {
+      if (!program || typeof program !== 'object') return;
+      program.is_archived = workspaceProgramOutOfRights(program);
+    });
+  }
+
   function updateWorkspaceDiagnosticStats() {
     const missingTarget = document.getElementById('statMissingInfo');
     if (!missingTarget || !Array.isArray(state?.programs)) return;
-    const activePrograms = state.programs.filter((program) => !program.is_archived);
+    const activePrograms = state.programs.filter(workspaceProgramInRights);
     let missingCount = 0;
     activePrograms.forEach((program) => {
       try {
@@ -940,8 +1019,8 @@
   function getWorkspaceFilterSummaryParts() {
     const parts = [];
     const viewLabels = {
-      active: 'Active',
-      archived: 'Archived',
+      active: 'In rights',
+      archived: 'Out of rights',
       new_to_13_1: 'New to 13.1',
       new_to_13_3: 'New to 13.3',
       evergreens: 'Evergreens',
@@ -1079,17 +1158,13 @@
     installWorkspaceShell();
     installSplitter();
     installWorkspaceResponsiveMode();
+    applyWorkspaceRightsArchiveOverlay();
     const admin = isWorkspaceAdmin();
     document.body.classList.toggle('workspace-admin', admin);
     const pane = document.getElementById('workspaceEditorPane');
-    if (pane) pane.setAttribute('aria-hidden', admin ? 'false' : 'true');
-    if (!admin && typeof closeEditor === 'function') {
-      const drawer = document.getElementById('editorDrawer');
-      if (drawer && !drawer.classList.contains('hidden')) {
-        suppressWorkspaceReopen = true;
-        try { closeEditor(); } finally { suppressWorkspaceReopen = false; }
-      }
-    }
+    if (pane) pane.setAttribute('aria-hidden', 'false');
+    const drawer = document.getElementById('editorDrawer');
+    document.body.classList.toggle('workspace-editor-open', Boolean(drawer && !drawer.classList.contains('hidden')));
   }
 
   function ensureWorkspaceEditorOpen() {
@@ -1100,16 +1175,27 @@
       workspaceOpeningDefaultEditor = true;
       try {
         openEditor(null);
+        applyWorkspaceNewProgramDefaults();
       } finally {
         window.setTimeout(() => { workspaceOpeningDefaultEditor = false; }, 0);
       }
     }
   }
 
+
+  function applyWorkspaceNewProgramDefaults() {
+    const form = els.programForm;
+    if (!form || normalizeText(form.dataset.programId)) return;
+    ['aired_13_1', 'aired_13_3'].forEach((field) => {
+      const input = form.elements[field];
+      if (input && !normalizeText(input.value)) input.value = 'No';
+    });
+  }
+
   function deriveArchiveFlag(existingItem, rightsEndIso) {
-    if (rightsEndIso) return rightsEndIso < isoTodayValue();
-    if (existingItem && Object.prototype.hasOwnProperty.call(existingItem, 'is_archived')) return Boolean(existingItem.is_archived);
-    return false;
+    // Workspace test no longer stores archive state. This helper is kept only
+    // so older patched calls do not fail while archive/out-of-rights is derived from Rights End.
+    return Boolean(rightsEndIso && rightsEndIso < isoTodayValue());
   }
 
   function patchSaveProgram() {
@@ -1143,12 +1229,10 @@
         package_type: form.elements.package_type.value || null,
         server_tape: form.elements.server_tape.value || null,
         distributor: form.elements.distributor.value || null,
-        exclude_from_auto_archive: Boolean(existingItem?.exclude_from_auto_archive),
-        is_archived: Boolean(existingItem?.is_archived)
+        exclude_from_auto_archive: Boolean(existingItem?.exclude_from_auto_archive)
       };
 
       const selectedRating = normalizeRating(form.elements.rating?.value);
-      payload.is_archived = deriveArchiveFlag(existingItem, payload.rights_end);
 
       if (!payload.title) {
         alert('Title is required.');
@@ -1169,16 +1253,13 @@
       if (dupes.length) {
         const summary = duplicateSummary(dupes);
         const archivedLine = summary.archivedCount
-          ? `\n${summary.archivedCount} matching archived program${summary.archivedCount === 1 ? ' is' : 's are'} already in the archive.`
+          ? `\n${summary.archivedCount} matching program${summary.archivedCount === 1 ? ' is' : 's are'} out of rights.`
           : '';
         const proceed = confirm(`Possible duplicate found (${dupes.length}).${archivedLine}\nSave anyway?`);
         if (!proceed) return;
       }
 
-      const archiveChanged = existingItem && Boolean(existingItem.is_archived) !== Boolean(payload.is_archived);
-      const saveMessage = !programId
-        ? 'Creating program…'
-        : (archiveChanged && payload.is_archived ? 'Saving changes and moving to archive…' : (archiveChanged ? 'Saving changes and restoring to active…' : 'Saving changes…'));
+      const saveMessage = !programId ? 'Creating program…' : 'Saving changes…';
       setLoading(saveMessage);
 
       try {
@@ -1204,10 +1285,8 @@
           }
         }
 
-        const statusNote = archiveChanged
-          ? (payload.is_archived ? ' Program moved to archive because rights are expired.' : ' Program restored to active because rights are current.')
-          : '';
-        const savedMessage = (!programId ? 'Created program.' : `Saved changes.${statusNote}`) + ratingWarning;
+        applyWorkspaceRightsArchiveOverlay();
+        const savedMessage = (!programId ? 'Created program.' : 'Saved changes.') + ratingWarning;
         refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
         setLoading('');
         closeEditor();
@@ -1220,11 +1299,122 @@
     };
   }
 
+
+  function patchRightsDerivedArchiveModel() {
+    if (window.__wnmuWorkspaceRightsDerivedPatched) return;
+    window.__wnmuWorkspaceRightsDerivedPatched = true;
+
+    if (typeof attemptAutoArchiveOncePerDay === 'function') {
+      attemptAutoArchiveOncePerDay = async function workspaceNoStoredAutoArchive() { return false; };
+    }
+
+    if (typeof duplicateSummary === 'function') {
+      duplicateSummary = function workspaceDuplicateSummary(matches) {
+        const archivedCount = (matches || []).filter(workspaceProgramOutOfRights).length;
+        const activeCount = (matches || []).length - archivedCount;
+        const parts = [];
+        if (activeCount) parts.push(`${activeCount} in/current or unknown rights`);
+        if (archivedCount) parts.push(`${archivedCount} out of rights`);
+        return { archivedCount, activeCount, summaryText: parts.join(', ') };
+      };
+    }
+
+
+    if (typeof renderDuplicateCheck === 'function') {
+      const originalRenderDuplicateCheck = renderDuplicateCheck;
+      renderDuplicateCheck = function workspaceRightsRenderDuplicateCheck(...args) {
+        applyWorkspaceRightsArchiveOverlay();
+        const result = originalRenderDuplicateCheck.apply(this, args);
+        try {
+          els.duplicateCheck?.querySelectorAll('.dup-archived-note, .dup-reason, .dup-meta').forEach((node) => {
+            node.textContent = node.textContent
+              .replace(/currently archived/gi, 'out of rights')
+              .replace(/archived/gi, 'out of rights');
+          });
+        } catch {}
+        return result;
+      };
+    }
+
+    if (typeof programCanAutoRestore === 'function') {
+      programCanAutoRestore = function workspaceProgramCanAutoRestore() { return false; };
+    }
+
+    if (typeof updateRestoreButtonVisibility === 'function') {
+      updateRestoreButtonVisibility = function workspaceHideRestoreButton() {
+        els.restoreBtn?.classList.add('hidden');
+      };
+    }
+
+    if (typeof matchesView === 'function') {
+      const originalMatchesView = matchesView;
+      matchesView = function workspaceRightsMatchesView(program, view) {
+        switch (view) {
+          case 'active':
+            return workspaceProgramInRights(program);
+          case 'archived':
+          case 'expired':
+          case 'archive_candidate':
+            return workspaceProgramOutOfRights(program);
+          default:
+            return originalMatchesView.call(this, program, view);
+        }
+      };
+    }
+
+    if (typeof programsInCurrentViewPool === 'function') {
+      programsInCurrentViewPool = function workspaceRightsProgramsInCurrentViewPool() {
+        const cacheKey = `rights-derived:${isoTodayValue()}:${state.currentView}|${state.programs.length}`;
+        if (state.poolCacheKey === cacheKey && Array.isArray(state.poolProgramIds)) return state.poolProgramIds;
+        let items = workspaceRightsPoolForView(state.currentView);
+        if (state.currentView && !['all', 'active', 'archived', 'expired', 'archive_candidate'].includes(state.currentView)) {
+          items = items.filter((item) => matchesView(item, state.currentView));
+        }
+        state.poolCacheKey = cacheKey;
+        state.poolProgramIds = items;
+        return items;
+      };
+    }
+
+    if (typeof badgesFor === 'function') {
+      const originalBadgesFor = badgesFor;
+      badgesFor = function workspaceRightsBadgesFor(program) {
+        const badges = originalBadgesFor.call(this, program).filter((badge) => normalizeLower(badge.label) !== 'archived');
+        return badges;
+      };
+    }
+
+    if (typeof renderTable === 'function') {
+      const originalRenderTable = renderTable;
+      renderTable = function workspaceRightsRenderTable(...args) {
+        applyWorkspaceRightsArchiveOverlay();
+        return originalRenderTable.apply(this, args);
+      };
+    }
+
+    if (typeof renderStats === 'function') {
+      const originalRenderStatsForRights = renderStats;
+      renderStats = function workspaceRightsRenderStats(...args) {
+        applyWorkspaceRightsArchiveOverlay();
+        const flags = state.programs.map((program) => ({ program, flags: computeFlags(program) }));
+        const inRightsFlags = flags.filter((x) => workspaceProgramInRights(x.program));
+        if (els.statApt) els.statApt.textContent = inRightsFlags.filter((x) => x.flags.needsAptCheck).length.toLocaleString();
+        if (els.statEnding) els.statEnding.textContent = inRightsFlags.filter((x) => x.flags.rightsStatus === 'Ending soon').length.toLocaleString();
+        if (els.statMissingRights) els.statMissingRights.textContent = flags.filter((x) => x.flags.missingRights).length.toLocaleString();
+        if (els.statArchived) els.statArchived.textContent = state.programs.filter(workspaceProgramOutOfRights).length.toLocaleString();
+        if (typeof syncQuickViewState === 'function') syncQuickViewState();
+        updateWorkspaceDiagnosticStats();
+        updateWorkspaceFilterSummary();
+        return undefined;
+      };
+    }
+  }
+
   function patchWorkspaceFunctions() {
     injectWorkspaceStyles();
     installWorkspaceShell();
     patchSaveProgram();
-    patchRenderStats();
+    patchRightsDerivedArchiveModel();
     installWorkspaceFilterToggle();
     installWorkspaceResponsiveMode();
     installWorkspaceFilterLayoutPatch();
@@ -1284,7 +1474,10 @@
       const originalLoadEverything = loadEverything;
       loadEverything = async function workspaceLoadEverything(...args) {
         const result = await originalLoadEverything.apply(this, args);
+        applyWorkspaceRightsArchiveOverlay();
         syncWorkspaceMode();
+        if (typeof renderTable === 'function') renderTable();
+        if (typeof renderStats === 'function') renderStats();
         window.setTimeout(ensureWorkspaceEditorOpen, 80);
         return result;
       };
@@ -1296,11 +1489,14 @@
       openEditor = function workspaceOpenEditor(id = null, duplicate = false) {
         syncWorkspaceMode();
         const result = originalOpenEditor.call(this, id, duplicate);
-        if (isWorkspaceAdmin()) {
-          els.drawerBackdrop?.classList.add('hidden');
-          if (!id && els.drawerTitle) els.drawerTitle.textContent = 'Add New Program';
-          if (isNarrowWorkspace() && !workspaceOpeningDefaultEditor) setWorkspaceActivePanel('editor');
+        els.drawerBackdrop?.classList.add('hidden');
+        document.body.classList.remove('modal-open');
+        document.body.classList.add('workspace-editor-open');
+        if (!id && els.drawerTitle) els.drawerTitle.textContent = 'Add New Program';
+        if (!id) {
+          [0, 60, 160].forEach((delay) => window.setTimeout(applyWorkspaceNewProgramDefaults, delay));
         }
+        if (isNarrowWorkspace() && !workspaceOpeningDefaultEditor) setWorkspaceActivePanel('editor');
         return result;
       };
     }
@@ -1311,7 +1507,8 @@
       closeEditor = function workspaceCloseEditor(...args) {
         const shouldReopen = isWorkspaceAdmin() && !suppressWorkspaceReopen && !isNarrowWorkspace();
         const result = originalCloseEditor.apply(this, args);
-        if (isWorkspaceAdmin() && isNarrowWorkspace()) setWorkspaceActivePanel('library');
+        document.body.classList.remove('workspace-editor-open');
+        if (isNarrowWorkspace()) setWorkspaceActivePanel('library');
         if (shouldReopen) window.setTimeout(() => openEditor(null), 30);
         return result;
       };
