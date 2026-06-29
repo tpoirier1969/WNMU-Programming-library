@@ -1192,6 +1192,408 @@
     });
   }
 
+
+  let workspaceFormBaseline = '';
+  let workspaceFormDirty = false;
+  let workspaceSuppressDirtyTracking = false;
+  let workspaceDiscardPromptOpen = false;
+  let workspaceHiddenSelectedAckId = null;
+  let workspaceSelectionClearInProgress = false;
+  let workspaceResetFiltersBase = null;
+
+  function clearWorkspaceActivationGuardState() {
+    try { if (typeof clearProgramActivationGuard === 'function') clearProgramActivationGuard(); } catch {}
+    try { state.suppressNextListWakeClick = false; } catch {}
+    try { state.programActivationGuardArmed = false; } catch {}
+    try { if (state.programActivationGuardTimer) clearTimeout(state.programActivationGuardTimer); } catch {}
+  }
+
+  function patchWorkspaceActivationGuard() {
+    if (window.__wnmuWorkspaceActivationGuardPatched) return;
+    window.__wnmuWorkspaceActivationGuardPatched = true;
+    clearWorkspaceActivationGuardState();
+    const noOp = function workspaceNoActivationGuard() { return false; };
+    try { armProgramActivationGuard = function workspaceDoNotArmActivationGuard() {}; } catch {}
+    try { window.armProgramActivationGuard = function workspaceDoNotArmActivationGuard() {}; } catch {}
+    try { scheduleProgramActivationGuardRelease = function workspaceNoGuardRelease() { clearWorkspaceActivationGuardState(); }; } catch {}
+    try { window.scheduleProgramActivationGuardRelease = function workspaceNoGuardRelease() { clearWorkspaceActivationGuardState(); }; } catch {}
+    try { handleWakeActivationInteraction = noOp; } catch {}
+    try { window.handleWakeActivationInteraction = noOp; } catch {}
+    try { consumeSuppressedWakeClick = noOp; } catch {}
+    try { window.consumeSuppressedWakeClick = noOp; } catch {}
+    try { shouldSuppressProgramActivation = noOp; } catch {}
+    try { window.shouldSuppressProgramActivation = noOp; } catch {}
+  }
+
+  function serializeWorkspaceProgramForm() {
+    const form = els.programForm;
+    if (!form) return '';
+    const values = { programId: String(form.dataset.programId || '') };
+    Array.from(form.elements || []).forEach((field) => {
+      if (!field || !field.name) return;
+      if (field.name.endsWith('_picker')) return;
+      const type = String(field.type || '').toLowerCase();
+      if (type === 'button' || type === 'submit' || type === 'reset') return;
+      if (type === 'checkbox' || type === 'radio') values[field.name] = Boolean(field.checked);
+      else values[field.name] = field.value == null ? '' : String(field.value);
+    });
+    return JSON.stringify(values);
+  }
+
+  function setWorkspaceFormDirty(dirty) {
+    workspaceFormDirty = Boolean(dirty && isWorkspaceAdmin());
+    document.body.classList.toggle('workspace-editor-dirty', workspaceFormDirty);
+  }
+
+  function captureWorkspaceFormBaseline() {
+    workspaceFormBaseline = serializeWorkspaceProgramForm();
+    setWorkspaceFormDirty(false);
+    workspaceSuppressDirtyTracking = false;
+  }
+
+  function updateWorkspaceFormDirtyState() {
+    if (workspaceSuppressDirtyTracking) return;
+    if (!isWorkspaceAdmin()) {
+      setWorkspaceFormDirty(false);
+      return;
+    }
+    const drawer = els.drawer;
+    if (!drawer || drawer.classList.contains('hidden')) {
+      setWorkspaceFormDirty(false);
+      return;
+    }
+    if (!workspaceFormBaseline) {
+      captureWorkspaceFormBaseline();
+      return;
+    }
+    setWorkspaceFormDirty(serializeWorkspaceProgramForm() !== workspaceFormBaseline);
+  }
+
+  function scheduleWorkspaceFormBaselineCapture() {
+    const drawer = els.drawer;
+    if (!drawer) return;
+    const token = state.editorOpenToken;
+    workspaceSuppressDirtyTracking = true;
+    setWorkspaceFormDirty(false);
+    const attempt = () => {
+      if (state.editorOpenToken !== token) return;
+      if (drawer.classList.contains('hidden')) return;
+      if (drawer.classList.contains('drawer-loading')) {
+        window.setTimeout(attempt, 40);
+        return;
+      }
+      captureWorkspaceFormBaseline();
+    };
+    window.setTimeout(attempt, 0);
+  }
+
+  function installWorkspaceDirtyGuardUi() {
+    if (document.getElementById('workspaceDirtyGuardStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'workspaceDirtyGuardStyles';
+    style.textContent = `
+      body.workspace-test-page .workspace-discard-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(4, 20, 31, .42);
+        backdrop-filter: blur(2px);
+      }
+      body.workspace-test-page .workspace-discard-backdrop.open { display: flex; }
+      body.workspace-test-page .workspace-discard-dialog {
+        width: min(420px, calc(100vw - 36px));
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid rgba(18,134,127,.28);
+        box-shadow: 0 24px 60px rgba(12,39,68,.25);
+        padding: 18px;
+        color: #163744;
+      }
+      body.workspace-test-page .workspace-discard-title {
+        font-size: 1.02rem;
+        font-weight: 850;
+        margin: 0 0 6px;
+      }
+      body.workspace-test-page .workspace-discard-text {
+        margin: 0 0 14px;
+        color: #42616c;
+        font-size: .9rem;
+        line-height: 1.35;
+      }
+      body.workspace-test-page .workspace-discard-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      body.workspace-test-page .workspace-discard-actions button { min-height: 36px; }
+      body.workspace-test-page .workspace-discard-actions .discard-danger {
+        background: #b94a48 !important;
+        border-color: #b94a48 !important;
+        color: #fff !important;
+      }
+      body.workspace-test-page.workspace-editor-dirty #drawerTitle::after {
+        content: ' • unsaved';
+        color: #b05d00;
+        font-size: .72em;
+        font-weight: 800;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(18,134,127,.16);
+        display: grid;
+        gap: 8px;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools .lookup-tools,
+      body.workspace-test-page .workspace-editor-utility-tools .template-tools,
+      body.workspace-test-page .workspace-editor-utility-tools .pbs-import-tools {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        grid-column: 1 / -1 !important;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools .lookup-tools {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools .template-tools {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        gap: 8px !important;
+        align-items: end !important;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools .pbs-import-head {
+        gap: 8px !important;
+      }
+      body.workspace-test-page .workspace-editor-utility-tools .template-field { min-width: 0 !important; }
+    `;
+    document.head.appendChild(style);
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'workspaceDiscardBackdrop';
+    backdrop.className = 'workspace-discard-backdrop';
+    backdrop.setAttribute('role', 'presentation');
+    backdrop.innerHTML = `
+      <div class="workspace-discard-dialog" role="dialog" aria-modal="true" aria-labelledby="workspaceDiscardTitle" aria-describedby="workspaceDiscardText">
+        <h3 id="workspaceDiscardTitle" class="workspace-discard-title">You have unsaved changes</h3>
+        <p id="workspaceDiscardText" class="workspace-discard-text">Continue editing, or discard the edits and clear this program from the details panel.</p>
+        <div class="workspace-discard-actions">
+          <button type="button" id="workspaceContinueEditingBtn" class="secondary">Continue editing</button>
+          <button type="button" id="workspaceDiscardEditsBtn" class="discard-danger">Discard edits</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+  }
+
+  function promptDiscardWorkspaceEdits(message) {
+    if (!workspaceFormDirty) return Promise.resolve(true);
+    installWorkspaceDirtyGuardUi();
+    if (workspaceDiscardPromptOpen) return Promise.resolve(false);
+    workspaceDiscardPromptOpen = true;
+    const backdrop = document.getElementById('workspaceDiscardBackdrop');
+    const text = document.getElementById('workspaceDiscardText');
+    const continueBtn = document.getElementById('workspaceContinueEditingBtn');
+    const discardBtn = document.getElementById('workspaceDiscardEditsBtn');
+    if (!backdrop || !continueBtn || !discardBtn) {
+      workspaceDiscardPromptOpen = false;
+      return Promise.resolve(window.confirm('You have unsaved changes. Click OK to discard edits, or Cancel to continue editing.'));
+    }
+    if (text) text.textContent = message || 'Continue editing, or discard the edits and clear this program from the details panel.';
+    backdrop.classList.add('open');
+    return new Promise((resolve) => {
+      const finish = (discard) => {
+        backdrop.classList.remove('open');
+        workspaceDiscardPromptOpen = false;
+        continueBtn.removeEventListener('click', onContinue);
+        discardBtn.removeEventListener('click', onDiscard);
+        document.removeEventListener('keydown', onKeydown, true);
+        if (discard) {
+          workspaceFormBaseline = serializeWorkspaceProgramForm();
+          setWorkspaceFormDirty(false);
+        }
+        resolve(Boolean(discard));
+      };
+      const onContinue = () => finish(false);
+      const onDiscard = () => finish(true);
+      const onKeydown = (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      };
+      continueBtn.addEventListener('click', onContinue);
+      discardBtn.addEventListener('click', onDiscard);
+      document.addEventListener('keydown', onKeydown, true);
+      window.setTimeout(() => continueBtn.focus(), 0);
+    });
+  }
+
+  async function requestWorkspaceClearSelection(reason) {
+    if (workspaceSelectionClearInProgress) return false;
+    const message = reason === 'clear-filters'
+      ? 'Continue editing, or discard the edits and clear all filters.'
+      : reason === 'filter-removed'
+        ? 'The selected program no longer matches the current filters. Continue editing, or discard the edits and clear the details panel.'
+        : 'Continue editing, or discard the edits and clear this program from the details panel.';
+    const discardOrClean = await promptDiscardWorkspaceEdits(message);
+    if (!discardOrClean) return false;
+    workspaceSelectionClearInProgress = true;
+    try {
+      workspaceHiddenSelectedAckId = null;
+      setWorkspaceFormDirty(false);
+      workspaceFormBaseline = '';
+      clearWorkspaceActivationGuardState();
+      if (typeof closeEditor === 'function') closeEditor();
+    } finally {
+      window.setTimeout(() => { workspaceSelectionClearInProgress = false; }, 0);
+    }
+    return true;
+  }
+
+  async function workspaceOpenProgramWithGuard(id) {
+    if (!id) return;
+    clearWorkspaceActivationGuardState();
+    const current = state?.selectedId == null ? '' : String(state.selectedId);
+    const next = String(id);
+    if (current && current === next) {
+      await requestWorkspaceClearSelection('toggle');
+      return;
+    }
+    if (workspaceFormDirty) {
+      const discard = await promptDiscardWorkspaceEdits('Continue editing the current program, or discard edits and open the selected program.');
+      if (!discard) return;
+      setWorkspaceFormDirty(false);
+    }
+    workspaceHiddenSelectedAckId = null;
+    openEditor(next);
+  }
+
+  function workspaceIsProgramListControl(target) {
+    const el = target instanceof Element ? target : null;
+    if (!el) return false;
+    if (el.closest('.program-title-button,[data-open-program]')) return false;
+    return Boolean(el.closest([
+      '.inline-airing-editor',
+      '[data-inline-airing-toggle]',
+      '[data-inline-airing-save]',
+      '[data-inline-rating-value]',
+      '[data-copy-note]',
+      'input',
+      'select',
+      'textarea',
+      'a',
+      'button'
+    ].join(',')));
+  }
+
+  function installWorkspaceProgramSelectionHandler() {
+    if (window.__wnmuWorkspaceSelectionHandlerInstalled) return;
+    const tableBody = els.tableBody || document.getElementById('programTableBody');
+    if (!tableBody) return;
+    window.__wnmuWorkspaceSelectionHandlerInstalled = true;
+    tableBody.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      const openBtn = target.closest('[data-open-program]');
+      const row = target.closest('tr[data-id]');
+      const id = openBtn?.dataset.openProgram || row?.dataset.id;
+      if (!id) return;
+      if (!openBtn && workspaceIsProgramListControl(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      workspaceOpenProgramWithGuard(id);
+    }, true);
+  }
+
+  function installWorkspaceDirtyTracking() {
+    if (window.__wnmuWorkspaceDirtyTrackingInstalled) return;
+    const form = els.programForm;
+    if (!form) return;
+    window.__wnmuWorkspaceDirtyTrackingInstalled = true;
+    installWorkspaceDirtyGuardUi();
+    form.addEventListener('input', () => window.setTimeout(updateWorkspaceFormDirtyState, 0), true);
+    form.addEventListener('change', () => window.setTimeout(updateWorkspaceFormDirtyState, 0), true);
+  }
+
+  function installWorkspaceEditorToolsLayout() {
+    const form = els.programForm;
+    const actions = form?.querySelector('.drawer-actions');
+    if (!form || !actions) return;
+    let utility = document.getElementById('workspaceEditorUtilityTools');
+    if (!utility) {
+      utility = document.createElement('div');
+      utility.id = 'workspaceEditorUtilityTools';
+      utility.className = 'workspace-editor-utility-tools';
+      actions.insertAdjacentElement('afterend', utility);
+    }
+    const lookupTools = document.getElementById('lookupBtn')?.closest('.lookup-tools');
+    const pieces = [lookupTools, document.getElementById('templateTools'), document.getElementById('pbsImportTools')].filter(Boolean);
+    pieces.forEach((piece) => {
+      if (piece.parentElement !== utility) utility.appendChild(piece);
+    });
+  }
+
+  function selectedProgramIsVisibleInCurrentFilters() {
+    const id = state?.selectedId;
+    if (!id) return true;
+    try {
+      return activePrograms().some((program) => String(program.id) === String(id));
+    } catch {
+      return true;
+    }
+  }
+
+  function maybeClearSelectionAfterTableRender() {
+    const id = state?.selectedId;
+    if (!id || workspaceSelectionClearInProgress) return;
+    if (selectedProgramIsVisibleInCurrentFilters()) {
+      if (workspaceHiddenSelectedAckId === String(id)) workspaceHiddenSelectedAckId = null;
+      return;
+    }
+    if (workspaceFormDirty) {
+      if (workspaceHiddenSelectedAckId === String(id)) return;
+      workspaceHiddenSelectedAckId = String(id);
+      requestWorkspaceClearSelection('filter-removed');
+      return;
+    }
+    requestWorkspaceClearSelection('filter-removed');
+  }
+
+  function patchWorkspaceRenderTableSelectionWatcher() {
+    if (typeof renderTable !== 'function' || window.__wnmuWorkspaceTableSelectionWatcherPatched) return;
+    window.__wnmuWorkspaceTableSelectionWatcherPatched = true;
+    const originalRenderTable = renderTable;
+    renderTable = function workspaceSelectionRenderTable(...args) {
+      const result = originalRenderTable.apply(this, args);
+      window.setTimeout(maybeClearSelectionAfterTableRender, 0);
+      return result;
+    };
+  }
+
+  function installWorkspaceResetFiltersInterceptor() {
+    if (window.__wnmuWorkspaceResetFiltersInterceptorInstalled) return;
+    const btn = els.resetFiltersBtn;
+    if (!btn || typeof resetFilters !== 'function') return;
+    window.__wnmuWorkspaceResetFiltersInterceptorInstalled = true;
+    workspaceResetFiltersBase = resetFilters;
+    btn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      const ok = await requestWorkspaceClearSelection('clear-filters');
+      if (!ok) return;
+      workspaceResetFiltersBase.call(this);
+    }, true);
+  }
+
   function deriveArchiveFlag(existingItem, rightsEndIso) {
     // Workspace test no longer stores archive state. This helper is kept only
     // so older patched calls do not fail while archive/out-of-rights is derived from Rights End.
@@ -1289,6 +1691,8 @@
         const savedMessage = (!programId ? 'Created program.' : 'Saved changes.') + ratingWarning;
         refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
         setLoading('');
+        setWorkspaceFormDirty(false);
+        workspaceFormBaseline = '';
         closeEditor();
       } catch (error) {
         console.error(error);
@@ -1414,7 +1818,13 @@
     injectWorkspaceStyles();
     installWorkspaceShell();
     patchSaveProgram();
+    patchWorkspaceActivationGuard();
     patchRightsDerivedArchiveModel();
+    patchWorkspaceRenderTableSelectionWatcher();
+    installWorkspaceProgramSelectionHandler();
+    installWorkspaceDirtyTracking();
+    installWorkspaceEditorToolsLayout();
+    installWorkspaceResetFiltersInterceptor();
     installWorkspaceFilterToggle();
     installWorkspaceResponsiveMode();
     installWorkspaceFilterLayoutPatch();
@@ -1435,10 +1845,9 @@
         }, true);
         const closeBtn = els.closeDrawerBtn;
         closeBtn?.addEventListener('click', (event) => {
-          if (!isWorkspaceAdmin()) return;
           event.preventDefault();
           event.stopImmediatePropagation();
-          closeEditor();
+          requestWorkspaceClearSelection('close-button');
         }, true);
         document.addEventListener('keydown', (event) => {
           if (!isWorkspaceAdmin()) return;
@@ -1446,7 +1855,7 @@
           if (event.key === 'Escape' && formIsOpen) {
             event.preventDefault();
             event.stopImmediatePropagation();
-            closeEditor();
+            requestWorkspaceClearSelection('escape');
           }
           if (event.key.toLowerCase() === 'n' && !isInteractiveElement(document.activeElement) && canEdit()) {
             event.preventDefault();
@@ -1496,6 +1905,8 @@
         if (!id) {
           [0, 60, 160].forEach((delay) => window.setTimeout(applyWorkspaceNewProgramDefaults, delay));
         }
+        installWorkspaceEditorToolsLayout();
+        scheduleWorkspaceFormBaselineCapture();
         if (isNarrowWorkspace() && !workspaceOpeningDefaultEditor) setWorkspaceActivePanel('editor');
         return result;
       };
@@ -1506,6 +1917,9 @@
       const originalCloseEditor = closeEditor;
       closeEditor = function workspaceCloseEditor(...args) {
         const shouldReopen = isWorkspaceAdmin() && !suppressWorkspaceReopen && !isNarrowWorkspace();
+        setWorkspaceFormDirty(false);
+        workspaceFormBaseline = '';
+        workspaceHiddenSelectedAckId = null;
         const result = originalCloseEditor.apply(this, args);
         document.body.classList.remove('workspace-editor-open');
         if (isNarrowWorkspace()) setWorkspaceActivePanel('library');
