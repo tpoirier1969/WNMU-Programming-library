@@ -468,6 +468,105 @@
         line-height: 1.12 !important;
       }
 
+      body.workspace-test-page #controlsPanel .filter-label-actions {
+        display: inline-flex !important;
+        gap: 3px !important;
+        align-items: center !important;
+        margin-left: auto !important;
+        min-width: 0 !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-select-all-filter {
+        white-space: nowrap !important;
+      }
+      body.workspace-test-page #controlsPanel select.workspace-native-multi-select {
+        display: none !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-dropdown {
+        position: relative !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-toggle {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 29px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 7px !important;
+        padding: 4px 8px !important;
+        border: 1px solid rgba(12, 78, 97, .24) !important;
+        border-radius: 9px !important;
+        background: #fff !important;
+        color: #173646 !important;
+        text-align: left !important;
+        font-weight: 650 !important;
+        box-sizing: border-box !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-toggle::after {
+        content: '▾';
+        flex: 0 0 auto;
+        color: #58727d;
+        font-size: .78rem;
+        line-height: 1;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-toggle[aria-expanded="true"]::after { content: '▴'; }
+      body.workspace-test-page #controlsPanel .workspace-multi-toggle-text {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-panel {
+        position: absolute !important;
+        top: calc(100% + 3px) !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 50 !important;
+        max-height: min(240px, 42vh) !important;
+        overflow: auto !important;
+        padding: 6px !important;
+        border: 1px solid rgba(12, 78, 97, .28) !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+        box-shadow: 0 14px 28px rgba(12, 39, 68, .18) !important;
+        box-sizing: border-box !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-panel.hidden { display: none !important; }
+      body.workspace-test-page #controlsPanel .workspace-multi-row {
+        display: grid !important;
+        grid-template-columns: 14px minmax(0, 1fr) !important;
+        gap: 6px !important;
+        align-items: start !important;
+        margin: 0 0 4px 0 !important;
+        padding: 2px 1px !important;
+        border-radius: 6px !important;
+        font-size: .73rem !important;
+        line-height: 1.12 !important;
+        cursor: pointer !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-row:hover {
+        background: rgba(18, 134, 127, .08) !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-row input {
+        width: 13px !important;
+        min-height: 13px !important;
+        height: 13px !important;
+        margin: 1px 0 0 0 !important;
+        padding: 0 !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-text {
+        min-width: 0 !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.12 !important;
+      }
+      body.workspace-test-page #controlsPanel .workspace-multi-empty {
+        color: #667b86 !important;
+        font-size: .74rem !important;
+        padding: 4px 2px !important;
+      }
+
 
 
       body.workspace-test-page #controlsPanel .workspace-filter-toggle-row {
@@ -826,7 +925,7 @@
       setWorkspaceImportant(clearHolder, 'padding-top', '0');
     }
 
-    installSecondaryTopicChecklist();
+    installWorkspaceMultiSelectDropdowns();
   }
 
   function selectedValues(select) {
@@ -839,60 +938,195 @@
     return div.innerHTML;
   }
 
-  function installSecondaryTopicChecklist() {
-    const select = document.getElementById('secondaryTopicFilter');
+  function workspaceMultiSelectConfigs() {
+    return [
+      { selectId: 'topicFilter', label: 'Topics', emptyLabel: 'All topics', allLabel: 'All topics selected', selectAllId: 'selectAllTopicFilter' },
+      { selectId: 'secondaryTopicFilter', label: 'Secondary topics', emptyLabel: 'All secondary topics', allLabel: 'All secondary selected', selectAllId: 'selectAllSecondaryTopicFilter' },
+      { selectId: 'lengthFilter', label: 'Lengths', emptyLabel: 'All lengths', allLabel: 'All lengths selected', selectAllId: 'selectAllLengthFilter' },
+      { selectId: 'codeFilter', label: 'Uses', emptyLabel: 'All uses', allLabel: 'All uses selected', selectAllId: 'selectAllCodeFilter' }
+    ];
+  }
+
+  function selectedValues(select) {
+    return new Set(Array.from(select?.selectedOptions || []).map((option) => option.value));
+  }
+
+  function escapeTextForHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  function optionValueCssToken(value) {
+    try {
+      if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+    } catch {}
+    return String(value).replace(/["\\]/g, '\\$&');
+  }
+
+  function getWorkspaceMultiSelectConfig(selectId) {
+    return workspaceMultiSelectConfigs().find((config) => config.selectId === selectId) || null;
+  }
+
+  function getWorkspaceMultiDropdown(selectId) {
+    return document.querySelector(`.workspace-multi-dropdown[data-select-id="${optionValueCssToken(selectId)}"]`);
+  }
+
+  function closeWorkspaceMultiDropdowns(exceptSelectId) {
+    document.querySelectorAll('.workspace-multi-dropdown').forEach((dropdown) => {
+      if (exceptSelectId && dropdown.dataset.selectId === exceptSelectId) return;
+      dropdown.querySelector('.workspace-multi-panel')?.classList.add('hidden');
+      dropdown.querySelector('.workspace-multi-toggle')?.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function workspaceMultiSelectLabels(select) {
+    return Array.from(select?.selectedOptions || [])
+      .filter((option) => option.value)
+      .map((option) => (option.textContent || option.value || '').trim())
+      .filter(Boolean);
+  }
+
+  function workspaceMultiToggleText(select, config) {
+    const options = Array.from(select?.options || []).filter((option) => option.value);
+    const labels = workspaceMultiSelectLabels(select);
+    if (!labels.length) return config.emptyLabel;
+    if (options.length && labels.length === options.length) return config.allLabel;
+    if (labels.length <= 2) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
+  }
+
+  function syncWorkspaceMultiToggle(selectId) {
+    const select = document.getElementById(selectId);
+    const config = getWorkspaceMultiSelectConfig(selectId);
+    const dropdown = getWorkspaceMultiDropdown(selectId);
+    if (!select || !config || !dropdown) return;
+    const text = workspaceMultiToggleText(select, config);
+    const textNode = dropdown.querySelector('.workspace-multi-toggle-text');
+    if (textNode) {
+      textNode.textContent = text;
+      textNode.title = text;
+    }
+  }
+
+  function installWorkspaceMultiSelectDropdowns() {
+    workspaceMultiSelectConfigs().forEach(installWorkspaceMultiSelectDropdown);
+    if (document.body.dataset.workspaceMultiCloseBound !== 'true') {
+      document.body.dataset.workspaceMultiCloseBound = 'true';
+      document.addEventListener('click', () => closeWorkspaceMultiDropdowns());
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeWorkspaceMultiDropdowns();
+      });
+    }
+  }
+
+  function installWorkspaceMultiSelectDropdown(config) {
+    const select = document.getElementById(config.selectId);
     if (!select) return;
 
-    let checklist = document.getElementById('secondaryTopicChecklist');
-    if (!checklist) {
-      checklist = document.createElement('div');
-      checklist.id = 'secondaryTopicChecklist';
-      checklist.setAttribute('role', 'group');
-      checklist.setAttribute('aria-label', 'Secondary topics');
-      select.insertAdjacentElement('afterend', checklist);
-    }
-    select.classList.add('workspace-native-secondary-select');
-
-    if (select.dataset.workspaceChecklistBound !== 'true') {
-      select.dataset.workspaceChecklistBound = 'true';
-      select.addEventListener('change', () => window.setTimeout(renderSecondaryTopicChecklist, 0));
-      const observer = new MutationObserver(() => window.setTimeout(renderSecondaryTopicChecklist, 0));
-      observer.observe(select, { childList: true, subtree: false, attributes: true, attributeFilter: ['selected'] });
+    let dropdown = getWorkspaceMultiDropdown(config.selectId);
+    if (!dropdown) {
+      dropdown = document.createElement('div');
+      dropdown.className = 'workspace-multi-dropdown';
+      dropdown.dataset.selectId = config.selectId;
+      dropdown.innerHTML = `<button type="button" class="workspace-multi-toggle" aria-expanded="false"><span class="workspace-multi-toggle-text"></span></button><div class="workspace-multi-panel hidden" role="group" aria-label="${escapeTextForHtml(config.label)}"><div class="workspace-multi-list"></div></div>`;
+      select.insertAdjacentElement('afterend', dropdown);
     }
 
-    if (checklist.dataset.workspaceChecklistBound !== 'true') {
-      checklist.dataset.workspaceChecklistBound = 'true';
-      checklist.addEventListener('change', (event) => {
-        const input = event.target.closest('input[type="checkbox"][data-secondary-topic-value]');
+    select.classList.add('workspace-native-multi-select');
+
+    if (select.dataset.workspaceMultiBound !== 'true') {
+      select.dataset.workspaceMultiBound = 'true';
+      select.addEventListener('change', () => window.setTimeout(() => renderWorkspaceMultiSelectDropdown(config.selectId), 0));
+      const observer = new MutationObserver(() => window.setTimeout(() => renderWorkspaceMultiSelectDropdown(config.selectId), 0));
+      observer.observe(select, { childList: true, subtree: false, attributes: true, attributeFilter: ['selected', 'disabled', 'label'] });
+    }
+
+    const toggle = dropdown.querySelector('.workspace-multi-toggle');
+    const panel = dropdown.querySelector('.workspace-multi-panel');
+    if (toggle && toggle.dataset.workspaceMultiBound !== 'true') {
+      toggle.dataset.workspaceMultiBound = 'true';
+      toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const willOpen = panel?.classList.contains('hidden');
+        closeWorkspaceMultiDropdowns(config.selectId);
+        panel?.classList.toggle('hidden', !willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      });
+    }
+
+    const list = dropdown.querySelector('.workspace-multi-list');
+    if (list && list.dataset.workspaceMultiBound !== 'true') {
+      list.dataset.workspaceMultiBound = 'true';
+      list.addEventListener('change', (event) => {
+        const input = event.target.closest('input[type="checkbox"][data-workspace-multi-value]');
         if (!input) return;
-        const option = Array.from(select.options).find((item) => item.value === input.dataset.secondaryTopicValue);
+        const option = Array.from(select.options).find((item) => item.value === input.dataset.workspaceMultiValue);
         if (!option) return;
         option.selected = input.checked;
         select.dispatchEvent(new Event('change', { bubbles: true }));
       });
+      list.addEventListener('click', (event) => event.stopPropagation());
     }
 
-    renderSecondaryTopicChecklist();
+    const selectAllButton = document.getElementById(config.selectAllId);
+    if (selectAllButton && selectAllButton.dataset.workspaceSelectAllBound !== 'true') {
+      selectAllButton.dataset.workspaceSelectAllBound = 'true';
+      selectAllButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        Array.from(select.options || []).forEach((option) => {
+          if (option.value && !option.disabled) option.selected = true;
+        });
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        renderWorkspaceMultiSelectDropdown(config.selectId);
+        updateWorkspaceFilterSummary();
+      });
+    }
+
+    const clearButtonId = config.selectId === 'topicFilter' ? 'clearTopicFilter'
+      : config.selectId === 'secondaryTopicFilter' ? 'clearSecondaryTopicFilter'
+      : config.selectId === 'lengthFilter' ? 'clearLengthFilter'
+      : config.selectId === 'codeFilter' ? 'clearCodeFilter'
+      : '';
+    const clearButton = clearButtonId ? document.getElementById(clearButtonId) : null;
+    if (clearButton && clearButton.dataset.workspaceMultiClearBound !== 'true') {
+      clearButton.dataset.workspaceMultiClearBound = 'true';
+      clearButton.addEventListener('click', () => window.setTimeout(() => {
+        renderWorkspaceMultiSelectDropdown(config.selectId);
+        updateWorkspaceFilterSummary();
+      }, 0));
+    }
+
+    renderWorkspaceMultiSelectDropdown(config.selectId);
   }
 
-  function renderSecondaryTopicChecklist() {
-    const select = document.getElementById('secondaryTopicFilter');
-    const checklist = document.getElementById('secondaryTopicChecklist');
-    if (!select || !checklist) return;
+  function renderWorkspaceMultiSelectDropdown(selectId) {
+    const select = document.getElementById(selectId);
+    const config = getWorkspaceMultiSelectConfig(selectId);
+    const dropdown = getWorkspaceMultiDropdown(selectId);
+    if (!select || !config || !dropdown) return;
+    const list = dropdown.querySelector('.workspace-multi-list');
+    if (!list) return;
+
     const selected = selectedValues(select);
     const options = Array.from(select.options || []).filter((option) => option.value);
     if (!options.length) {
-      checklist.innerHTML = '<div class="workspace-check-empty">No secondary topics</div>';
+      list.innerHTML = '<div class="workspace-multi-empty">No choices</div>';
+      syncWorkspaceMultiToggle(selectId);
       return;
     }
-    checklist.innerHTML = options.map((option, index) => {
-      const id = `secondaryTopicCheck_${index}`;
+
+    list.innerHTML = options.map((option, index) => {
       const value = option.value;
       const label = option.textContent || value;
-      return `<label class="workspace-check-row" for="${id}"><input id="${id}" type="checkbox" data-secondary-topic-value="${escapeTextForHtml(value)}" ${selected.has(value) ? 'checked' : ''}><span class="workspace-check-text">${escapeTextForHtml(label)}</span></label>`;
+      const id = `${selectId}_workspaceMulti_${index}`;
+      const checked = selected.has(value) ? 'checked' : '';
+      const disabled = option.disabled ? 'disabled' : '';
+      return `<label class="workspace-multi-row" for="${id}"><input id="${id}" type="checkbox" data-workspace-multi-value="${escapeTextForHtml(value)}" ${checked} ${disabled}><span class="workspace-multi-text">${escapeTextForHtml(label)}</span></label>`;
     }).join('');
+    syncWorkspaceMultiToggle(selectId);
   }
-
 
   function workspaceRightsEndIso(program) {
     try { return normalizeIsoDate(program?.rights_end); }
