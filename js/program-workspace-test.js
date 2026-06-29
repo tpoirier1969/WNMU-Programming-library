@@ -5,10 +5,14 @@
 
   const WORKSPACE_KEY = 'wnmu-programming-workspace-left-width';
   const FILTERS_COLLAPSED_KEY = 'wnmu-programming-workspace-filters-collapsed';
+  const WORKSPACE_STACK_QUERY = '(max-width: 1180px)';
+  const WORKSPACE_NARROW_QUERY = '(max-width: 780px)';
   const DEFAULT_LEFT_WIDTH = 58;
   let shellInstalled = false;
   let splitterInstalled = false;
+  let responsiveModeInstalled = false;
   let suppressWorkspaceReopen = false;
+  let workspaceOpeningDefaultEditor = false;
 
   function pct(value) {
     const n = Number(value);
@@ -25,6 +29,57 @@
     const width = pct(value);
     document.documentElement.style.setProperty('--workspace-left-width', `${width}%`);
     try { window.localStorage?.setItem(WORKSPACE_KEY, String(width)); } catch {}
+  }
+
+  function mediaMatches(query, fallbackWidth) {
+    try {
+      if (window.matchMedia) return window.matchMedia(query).matches;
+    } catch {}
+    return Number(window.innerWidth || 0) <= fallbackWidth;
+  }
+
+  function isStackedWorkspace() {
+    return mediaMatches(WORKSPACE_STACK_QUERY, 1180);
+  }
+
+  function isNarrowWorkspace() {
+    return mediaMatches(WORKSPACE_NARROW_QUERY, 780);
+  }
+
+  function updateResponsiveNavButtons() {
+    const showingEditor = document.body.classList.contains('workspace-show-editor');
+    document.getElementById('workspaceShowLibraryBtn')?.classList.toggle('active', !showingEditor);
+    document.getElementById('workspaceShowEditorBtn')?.classList.toggle('active', showingEditor);
+  }
+
+  function setWorkspaceActivePanel(panel) {
+    const showEditor = panel === 'editor';
+    document.body.classList.toggle('workspace-show-editor', showEditor);
+    document.body.classList.toggle('workspace-show-library', !showEditor);
+    updateResponsiveNavButtons();
+  }
+
+  function syncWorkspaceResponsiveMode() {
+    const narrow = isNarrowWorkspace();
+    document.body.classList.toggle('workspace-stacked', isStackedWorkspace());
+    document.body.classList.toggle('workspace-narrow', narrow);
+    if (!narrow) {
+      document.body.classList.remove('workspace-show-editor', 'workspace-show-library');
+    } else if (!document.body.classList.contains('workspace-show-editor') && !document.body.classList.contains('workspace-show-library')) {
+      setWorkspaceActivePanel('library');
+    }
+    updateResponsiveNavButtons();
+  }
+
+  function installWorkspaceResponsiveMode() {
+    if (responsiveModeInstalled) {
+      syncWorkspaceResponsiveMode();
+      return;
+    }
+    responsiveModeInstalled = true;
+    window.addEventListener('resize', () => window.requestAnimationFrame(syncWorkspaceResponsiveMode));
+    window.addEventListener('orientationchange', () => window.setTimeout(syncWorkspaceResponsiveMode, 80));
+    syncWorkspaceResponsiveMode();
   }
 
   function isWorkspaceAdmin() {
@@ -70,6 +125,28 @@
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+      }
+
+      body.workspace-test-page #workspaceResponsiveNav {
+        display: none;
+        gap: 6px;
+        align-items: center;
+        padding: 0 2px;
+        min-width: 0;
+      }
+      body.workspace-test-page #workspaceResponsiveNav .workspace-responsive-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 34px;
+        border-radius: 999px;
+        font-size: .82rem;
+        font-weight: 700;
+      }
+      body.workspace-test-page #workspaceResponsiveNav .workspace-responsive-btn.active {
+        background: var(--teal, #008f8c);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 7px 16px rgba(0,143,140,.22);
       }
 
       body.workspace-test-page #appShell.workspace-layout {
@@ -441,14 +518,78 @@
         margin-bottom: 0 !important;
       }
 
-      @media (max-width: 980px) {
-        body.workspace-admin #appShell.workspace-layout { height: auto !important; min-height: 100dvh !important; overflow: visible !important; }
-        body.workspace-admin #workspaceSplitGrid { grid-template-columns: 1fr !important; grid-template-rows: minmax(62vh, auto) 8px minmax(60vh, auto); overflow: visible !important; }
-        body.workspace-admin #workspaceSplitter { display: block; height: 8px; width: auto; cursor: row-resize; }
-        body.workspace-admin #workspaceSplitter::before { width: 48px; height: 3px; margin: 2px auto; }
-        body.workspace-admin #workspaceEditorPane { border-radius: 16px !important; overflow: visible !important; }
-        body.workspace-admin #editorDrawer { border-radius: 16px !important; height: auto !important; max-height: none !important; }
+      @media (max-width: 1180px) {
+        body.workspace-admin #appShell.workspace-layout {
+          height: auto !important;
+          min-height: 100dvh !important;
+          overflow: visible !important;
+          grid-template-rows: auto minmax(0, 1fr) !important;
+        }
+        body.workspace-admin #workspaceSplitGrid {
+          grid-template-columns: 1fr !important;
+          grid-template-rows: auto auto !important;
+          gap: 8px !important;
+          overflow: visible !important;
+        }
+        body.workspace-admin #workspaceSplitter { display: none !important; }
+        body.workspace-admin #workspaceLibraryPane {
+          min-height: 0 !important;
+          overflow: visible !important;
+          grid-template-rows: auto auto minmax(360px, 62vh) !important;
+        }
+        body.workspace-admin #workspaceEditorPane {
+          border-radius: 16px !important;
+          overflow: visible !important;
+        }
+        body.workspace-admin #editorDrawer {
+          border-radius: 16px !important;
+          height: auto !important;
+          max-height: none !important;
+        }
+        body.workspace-admin #listPanel .table-wrap { max-height: 62vh !important; }
+        body.workspace-admin #quickStrip.quick-strip { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+      }
+
+      @media (max-width: 780px) {
+        body.workspace-admin #appShell.workspace-layout {
+          height: 100dvh !important;
+          min-height: 100dvh !important;
+          overflow: hidden !important;
+          grid-template-rows: auto auto minmax(0, 1fr) !important;
+        }
+        body.workspace-admin #workspaceResponsiveNav { display: flex !important; }
+        body.workspace-admin #workspaceSplitGrid {
+          grid-template-columns: 1fr !important;
+          grid-template-rows: minmax(0, 1fr) !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+        body.workspace-admin #workspaceLibraryPane,
+        body.workspace-admin #workspaceEditorPane {
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+        body.workspace-narrow.workspace-admin:not(.workspace-show-editor) #workspaceEditorPane { display: none !important; }
+        body.workspace-narrow.workspace-admin.workspace-show-editor #workspaceLibraryPane { display: none !important; }
+        body.workspace-admin #workspaceLibraryPane {
+          grid-template-rows: auto auto minmax(0, 1fr) !important;
+        }
+        body.workspace-admin #listPanel .table-wrap {
+          height: 100% !important;
+          max-height: none !important;
+        }
+        body.workspace-admin #workspaceEditorPane {
+          border-radius: 16px !important;
+          height: 100% !important;
+        }
+        body.workspace-admin #editorDrawer {
+          border-radius: 16px !important;
+          height: 100% !important;
+          max-height: none !important;
+          overflow: auto !important;
+        }
         body.workspace-admin #quickStrip.quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        body.workspace-admin #controlsPanel .filters-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
       }
     `;
     document.head.appendChild(style);
@@ -488,9 +629,21 @@
     grid.appendChild(libraryPane);
     grid.appendChild(splitter);
     grid.appendChild(editorPane);
-    topbar.insertAdjacentElement('afterend', grid);
+
+    const responsiveNav = document.createElement('nav');
+    responsiveNav.id = 'workspaceResponsiveNav';
+    responsiveNav.setAttribute('aria-label', 'Workspace view');
+    responsiveNav.innerHTML = '<button type="button" id="workspaceShowLibraryBtn" class="workspace-responsive-btn active">Library</button><button type="button" id="workspaceShowEditorBtn" class="workspace-responsive-btn">Details / Add</button>';
+
+    topbar.insertAdjacentElement('afterend', responsiveNav);
+    responsiveNav.insertAdjacentElement('afterend', grid);
+
+    document.getElementById('workspaceShowLibraryBtn')?.addEventListener('click', () => setWorkspaceActivePanel('library'));
+    document.getElementById('workspaceShowEditorBtn')?.addEventListener('click', () => setWorkspaceActivePanel('editor'));
+
     appShell.classList.add('workspace-layout');
     shellInstalled = true;
+    installWorkspaceResponsiveMode();
   }
 
   function installSplitter() {
@@ -503,6 +656,7 @@
     let dragging = false;
     const start = (event) => {
       if (!document.body.classList.contains('workspace-admin')) return;
+      if (isStackedWorkspace()) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       dragging = true;
       splitter.setPointerCapture?.(event.pointerId);
@@ -924,6 +1078,7 @@
     if (!window.WNMU_WORKSPACE_TEST) return;
     installWorkspaceShell();
     installSplitter();
+    installWorkspaceResponsiveMode();
     const admin = isWorkspaceAdmin();
     document.body.classList.toggle('workspace-admin', admin);
     const pane = document.getElementById('workspaceEditorPane');
@@ -942,7 +1097,12 @@
     const drawer = document.getElementById('editorDrawer');
     if (!drawer) return;
     if (drawer.classList.contains('hidden') && typeof openEditor === 'function') {
-      openEditor(null);
+      workspaceOpeningDefaultEditor = true;
+      try {
+        openEditor(null);
+      } finally {
+        window.setTimeout(() => { workspaceOpeningDefaultEditor = false; }, 0);
+      }
     }
   }
 
@@ -1066,6 +1226,7 @@
     patchSaveProgram();
     patchRenderStats();
     installWorkspaceFilterToggle();
+    installWorkspaceResponsiveMode();
     installWorkspaceFilterLayoutPatch();
     applyWorkspaceFilterLayout();
     updateWorkspaceFilterSummary();
@@ -1138,6 +1299,7 @@
         if (isWorkspaceAdmin()) {
           els.drawerBackdrop?.classList.add('hidden');
           if (!id && els.drawerTitle) els.drawerTitle.textContent = 'Add New Program';
+          if (isNarrowWorkspace() && !workspaceOpeningDefaultEditor) setWorkspaceActivePanel('editor');
         }
         return result;
       };
@@ -1147,8 +1309,9 @@
       window.__wnmuWorkspaceClosePatched = true;
       const originalCloseEditor = closeEditor;
       closeEditor = function workspaceCloseEditor(...args) {
-        const shouldReopen = isWorkspaceAdmin() && !suppressWorkspaceReopen;
+        const shouldReopen = isWorkspaceAdmin() && !suppressWorkspaceReopen && !isNarrowWorkspace();
         const result = originalCloseEditor.apply(this, args);
+        if (isWorkspaceAdmin() && isNarrowWorkspace()) setWorkspaceActivePanel('library');
         if (shouldReopen) window.setTimeout(() => openEditor(null), 30);
         return result;
       };
