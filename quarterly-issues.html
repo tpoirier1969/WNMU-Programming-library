@@ -6,10 +6,10 @@
   <title>Quarterly Issues & Programming Report Builder</title>
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <link rel="stylesheet" href="styles.css?v=1.5.109" />
-  <link rel="stylesheet" href="styles-quarterly-issues.css?v=1.1.0" />
+  <link rel="stylesheet" href="styles-quarterly-issues.css?v=1.2.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/quarterly-issues-report.js?v=1.1.0"></script>
+  <script defer src="js/quarterly-issues-report.js?v=1.2.0"></script>
 </head>
 <body>
   <div id="qirApp" class="qir-app">
@@ -18,7 +18,10 @@
         <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="qir-logo" />
         <div>
           <div class="qir-brand-name">WNMU-TV PBS</div>
-          <h1>Quarterly Issues & Programming Report Builder</h1>
+          <div class="qir-title-row">
+            <h1>Quarterly Issues & Programming Report Builder</h1>
+            <span id="qirVersionFlag" class="qir-version-pill">v1.2.0</span>
+          </div>
           <div id="qirStatus" class="qir-status">Starting…</div>
         </div>
       </div>
@@ -58,9 +61,15 @@
               </select>
             </label>
 
-            <label class="qir-checkbox-control">
-              <input id="qirShowRejectedInput" type="checkbox" />
-              <span>Show rejected audit rows</span>
+            <label>
+              Candidate view
+              <select id="qirCandidateViewSelect">
+                <option value="review_pool">Review pool</option>
+                <option value="recommended">Recommended only</option>
+                <option value="weak">Weak / needs proof</option>
+                <option value="rejected">Rejected audit</option>
+                <option value="all">All aired rows</option>
+              </select>
             </label>
 
             <label>
@@ -75,7 +84,7 @@
             </div>
           </div>
           <p class="qir-help">
-            Source scope is always <strong>all records</strong>, including archived records. Candidate selection is intentionally strict: known local/Michigan public-affairs series or description-proven regional impact.
+            Source scan is always <strong>all records</strong>, including archived records. This version scores candidates instead of using one hard gate, so borderline titles are quantified and visible.
           </p>
         </section>
 
@@ -83,7 +92,7 @@
 
         <section id="qirOutput" class="qir-output">
           <div class="qir-empty">
-            Choose a quarter, then build a draft. Generic cooking, yoga/exercise, lifestyle, and national-only programs are rejected unless the description proves regional impact.
+            Choose a quarter, then build a draft. The default Review Pool includes recommended rows plus issue-relevant rows that still need regional-proof review.
           </div>
         </section>
       </section>

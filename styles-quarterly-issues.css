@@ -53,16 +53,36 @@ body {
   letter-spacing: .04em;
 }
 
+.qir-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .qir-topbar h1 {
   margin: 0;
   font-size: clamp(1.15rem, 2.2vw, 1.55rem);
   line-height: 1.1;
 }
 
+.qir-version-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid rgba(7, 89, 133, .2);
+  font-size: .78rem;
+  font-weight: 900;
+}
+
 .qir-status {
   margin-top: 4px;
   display: inline-flex;
-  max-width: min(820px, 62vw);
+  max-width: min(860px, 64vw);
   padding: 4px 9px;
   border-radius: 999px;
   background: rgba(15, 118, 110, .08);
@@ -117,7 +137,7 @@ main {
 }
 
 .qir-card {
-  max-width: 1580px;
+  max-width: 1620px;
   margin: 0 auto 14px;
   padding: 16px;
   background: #fff;
@@ -132,7 +152,7 @@ main {
 
 .qir-control-grid {
   display: grid;
-  grid-template-columns: minmax(160px, .75fr) minmax(150px, .7fr) minmax(190px, .9fr) minmax(220px, 1.2fr) auto;
+  grid-template-columns: minmax(150px, .72fr) minmax(140px, .64fr) minmax(190px, .9fr) minmax(220px, 1.2fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -157,22 +177,6 @@ main {
   color: #0f172a;
 }
 
-.qir-checkbox-control {
-  display: flex !important;
-  flex-direction: row;
-  align-items: center !important;
-  gap: 8px !important;
-  min-height: 36px;
-  padding: 7px 10px;
-  border: 1px solid var(--qir-border);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.qir-checkbox-control input {
-  width: auto;
-}
-
 .qir-help {
   margin: 12px 0 0;
   color: var(--qir-muted);
@@ -180,7 +184,7 @@ main {
 }
 
 .qir-summary {
-  max-width: 1580px;
+  max-width: 1620px;
   margin: 0 auto 14px;
   padding: 12px 14px;
   border: 1px solid rgba(20, 184, 166, .25);
@@ -191,7 +195,7 @@ main {
 
 .qir-summary-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  grid-template-columns: repeat(7, minmax(115px, 1fr));
   gap: 10px;
 }
 
@@ -217,7 +221,7 @@ main {
 }
 
 .qir-output {
-  max-width: 1580px;
+  max-width: 1620px;
   margin: 0 auto;
 }
 
@@ -239,7 +243,7 @@ main {
 
 .qir-table {
   width: 100%;
-  min-width: 1420px;
+  min-width: 1520px;
   border-collapse: collapse;
   font-size: .82rem;
 }
@@ -264,8 +268,52 @@ main {
   background: #fbfdff;
 }
 
-.qir-table tbody tr.qir-rejected-row {
+.qir-table tbody tr.qir-row-rejected {
   background: #fff7ed;
+}
+
+.qir-table tbody tr.qir-row-weak {
+  background: #fffbeb;
+}
+
+.qir-score {
+  display: inline-flex;
+  min-width: 36px;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 900;
+}
+
+.qir-bucket {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.qir-bucket[data-bucket="recommended"] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.qir-bucket[data-bucket="review"] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.qir-bucket[data-bucket="weak"] {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.qir-bucket[data-bucket="rejected"] {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .qir-review-select {
@@ -275,44 +323,6 @@ main {
   border-radius: 9px;
   background: #fff;
   font-weight: 700;
-}
-
-.qir-status-pill,
-.qir-confidence,
-.qir-reject-pill {
-  display: inline-flex;
-  margin-top: 7px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: .72rem;
-  font-weight: 900;
-}
-
-.qir-confidence {
-  background: #eef2ff;
-  color: #3730a3;
-}
-
-.qir-confidence[data-level="High"] {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.qir-confidence[data-level="Medium"] {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.qir-confidence[data-level="Low"],
-.qir-confidence[data-level="Needs review"],
-.qir-confidence[data-level="Needs description"] {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.qir-reject-pill {
-  background: #ffedd5;
-  color: #9a3412;
 }
 
 .qir-program-title {
@@ -369,8 +379,8 @@ main {
 }
 
 .qir-reason {
-  min-width: 240px;
-  max-width: 380px;
+  min-width: 280px;
+  max-width: 420px;
   color: #334155;
   line-height: 1.35;
 }
@@ -413,12 +423,13 @@ main {
     position: static;
   }
 
-  .qir-rejected-row {
+  .qir-row-rejected,
+  .qir-row-weak {
     display: none;
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   .qir-control-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
