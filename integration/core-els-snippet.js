@@ -1,0 +1,1 @@
+quarterlyIssuesReportBtn: $('#quarterlyIssuesReportBtn'),

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quarterly Issues & Programming Report Builder</title>
+  <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
+  <link rel="stylesheet" href="styles.css?v=1.5.109" />
+  <link rel="stylesheet" href="styles-quarterly-issues.css?v=1.0.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script defer src="js/quarterly-issues-report.js?v=1.0.0"></script>
+</head>
+<body>
+  <div id="qirApp" class="qir-app">
+    <header class="qir-topbar">
+      <div class="qir-brand">
+        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="qir-logo" />
+        <div>
+          <div class="qir-brand-name">WNMU-TV PBS</div>
+          <h1>Quarterly Issues & Programming Report Builder</h1>
+          <div id="qirStatus" class="qir-status">Starting…</div>
+        </div>
+      </div>
+      <div class="qir-top-actions">
+        <a href="index.html" class="qir-button qir-secondary">Back to library</a>
+        <button type="button" id="qirRefreshBtn" class="qir-button qir-secondary">Refresh data</button>
+        <button type="button" id="qirSignOutBtn" class="qir-button qir-secondary hidden">Sign out</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="qirSetupNotice" class="qir-card hidden">
+        <h2>Configuration needed</h2>
+        <p>Create <code>config.js</code> from <code>config.example.js</code>, then add your Supabase URL and anon key.</p>
+      </section>
+
+      <section id="qirAdminRequired" class="qir-card hidden">
+        <h2>Admin required</h2>
+        <p>This report builder is visible and usable only in Admin mode. Sign in from the main Programming Library, then return here.</p>
+        <a href="index.html" class="qir-button qir-primary">Go to main library sign-in</a>
+      </section>
+
+      <section id="qirBuilder" class="qir-builder hidden">
+        <section class="qir-card qir-controls-card">
+          <div class="qir-control-grid">
+            <label>
+              Quarter
+              <select id="qirQuarterSelect"></select>
+            </label>
+
+            <label>
+              Channel data
+              <select id="qirChannelSelect">
+                <option value="13.1">13.1</option>
+                <option value="13.3">13.3</option>
+                <option value="both">13.1 + 13.3</option>
+              </select>
+            </label>
+
+            <label>
+              Row source
+              <select id="qirArchivedModeSelect">
+                <option value="active">Active records only</option>
+                <option value="all">Include archived records</option>
+              </select>
+            </label>
+
+            <label>
+              Search draft
+              <input id="qirSearchInput" type="search" placeholder="Filter built rows" />
+            </label>
+
+            <div class="qir-control-actions">
+              <button type="button" id="qirBuildBtn" class="qir-button qir-primary">Build draft</button>
+              <button type="button" id="qirExportCsvBtn" class="qir-button qir-secondary" disabled>Export CSV</button>
+              <button type="button" id="qirPrintBtn" class="qir-button qir-secondary" disabled>Print / Save PDF</button>
+            </div>
+          </div>
+          <p class="qir-help">
+            Category suggestions are based on description text. Titles are shown for identification, but title keywords are not used as the main classifier.
+          </p>
+        </section>
+
+        <section id="qirSummary" class="qir-summary hidden"></section>
+
+        <section id="qirOutput" class="qir-output">
+          <div class="qir-empty">
+            Choose a quarter, then build a draft. Rows with blank or weak descriptions will be flagged instead of guessed.
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
