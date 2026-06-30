@@ -6,10 +6,10 @@
   <title>Quarterly Issues & Programming Report Builder</title>
   <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
   <link rel="stylesheet" href="styles.css?v=1.5.109" />
-  <link rel="stylesheet" href="styles-quarterly-issues.css?v=1.0.0" />
+  <link rel="stylesheet" href="styles-quarterly-issues.css?v=1.1.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script defer src="js/quarterly-issues-report.js?v=1.0.0"></script>
+  <script defer src="js/quarterly-issues-report.js?v=1.1.0"></script>
 </head>
 <body>
   <div id="qirApp" class="qir-app">
@@ -37,7 +37,7 @@
 
       <section id="qirAdminRequired" class="qir-card hidden">
         <h2>Admin required</h2>
-        <p>This report builder is visible and usable only in Admin mode. Sign in from the main Programming Library, then return here.</p>
+        <p>This standalone prototype checks for an Admin session before loading report data. Sign in from the main Programming Library, then return here.</p>
         <a href="index.html" class="qir-button qir-primary">Go to main library sign-in</a>
       </section>
 
@@ -58,12 +58,9 @@
               </select>
             </label>
 
-            <label>
-              Row source
-              <select id="qirArchivedModeSelect">
-                <option value="active">Active records only</option>
-                <option value="all">Include archived records</option>
-              </select>
+            <label class="qir-checkbox-control">
+              <input id="qirShowRejectedInput" type="checkbox" />
+              <span>Show rejected audit rows</span>
             </label>
 
             <label>
@@ -78,7 +75,7 @@
             </div>
           </div>
           <p class="qir-help">
-            Category suggestions are based on description text. Titles are shown for identification, but title keywords are not used as the main classifier.
+            Source scope is always <strong>all records</strong>, including archived records. Candidate selection is intentionally strict: known local/Michigan public-affairs series or description-proven regional impact.
           </p>
         </section>
 
@@ -86,7 +83,7 @@
 
         <section id="qirOutput" class="qir-output">
           <div class="qir-empty">
-            Choose a quarter, then build a draft. Rows with blank or weak descriptions will be flagged instead of guessed.
+            Choose a quarter, then build a draft. Generic cooking, yoga/exercise, lifestyle, and national-only programs are rejected unless the description proves regional impact.
           </div>
         </section>
       </section>

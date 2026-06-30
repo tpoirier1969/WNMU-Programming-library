@@ -6,6 +6,7 @@
   --qir-muted: #64748b;
   --qir-soft: #f8fafc;
   --qir-warn: #b45309;
+  --qir-danger: #991b1b;
 }
 
 body {
@@ -61,7 +62,7 @@ body {
 .qir-status {
   margin-top: 4px;
   display: inline-flex;
-  max-width: min(760px, 60vw);
+  max-width: min(820px, 62vw);
   padding: 4px 9px;
   border-radius: 999px;
   background: rgba(15, 118, 110, .08);
@@ -116,7 +117,7 @@ main {
 }
 
 .qir-card {
-  max-width: 1540px;
+  max-width: 1580px;
   margin: 0 auto 14px;
   padding: 16px;
   background: #fff;
@@ -131,7 +132,7 @@ main {
 
 .qir-control-grid {
   display: grid;
-  grid-template-columns: minmax(160px, .8fr) minmax(150px, .7fr) minmax(180px, .85fr) minmax(220px, 1.2fr) auto;
+  grid-template-columns: minmax(160px, .75fr) minmax(150px, .7fr) minmax(190px, .9fr) minmax(220px, 1.2fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -145,7 +146,7 @@ main {
 }
 
 .qir-control-grid select,
-.qir-control-grid input {
+.qir-control-grid input[type="search"] {
   width: 100%;
   min-height: 36px;
   box-sizing: border-box;
@@ -156,6 +157,22 @@ main {
   color: #0f172a;
 }
 
+.qir-checkbox-control {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--qir-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.qir-checkbox-control input {
+  width: auto;
+}
+
 .qir-help {
   margin: 12px 0 0;
   color: var(--qir-muted);
@@ -163,7 +180,7 @@ main {
 }
 
 .qir-summary {
-  max-width: 1540px;
+  max-width: 1580px;
   margin: 0 auto 14px;
   padding: 12px 14px;
   border: 1px solid rgba(20, 184, 166, .25);
@@ -174,7 +191,7 @@ main {
 
 .qir-summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -200,7 +217,7 @@ main {
 }
 
 .qir-output {
-  max-width: 1540px;
+  max-width: 1580px;
   margin: 0 auto;
 }
 
@@ -222,7 +239,7 @@ main {
 
 .qir-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 1420px;
   border-collapse: collapse;
   font-size: .82rem;
 }
@@ -247,12 +264,12 @@ main {
   background: #fbfdff;
 }
 
-.qir-table tbody tr.qir-row-hidden {
-  display: none;
+.qir-table tbody tr.qir-rejected-row {
+  background: #fff7ed;
 }
 
 .qir-review-select {
-  min-width: 150px;
+  min-width: 170px;
   padding: 6px 8px;
   border: 1px solid var(--qir-border);
   border-radius: 9px;
@@ -260,15 +277,20 @@ main {
   font-weight: 700;
 }
 
-.qir-confidence {
+.qir-status-pill,
+.qir-confidence,
+.qir-reject-pill {
   display: inline-flex;
   margin-top: 7px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
   font-size: .72rem;
   font-weight: 900;
+}
+
+.qir-confidence {
+  background: #eef2ff;
+  color: #3730a3;
 }
 
 .qir-confidence[data-level="High"] {
@@ -286,6 +308,11 @@ main {
 .qir-confidence[data-level="Needs description"] {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.qir-reject-pill {
+  background: #ffedd5;
+  color: #9a3412;
 }
 
 .qir-program-title {
@@ -342,8 +369,8 @@ main {
 }
 
 .qir-reason {
-  min-width: 220px;
-  max-width: 340px;
+  min-width: 240px;
+  max-width: 380px;
   color: #334155;
   line-height: 1.35;
 }
@@ -385,9 +412,13 @@ main {
   .qir-table th {
     position: static;
   }
+
+  .qir-rejected-row {
+    display: none;
+  }
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1180px) {
   .qir-control-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
