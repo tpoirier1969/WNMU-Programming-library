@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=1.5.94" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script>window.WNMU_APP_VERSION = 'v1.5.119'; window.WNMU_VERSION_MANIFEST = 'version.json'; window.WNMU_WORKSPACE_TEST = true;</script>
+  <script>window.WNMU_APP_VERSION = 'v1.5.121'; window.WNMU_VERSION_MANIFEST = 'version.json'; window.WNMU_WORKSPACE_TEST = true;</script>
   <script defer src="js/core.js?v=1.5.93"></script>
   <script defer src="js/auth-init.js?v=1.5.47"></script>
   <script defer src="js/data-store.js?v=1.5.47"></script>
@@ -27,6 +27,8 @@
   <script defer src="js/library-main-ui-v15109.js?v=1.5.109"></script>
   <script defer src="js/program-workspace-test.js?v=1.5.118"></script>
   <script defer src="js/workspace-scope-clearall-v15119.js?v=1.5.119"></script>
+  <script defer src="js/workspace-topic-exclude-v15120.js?v=1.5.120"></script>
+  <script defer src="js/workspace-rights-sort-v15121.js?v=1.5.121"></script>
 </head>
 <body class="workspace-test-page">
   <div id="setupNotice" class="setup-notice hidden">
@@ -65,7 +67,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row compact-title-row">
             <h1 id="appTitle">Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.119</span>
+            <span id="appVersion" class="version-pill">v1.5.121</span>
             <span id="statusLine" class="status-line topbar-status-inline">Loading…</span>
           </div>
         </div>
@@ -251,7 +253,15 @@
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_1">Aired on 13.1 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_3">Aired on 13.3 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-type"><button type="button" class="sort-header" data-sort-field="package_type">Package type <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights end <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-rights workspace-rights-sort-th">
+                  <div class="workspace-rights-sort-head">
+                    <span class="workspace-rights-sort-title">Rights</span>
+                    <span class="workspace-rights-sort-buttons">
+                      <button type="button" class="sort-header workspace-rights-sort-btn" data-sort-field="rights_begin">Begin <span class="sort-indicator" aria-hidden="true">↕</span></button>
+                      <button type="button" class="sort-header workspace-rights-sort-btn" data-sort-field="rights_end">End <span class="sort-indicator" aria-hidden="true">↕</span></button>
+                    </span>
+                  </div>
+                </th>
               <th class="col-distributor"><button type="button" class="sort-header" data-sort-field="distributor">Distributor <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-flags">Flags</th>
             </tr>
