@@ -3,16 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library</title>
-  <link rel="icon" type="image/svg+xml" href="programming-library-tab-icon.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="programming-library-tab-icon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="programming-library-tab-icon-16.png" />
-  <link rel="shortcut icon" href="programming-library-tab-icon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="programming-library-tab-icon-180.png" />
+  <title>WNMU-TV PBS Programming Library</title>
+  <link rel="icon" type="image/svg+xml" href="wnmu-programming-stacked-icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="wnmu-programming-stacked-icon-32.png" />
+  <link rel="shortcut icon" href="wnmu-programming-stacked-icon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="wnmu-programming-stacked-icon-180.png" />
   <link rel="stylesheet" href="styles.css?v=1.5.94" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script>window.WNMU_APP_VERSION = 'v1.5.109'; window.WNMU_VERSION_MANIFEST = 'version.json';</script>
+  <script>window.WNMU_APP_VERSION = 'v1.5.122'; window.WNMU_VERSION_MANIFEST = 'version.json'; window.WNMU_WORKSPACE_TEST = true;</script>
   <script defer src="js/core.js?v=1.5.93"></script>
   <script defer src="js/auth-init.js?v=1.5.47"></script>
   <script defer src="js/data-store.js?v=1.5.47"></script>
@@ -24,13 +23,15 @@
   <script defer src="js/events.js?v=1.5.93"></script>
   <script defer src="js/auth-login-fix-v15109.js?v=1.5.109"></script>
   <script defer src="js/library-workflow.js?v=1.5.61"></script>
-  <script defer src="js/library-filter-layout-v1596.js?v=1.5.106"></script>
   <script defer src="js/app-version-check.js?v=1.5.109"></script>
   <script defer src="js/library-main-ui-v15109.js?v=1.5.109"></script>
-  <script defer src="js/active-scope-control.js?v=1.0.0"></script>
-  <script defer src="js/clear-all-reset-sync.js?v=1.0.1"></script>
+  <script defer src="js/program-workspace-test.js?v=1.5.118"></script>
+  <script defer src="js/workspace-scope-clearall-v15119.js?v=1.5.119"></script>
+  <script defer src="js/workspace-topic-exclude-v15120.js?v=1.5.120"></script>
+  <script defer src="js/workspace-rights-sort-v15121.js?v=1.5.121"></script>
+  <script defer src="js/workspace-default-main-v15122.js?v=1.5.122"></script>
 </head>
-<body>
+<body class="workspace-test-page">
   <div id="setupNotice" class="setup-notice hidden">
     <div class="setup-card">
       <h1>WNMU TV Programming Library</h1>
@@ -42,10 +43,10 @@
   <div id="authShell" class="auth-shell hidden">
     <div class="auth-card">
       <div class="brand-auth">
-        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="brand-logo auth-logo program-brand-mark" />
+        <img src="wnmu-programming-stacked-icon.svg" alt="WNMU-TV PBS Programming" class="brand-logo auth-logo workspace-programming-icon" />
         <div>
-          <h1 id="authTitle">WNMU TV Programming Library</h1>
-          <div class="brand-subtitle">PROGRAMMING LIBRARY</div>
+          <h1 id="authTitle">WNMU-TV PBS Programming</h1>
+          <div class="brand-subtitle">PROGRAMMING</div>
         </div>
       </div>
       <p class="muted">Sign in with GitHub for admin access. Everyone else can keep using the library in read-only mode.</p>
@@ -62,20 +63,20 @@
   <div id="appShell" class="app-shell hidden">
     <header class="topbar">
       <div class="brand-wrap">
-        <img src="wnmu-programming-library-mark.png" alt="WNMU TV Programming Library" class="brand-logo program-brand-mark" />
+        <img src="wnmu-programming-stacked-icon.svg" alt="WNMU-TV PBS Programming" class="brand-logo workspace-programming-icon" />
         <div>
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row compact-title-row">
-            <h1 id="appTitle">WNMU TV Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.109</span>
+            <h1 id="appTitle">Programming Library</h1>
+            <span id="appVersion" class="version-pill">v1.5.122</span>
             <span id="statusLine" class="status-line topbar-status-inline">Loading…</span>
           </div>
         </div>
       </div>
       <div class="topbar-actions">
         <button id="adminBtn" class="primary">Admin sign in</button>
-        <button id="undoViewBtn" class="hidden">Undo view</button>
-        <button id="newProgramBtn" class="primary hidden">New program</button>
+        <button id="undoViewBtn" class="hidden removed-control" aria-hidden="true" tabindex="-1">Undo view</button>
+        <button id="newProgramBtn" class="primary hidden removed-control" aria-hidden="true" tabindex="-1" disabled>Add new program</button>
         <button id="monthlyMediaBtn">Monthly media</button>
         <button id="holidayCalendarBtn">Holidays / events</button>
         <button id="exportBtn">Export current view</button>
@@ -97,7 +98,7 @@
         </button>
         <button type="button" class="stat-card quick-card quick-view" data-view="active">
           <div class="stat-label">Quick filter</div>
-          <div class="stat-value small">Active</div>
+          <div class="stat-value small">In rights</div>
         </button>
         <button type="button" class="stat-card quick-card quick-view" data-view="new_to_13_1">
           <div class="stat-label">Quick filter</div>
@@ -107,50 +108,40 @@
           <div class="stat-label">Quick filter</div>
           <div class="stat-value small">New to 13.3</div>
         </button>
-        <button type="button" class="stat-card quick-card quick-view" data-view="michigan">
-          <div class="stat-label">Quick filter</div>
-          <div class="stat-value small">Michigan programming</div>
-        </button>
         <button type="button" class="stat-card quick-card quick-view" data-view="evergreens">
           <div class="stat-label">Quick filter</div>
           <div class="stat-value small">Evergreens</div>
         </button>
-        <button type="button" class="stat-card quick-card quick-view" data-view="missing_info">
-          <div class="stat-label">Quick filter</div>
-          <div class="stat-value small">Missing info</div>
+        <button type="button" class="stat-card quick-card quick-view" data-view="archived">
+          <div class="stat-label">Out of rights</div>
+          <div id="statArchived" class="stat-value small">0</div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="needs_apt_check">
-          <div class="stat-label">APT check</div>
-          <div id="statApt" class="stat-value">0</div>
+        <button type="button" class="stat-card quick-card admin-diagnostic-card" data-view="needs_apt_check">
+          <div class="stat-label">Admin check</div>
+          <div class="stat-value small">APT <span id="statApt">0</span></div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="ending_soon">
-          <div class="stat-label">Ending in 90 days</div>
-          <div id="statEnding" class="stat-value">0</div>
+        <button type="button" class="stat-card quick-card admin-diagnostic-card" data-view="missing_info">
+          <div class="stat-label">Admin check</div>
+          <div class="stat-value small">Missing info <span id="statMissingInfo">0</span></div>
         </button>
-        <button type="button" class="stat-card quick-card" data-view="missing_rights">
-          <div class="stat-label">Missing rights</div>
-          <div id="statMissingRights" class="stat-value">0</div>
-        </button>
-        <button type="button" class="stat-card quick-card" data-view="archived">
-          <div class="stat-label">Archived</div>
-          <div id="statArchived" class="stat-value">0</div>
-        </button>
+        <span id="statEnding" class="hidden stat-shadow" aria-hidden="true">0</span>
+        <span id="statMissingRights" class="hidden stat-shadow" aria-hidden="true">0</span>
       </div>
       <div class="filters filters-grid">
         <div class="filter-box wide">
-          <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></div>
+          <div class="filter-label-row"><label class="filter-label" for="topicFilter">Topics</label><span class="filter-label-actions"><button type="button" id="selectAllTopicFilter" class="mini-clear workspace-select-all-filter">Select all</button><button type="button" id="clearTopicFilter" class="mini-clear">Clear</button></span></div>
           <select id="topicFilter" multiple size="5"></select>
         </div>
         <div class="filter-box wide">
-          <div class="filter-label-row"><label class="filter-label" for="secondaryTopicFilter">Secondary topics</label><button type="button" id="clearSecondaryTopicFilter" class="mini-clear">Clear</button></div>
+          <div class="filter-label-row"><label class="filter-label" for="secondaryTopicFilter">Secondary topics</label><span class="filter-label-actions"><button type="button" id="selectAllSecondaryTopicFilter" class="mini-clear workspace-select-all-filter">Select all</button><button type="button" id="clearSecondaryTopicFilter" class="mini-clear">Clear</button></span></div>
           <select id="secondaryTopicFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
-          <div class="filter-label-row"><label class="filter-label" for="lengthFilter">Lengths</label><button type="button" id="clearLengthFilter" class="mini-clear">Clear</button></div>
+          <div class="filter-label-row"><label class="filter-label" for="lengthFilter">Lengths</label><span class="filter-label-actions"><button type="button" id="selectAllLengthFilter" class="mini-clear workspace-select-all-filter">Select all</button><button type="button" id="clearLengthFilter" class="mini-clear">Clear</button></span></div>
           <select id="lengthFilter" multiple size="5"></select>
         </div>
         <div class="filter-box">
-          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Uses</label><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></div>
+          <div class="filter-label-row"><label class="filter-label" for="codeFilter">Uses</label><span class="filter-label-actions"><button type="button" id="selectAllCodeFilter" class="mini-clear workspace-select-all-filter">Select all</button><button type="button" id="clearCodeFilter" class="mini-clear">Clear</button></span></div>
           <select id="codeFilter" multiple size="5"></select>
         </div>
         <div class="filters-cluster compact-search-cluster">
@@ -211,7 +202,7 @@
               <option value="ending_soon">Ending within 90 days</option>
               <option value="new_to_13_1">New to 13.1</option>
               <option value="new_to_13_3">New to 13.3</option>
-              <option value="archive_candidate">Archive candidate</option>
+              <option value="archive_candidate">Out of rights</option>
               <option value="missing_rights">Missing rights begin or end</option>
               <option value="missing_info">Missing info</option>
             </select>
@@ -263,7 +254,15 @@
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_1">Aired on 13.1 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-airing"><button type="button" class="sort-header" data-sort-field="aired_13_3">Aired on 13.3 <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-type"><button type="button" class="sort-header" data-sort-field="package_type">Package type <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-              <th class="col-rights"><button type="button" class="sort-header" data-sort-field="rights_end">Rights window <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+              <th class="col-rights workspace-rights-sort-th">
+                  <div class="workspace-rights-sort-head">
+                    <span class="workspace-rights-sort-title">Rights</span>
+                    <span class="workspace-rights-sort-buttons">
+                      <button type="button" class="sort-header workspace-rights-sort-btn" data-sort-field="rights_begin">Begin <span class="sort-indicator" aria-hidden="true">↕</span></button>
+                      <button type="button" class="sort-header workspace-rights-sort-btn" data-sort-field="rights_end">End <span class="sort-indicator" aria-hidden="true">↕</span></button>
+                    </span>
+                  </div>
+                </th>
               <th class="col-distributor"><button type="button" class="sort-header" data-sort-field="distributor">Distributor <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
               <th class="col-flags">Flags</th>
             </tr>

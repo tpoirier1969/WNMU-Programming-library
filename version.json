@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.109",
-  "requiredAppVersion": "v1.5.109",
-  "publishedVersion": "v1.5.109",
-  "appVersion": "v1.5.98",
-  "version": "v1.5.98",
-  "legacyCompatibilityVersion": "v1.5.98",
+  "currentAppVersion": "v1.5.122",
+  "requiredAppVersion": "v1.5.122",
+  "publishedVersion": "v1.5.122",
+  "appVersion": "v1.5.122",
+  "version": "v1.5.122",
+  "legacyCompatibilityVersion": "v1.5.122",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Fixes Admin GitHub login redirect by mirroring the Pledge Library redirect helper: use ADMIN_REDIRECT_URL if configured, otherwise return to the current page with the OAuth hash removed. Keeps legacy manifest fields safe for old cached broken checkers.",
-  "updated": "2026-06-22T16:30:00Z"
+  "notes": "Promotes the split workspace page to the default Programming Library page, hides the topbar Add New Program button, and keeps the workspace test URL as an alias. Includes workspace active/all/archived scope, Clear All visual sync, topic exclude filters, and explicit Rights begin/end sorting.",
+  "updated": "2026-07-10T00:00:00Z"
 }
