@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.122",
-  "requiredAppVersion": "v1.5.122",
-  "publishedVersion": "v1.5.122",
-  "appVersion": "v1.5.122",
-  "version": "v1.5.122",
-  "legacyCompatibilityVersion": "v1.5.122",
+  "currentAppVersion": "v1.5.123",
+  "requiredAppVersion": "v1.5.123",
+  "publishedVersion": "v1.5.123",
+  "appVersion": "v1.5.123",
+  "version": "v1.5.123",
+  "legacyCompatibilityVersion": "v1.5.123",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Promotes the split workspace page to the default Programming Library page, hides the topbar Add New Program button, and keeps the workspace test URL as an alias. Includes workspace active/all/archived scope, Clear All visual sync, topic exclude filters, and explicit Rights begin/end sorting.",
+  "notes": "Workspace default page remains the main Programming Library page. Admin mode now returns to a blank Add New Program form after successfully creating a new program, while read-only users still see the empty details message.",
   "updated": "2026-07-10T00:00:00Z"
 }
