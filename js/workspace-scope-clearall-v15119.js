@@ -113,8 +113,8 @@
       box.id = BOX_ID;
       box.className = 'filter-box cluster-active-scope';
       box.innerHTML = `
-        <label class="filter-label" for="${SELECT_ID}">Titles</label>
-        <select id="${SELECT_ID}" aria-label="Title scope">
+        <label class="filter-label" for="${SELECT_ID}">Active/Archived</label>
+        <select id="${SELECT_ID}" aria-label="Active and archived title scope">
           <option value="active">Active only</option>
           <option value="all">All records</option>
           <option value="archived">Archived</option>

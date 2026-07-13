@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.123",
-  "requiredAppVersion": "v1.5.123",
-  "publishedVersion": "v1.5.123",
-  "appVersion": "v1.5.123",
-  "version": "v1.5.123",
-  "legacyCompatibilityVersion": "v1.5.123",
+  "currentAppVersion": "v1.5.124",
+  "requiredAppVersion": "v1.5.124",
+  "publishedVersion": "v1.5.124",
+  "appVersion": "v1.5.124",
+  "version": "v1.5.124",
+  "legacyCompatibilityVersion": "v1.5.124",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Workspace default page remains the main Programming Library page. Admin mode now returns to a blank Add New Program form after successfully creating a new program, while read-only users still see the empty details message.",
-  "updated": "2026-07-10T00:00:00Z"
+  "notes": "Workspace filter layout refinement: Episodes Clear now sits beside Min/Max, Clear all filters moves to the far right, Titles is renamed Active/Archived, the Program/Series toggle is tightened, top-row filter action buttons are raised and narrowed, and a successful new-program save directly resets the details pane to a fresh Add New Program form.",
+  "updated": "2026-07-13T16:30:00Z"
 }

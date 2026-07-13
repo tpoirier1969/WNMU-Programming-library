@@ -1,0 +1,35 @@
+WNMU Programming Library v1.5.124 — QA Summary
+Date: 2026-07-13
+
+TARGET
+- Default split workspace: index.html
+- Workspace alias: program-workspace-test.html
+
+STATIC CHECKS
+PASS - index.html and program-workspace-test.html are identical.
+PASS - JavaScript syntax check: js/program-workspace-test.js
+PASS - JavaScript syntax check: js/workspace-scope-clearall-v15119.js
+PASS - JavaScript syntax check: js/workspace-default-main-v15122.js
+PASS - version.json parses as valid JSON.
+PASS - App and manifest versions are v1.5.124.
+PASS - v1.5.123 admin blank-form patch is no longer loaded.
+
+LAYOUT CHECKS (headless Chromium, 1500x900 split workspace)
+PASS - Episodes Clear button is inside the episode Min/Max control row.
+PASS - Clear all filters is in the far-right lower filter position.
+PASS - Active/Archived label is present.
+PASS - Active/Archived dropdown matches the width and height of neighboring dropdowns.
+PASS - Series / All / Program fits without clipping; All is narrower and lighter.
+PASS - Topics/Secondary Topics/Lengths/Uses Select all and Clear controls are raised and narrowed.
+PASS - Visible version badge reads v1.5.124.
+
+MOCKED ADMIN WORKFLOW CHECKS
+PASS - Admin initially receives a clean Add New Program form.
+PASS - An invalid blank submission leaves the Add New Program form open.
+PASS - A successful new-program save stores the row and immediately resets the right pane to a clean Add New Program form.
+PASS - The reset form has an empty title, no program ID, no selected row, and remains visible.
+PASS - Saving an existing program closes its details instead of incorrectly forcing the create form.
+PASS - No JavaScript errors occurred during the mocked create/edit workflow.
+
+LIMITATION
+- Supabase production credentials and live GitHub Pages deployment were not used. Live deployment and real database write verification still require uploading/committing the package and testing in Admin mode.
