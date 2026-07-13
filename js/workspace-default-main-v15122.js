@@ -1,11 +1,11 @@
 // WNMU Programming Library — workspace default main page cleanup
-// Updated for v1.5.124
+// Updated for v1.5.125
 // Loaded by the promoted workspace default page. UI-only: no Supabase writes.
 
 (function () {
   'use strict';
 
-  const VERSION = String(window.WNMU_APP_VERSION || 'v1.5.124');
+  const VERSION = String(window.WNMU_APP_VERSION || 'v1.5.125');
 
   function byId(id) {
     return document.getElementById(id);

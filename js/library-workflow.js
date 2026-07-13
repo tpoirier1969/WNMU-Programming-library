@@ -1,4 +1,4 @@
-// v1.5.61 targeted workflow helpers
+// v1.5.125 targeted workflow helpers — workspace layout isolation
 // Adds/keeps: visible main Library episode-count range filter, Add Program new-tab workflow,
 // and one-time BroadcastChannel updates from the standalone Add Program page.
 
@@ -221,6 +221,7 @@
   }
 
   function installClearAllButtonInCluster() {
+    if (window.WNMU_WORKSPACE_TEST) return;
     const cluster = document.querySelector('#controlsPanel .compact-search-cluster');
     const button = document.getElementById('resetFiltersBtn');
     if (!cluster || !button) return;
@@ -238,6 +239,7 @@
   }
 
   function installCompactFilterLayout() {
+    if (window.WNMU_WORKSPACE_TEST) return;
     if (document.getElementById('wnmuCompactFilterLayoutV159')) return;
     const style = document.createElement('style');
     style.id = 'wnmuCompactFilterLayoutV159';
@@ -423,6 +425,7 @@
   }
 
   function enforceCompactFilterPlacement() {
+    if (window.WNMU_WORKSPACE_TEST) return;
     const grid = document.querySelector('#controlsPanel .filters.filters-grid');
     if (!grid) return;
 
@@ -512,11 +515,13 @@
   patchFilterFunctions();
 
   document.addEventListener('DOMContentLoaded', () => {
-    installCompactFilterLayout();
     installEpisodeFilterUi();
-    installClearAllButtonInCluster();
-    enforceCompactFilterPlacement();
-    window.addEventListener('resize', enforceCompactFilterPlacement);
+    if (!window.WNMU_WORKSPACE_TEST) {
+      installCompactFilterLayout();
+      installClearAllButtonInCluster();
+      enforceCompactFilterPlacement();
+      window.addEventListener('resize', enforceCompactFilterPlacement);
+    }
     installNewProgramButtonOverride();
     installBroadcastListener();
   });

@@ -919,7 +919,7 @@ function restoreDrawerDraft(draft) {
 
 
 
-const SORTABLE_FIELDS = new Set(['title','notes','topic','details','aired_13_1','aired_13_3','package_type','rights_end','distributor']);
+const SORTABLE_FIELDS = new Set(['title','notes','topic','details','aired_13_1','aired_13_3','package_type','rights_begin','rights_end','distributor']);
 
 function firstAiringSortKey(value) {
   const text = normalizeText(value);

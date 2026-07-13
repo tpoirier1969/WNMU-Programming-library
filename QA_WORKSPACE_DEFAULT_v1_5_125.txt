@@ -1,0 +1,65 @@
+WNMU Programming Library — revised v1.5.125 QA
+Date: 2026-07-13
+
+TARGETS
+PASS - index.html
+PASS - program-workspace-test.html
+PASS - Both target HTML files are identical.
+
+STATIC CHECKS
+PASS - JavaScript syntax: core.js
+PASS - JavaScript syntax: filters-list.js
+PASS - JavaScript syntax: events.js
+PASS - JavaScript syntax: library-workflow.js
+PASS - JavaScript syntax: library-main-ui-v15109.js
+PASS - JavaScript syntax: program-workspace-test.js
+PASS - JavaScript syntax: workspace-scope-clearall-v15119.js
+PASS - JavaScript syntax: workspace-topic-exclude-v15120.js
+PASS - JavaScript syntax: workspace-rights-sort-v15121.js
+PASS - version.json parses and all published/required/current fields are v1.5.125.
+PASS - Changed scripts use v1.5.125 cache-busting values in both HTML targets.
+
+MODULARITY CHECKS
+PASS - Clear controls and Active/Archived are static in HTML; no module reparents them.
+PASS - program-workspace-test.js is the sole workspace outer-grid geometry owner.
+PASS - library-workflow.js and library-main-ui-v15109.js opt out of workspace geometry.
+PASS - workspace-scope-clearall-v15119.js contains behavior only, not layout.
+PASS - workspace-topic-exclude-v15120.js has no document-wide MutationObserver or retry schedule.
+PASS - workspace-rights-sort-v15121.js is style-only and has no DOM observer, redraw, timer, or click handler.
+PASS - A 250 ms delayed timer fired normally after load, confirming no observer churn starved the event loop.
+
+MOCKED ADMIN WORKFLOW
+PASS - Admin initially shows Add New Program; the empty-state card is hidden.
+PASS - A title opened with one click after simulated browser blur/focus.
+PASS - Existing-program save returned to a blank Add New Program form.
+PASS - The same saved title reopened with one click.
+PASS - A second existing-program save returned to Add New Program, and another title opened with one click.
+PASS - New-program creation returned to a blank Add New Program form.
+PASS - state.selectedId and the form program ID were cleared on return to the new form.
+PASS - Closing in Admin mode returned to Add New Program.
+PASS - Read-only mode displayed Select a program to see details.
+PASS - No browser console or page errors occurred.
+
+SEARCH
+PASS - Three characters did not filter after 2.2 seconds.
+PASS - Four characters did not filter after only 1 second.
+PASS - Four characters filtered after the full two-second pause.
+PASS - Enter/blur immediate apply behavior remains available.
+
+FILTERS AND SORTING
+PASS - Topic exclusion filtered matching titles and appeared in the filter summary.
+PASS - Clear Topic removed both include and exclude state.
+PASS - Clear all reset to Active and left Admin on Add New Program.
+PASS - Rights Begin uses the shared sort system and sets state.currentSort.field to rights_begin.
+
+LAYOUT
+Tested at 1564x1000 and 1024x900.
+PASS - Layout position delta remained 0 across repeated samples over several seconds.
+PASS - Episodes Clear did not overlap Min, Max, or Clear all filters.
+PASS - Rights Clear did not overlap Rights End or Active/Archived.
+PASS - All tested controls stayed inside the filter panel at 1024 pixels.
+PASS - Series / All / Pgm remained visible at 1024 pixels.
+PASS - Active/Archived and Clear all filters remained aligned and readable.
+
+LIMITATION
+Production Supabase credentials and live GitHub Pages were not used. Upload/commit and perform a final live Admin-mode check against the real database.

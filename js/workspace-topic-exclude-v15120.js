@@ -1,14 +1,17 @@
-// WNMU Programming Workspace Test — Topic include/exclude filter
-// v1.5.120
-// Split-window test only. Adds a right-side Exclude checkbox to Topic and Secondary Topic dropdown rows.
-// UI-only filter layer; does not write to Supabase or modify program records.
+// WNMU Programming Workspace — Topic include/exclude filter
+// v1.5.125
+// Behavior-only module. It augments Topic and Secondary Topic dropdown rows,
+// filters excluded topics, and exposes summary data to the workspace UI owner.
+// It does not position controls, redraw the outer filter layout, observe the
+// entire document, or write program records.
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.120';
+  const VERSION = 'v1.5.125';
   const TOPIC_SELECT_ID = 'topicFilter';
   const SECONDARY_SELECT_ID = 'secondaryTopicFilter';
+  const RENDER_EVENT = 'wnmu:workspace-multiselect-rendered';
 
   const stateKey = '__wnmuWorkspaceTopicExcludeState';
   const topicExcludeState = window[stateKey] || {
@@ -24,10 +27,6 @@
     return String(value ?? '').trim();
   }
 
-  function token(value) {
-    return normalize(value).toLowerCase();
-  }
-
   function cssEscape(value) {
     try {
       if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
@@ -39,8 +38,18 @@
     return document.getElementById(id);
   }
 
+  function kindForSelectId(selectId) {
+    if (selectId === TOPIC_SELECT_ID) return 'topic';
+    if (selectId === SECONDARY_SELECT_ID) return 'secondary';
+    return '';
+  }
+
+  function selectIdForKind(kind) {
+    return kind === 'secondary' ? SECONDARY_SELECT_ID : TOPIC_SELECT_ID;
+  }
+
   function getSelect(kind) {
-    return byId(kind === 'secondary' ? SECONDARY_SELECT_ID : TOPIC_SELECT_ID);
+    return byId(selectIdForKind(kind));
   }
 
   function getDropdown(selectId) {
@@ -51,8 +60,18 @@
     return kind === 'secondary' ? topicExcludeState.secondary : topicExcludeState.topic;
   }
 
-  function sortedLabels(set) {
-    return Array.from(set || []).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  function selectedValuesFromSelect(select) {
+    return new Set(Array.from(select?.selectedOptions || [])
+      .map((option) => normalize(option.value))
+      .filter(Boolean));
+  }
+
+  function setOptionSelected(select, value, selected) {
+    if (!select) return;
+    const wanted = normalize(value);
+    Array.from(select.options || []).forEach((option) => {
+      if (normalize(option.value) === wanted) option.selected = Boolean(selected);
+    });
   }
 
   function invalidateFilteredCache() {
@@ -64,21 +83,13 @@
     } catch (_error) {}
   }
 
-  function selectedValuesFromSelect(select) {
-    return new Set(Array.from(select?.selectedOptions || []).map((option) => normalize(option.value)).filter(Boolean));
-  }
-
-  function setOptionSelected(select, value, selected) {
-    if (!select) return;
-    const wanted = normalize(value);
-    Array.from(select.options || []).forEach((option) => {
-      if (normalize(option.value) === wanted) option.selected = Boolean(selected);
-    });
-  }
-
   function dispatchChange(el) {
     if (!el) return;
     try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch (_error) {}
+  }
+
+  function requestSummaryRefresh() {
+    try { window.WNMUWorkspaceFilterUi?.updateSummary?.(); } catch (_error) {}
   }
 
   function refreshResults() {
@@ -86,8 +97,7 @@
     try { if (typeof resetVisibleRowWindow === 'function') resetVisibleRowWindow(); } catch (_error) {}
     try { if (typeof renderTable === 'function') renderTable(); } catch (_error) {}
     try { if (typeof renderStats === 'function') renderStats(); } catch (_error) {}
-    window.setTimeout(updateExcludeSummary, 0);
-    window.setTimeout(updateExcludeSummary, 80);
+    requestSummaryRefresh();
   }
 
   function matchesAnyExclusion(values, exclusionSet) {
@@ -106,7 +116,7 @@
       const baseRows = originalActivePrograms.apply(this, args);
       const topicSet = getSet('topic');
       const secondarySet = getSet('secondary');
-      if ((!topicSet || !topicSet.size) && (!secondarySet || !secondarySet.size)) return baseRows;
+      if (!topicSet.size && !secondarySet.size) return baseRows;
 
       return (baseRows || []).filter((program) => {
         let derived = null;
@@ -138,10 +148,8 @@
       topicExcludeState.topic.clear();
       topicExcludeState.secondary.clear();
       const result = originalResetFilters.apply(this, args);
-      window.setTimeout(() => {
-        syncExcludeInputs();
-        updateExcludeSummary();
-      }, 0);
+      syncExcludeInputs();
+      requestSummaryRefresh();
       return result;
     };
   }
@@ -195,16 +203,6 @@
         text-decoration-thickness: 1px;
         text-decoration-color: rgba(146, 64, 14, .45);
       }
-
-      body.workspace-test-page #controlsPanel .workspace-multi-row.workspace-topic-excluded::after {
-        content: 'exclude';
-        display: none;
-      }
-
-      body.workspace-test-page #workspaceActiveFilters .workspace-exclude-summary {
-        color: #92400e !important;
-        font-weight: 800 !important;
-      }
     `;
     document.head.appendChild(style);
   }
@@ -224,230 +222,169 @@
     }
   }
 
+  function syncExcludeInputs() {
+    ['topic', 'secondary'].forEach((kind) => {
+      const dropdown = getDropdown(selectIdForKind(kind));
+      if (!dropdown) return;
+      const excludeSet = getSet(kind);
+      dropdown.querySelectorAll('input.workspace-topic-exclude-check').forEach((input) => {
+        const value = normalize(input.dataset.workspaceExcludeValue || '');
+        const excluded = excludeSet.has(value);
+        input.checked = excluded;
+        input.closest('.workspace-multi-row')?.classList.toggle('workspace-topic-excluded', excluded);
+      });
+    });
+  }
+
   function setExclude(kind, value, excluded) {
     const clean = normalize(value);
     if (!clean) return;
 
-    const set = getSet(kind);
+    const exclusionSet = getSet(kind);
     const select = getSelect(kind);
-
     if (excluded) {
-      set.add(clean);
+      exclusionSet.add(clean);
       setOptionSelected(select, clean, false);
     } else {
-      set.delete(clean);
+      exclusionSet.delete(clean);
     }
 
+    invalidateFilteredCache();
     syncExcludeInputs();
+    // Standard filter change handling owns the table redraw.
     dispatchChange(select);
-    refreshResults();
-  }
-
-  function onExcludeChange(kind, input) {
-    const value = input?.dataset?.workspaceExcludeValue || '';
-    setExclude(kind, value, Boolean(input.checked));
+    requestSummaryRefresh();
   }
 
   function enhanceDropdown(kind) {
-    const selectId = kind === 'secondary' ? SECONDARY_SELECT_ID : TOPIC_SELECT_ID;
+    const selectId = selectIdForKind(kind);
     const select = byId(selectId);
     const dropdown = getDropdown(selectId);
     if (!select || !dropdown) return;
 
     ensureLegend(dropdown);
-
     const selected = selectedValuesFromSelect(select);
-    const excludeSet = getSet(kind);
+    const exclusionSet = getSet(kind);
 
     dropdown.querySelectorAll('.workspace-multi-row').forEach((row) => {
       const includeInput = row.querySelector('input[type="checkbox"][data-workspace-multi-value]');
       if (!includeInput) return;
-
       const value = normalize(includeInput.dataset.workspaceMultiValue || includeInput.value || '');
       if (!value) return;
 
       row.classList.add('workspace-topic-exclude-row');
-      row.classList.toggle('workspace-topic-excluded', excludeSet.has(value));
+      if (selected.has(value) && exclusionSet.has(value)) exclusionSet.delete(value);
 
       let excludeInput = row.querySelector('input.workspace-topic-exclude-check');
       if (!excludeInput) {
         excludeInput = document.createElement('input');
         excludeInput.type = 'checkbox';
         excludeInput.className = 'workspace-topic-exclude-check';
-        excludeInput.title = `Exclude ${value}`;
-        excludeInput.setAttribute('aria-label', `Exclude ${value}`);
-        excludeInput.dataset.workspaceExcludeKind = kind;
-        excludeInput.dataset.workspaceExcludeValue = value;
         excludeInput.addEventListener('click', (event) => event.stopPropagation());
         excludeInput.addEventListener('change', (event) => {
           event.stopPropagation();
-          onExcludeChange(kind, excludeInput);
+          setExclude(kind, excludeInput.dataset.workspaceExcludeValue || '', Boolean(excludeInput.checked));
         });
         row.appendChild(excludeInput);
-      } else {
-        excludeInput.dataset.workspaceExcludeKind = kind;
-        excludeInput.dataset.workspaceExcludeValue = value;
-        excludeInput.title = `Exclude ${value}`;
-        excludeInput.setAttribute('aria-label', `Exclude ${value}`);
       }
 
-      excludeInput.checked = excludeSet.has(value);
+      excludeInput.dataset.workspaceExcludeKind = kind;
+      excludeInput.dataset.workspaceExcludeValue = value;
+      excludeInput.title = `Exclude ${value}`;
+      excludeInput.setAttribute('aria-label', `Exclude ${value}`);
 
       if (includeInput.dataset.workspaceExcludeIncludeBound !== '1') {
         includeInput.dataset.workspaceExcludeIncludeBound = '1';
+        // Capture phase removes an exclusion before the workspace's normal
+        // include-checkbox handler dispatches the select change.
         includeInput.addEventListener('change', () => {
+          if (!includeInput.checked) return;
           const includeValue = normalize(includeInput.dataset.workspaceMultiValue || includeInput.value || '');
-          if (includeInput.checked && includeValue) {
-            getSet(kind).delete(includeValue);
-            window.setTimeout(() => {
-              syncExcludeInputs();
-              refreshResults();
-            }, 0);
-          }
-        });
-      }
-
-      if (selected.has(value) && excludeSet.has(value)) {
-        excludeSet.delete(value);
-        excludeInput.checked = false;
-        row.classList.remove('workspace-topic-excluded');
+          if (!includeValue) return;
+          getSet(kind).delete(includeValue);
+          invalidateFilteredCache();
+          syncExcludeInputs();
+          requestSummaryRefresh();
+        }, true);
       }
     });
-  }
 
-  function syncExcludeInputs() {
-    ['topic', 'secondary'].forEach((kind) => {
-      const selectId = kind === 'secondary' ? SECONDARY_SELECT_ID : TOPIC_SELECT_ID;
-      const dropdown = getDropdown(selectId);
-      if (!dropdown) return;
-
-      const excludeSet = getSet(kind);
-      dropdown.querySelectorAll('input.workspace-topic-exclude-check').forEach((input) => {
-        const value = normalize(input.dataset.workspaceExcludeValue || '');
-        input.checked = excludeSet.has(value);
-        input.closest('.workspace-multi-row')?.classList.toggle('workspace-topic-excluded', input.checked);
-      });
-    });
-  }
-
-  function clearExclusions(kind) {
-    getSet(kind).clear();
     syncExcludeInputs();
-    refreshResults();
   }
 
-  function bindClearAndSelectAllButtons() {
-    const buttonMap = [
+  function enhanceSelectId(selectId) {
+    const kind = kindForSelectId(selectId);
+    if (kind) enhanceDropdown(kind);
+  }
+
+  function clearExclusions(kind, options = {}) {
+    const exclusionSet = getSet(kind);
+    if (!exclusionSet.size) return;
+    exclusionSet.clear();
+    invalidateFilteredCache();
+    syncExcludeInputs();
+    if (options.refresh !== false) refreshResults();
+    else requestSummaryRefresh();
+  }
+
+  function bindFilterButtons() {
+    const map = [
       ['clearTopicFilter', 'topic'],
       ['selectAllTopicFilter', 'topic'],
       ['clearSecondaryTopicFilter', 'secondary'],
       ['selectAllSecondaryTopicFilter', 'secondary']
     ];
 
-    buttonMap.forEach(([id, kind]) => {
+    map.forEach(([id, kind]) => {
       const button = byId(id);
       if (!button || button.dataset.workspaceTopicExcludeBound === '1') return;
       button.dataset.workspaceTopicExcludeBound = '1';
       button.addEventListener('click', () => {
-        window.setTimeout(() => clearExclusions(kind), 0);
-      });
+        // The regular button handler owns include selection and table refresh.
+        // This module only clears its own exclusion state first.
+        clearExclusions(kind, { refresh: false });
+      }, true);
     });
-
-    const reset = byId('resetFiltersBtn');
-    if (reset && reset.dataset.workspaceTopicExcludeResetBound !== '1') {
-      reset.dataset.workspaceTopicExcludeResetBound = '1';
-      reset.addEventListener('click', () => {
-        topicExcludeState.topic.clear();
-        topicExcludeState.secondary.clear();
-        window.setTimeout(() => {
-          syncExcludeInputs();
-          refreshResults();
-        }, 0);
-      });
-    }
   }
 
-  function updateExcludeSummary() {
-    const target = byId('workspaceActiveFilters');
-    if (!target) return;
-
-    const topicLabels = sortedLabels(getSet('topic'));
-    const secondaryLabels = sortedLabels(getSet('secondary'));
+  function summaryParts() {
     const parts = [];
-
+    const topicLabels = Array.from(getSet('topic')).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const secondaryLabels = Array.from(getSet('secondary')).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     if (topicLabels.length) {
-      const text = topicLabels.slice(0, 3).join(', ') + (topicLabels.length > 3 ? ` +${topicLabels.length - 3}` : '');
-      parts.push(`Exclude topics: ${text}`);
+      parts.push(`Exclude topics: ${topicLabels.slice(0, 3).join(', ')}${topicLabels.length > 3 ? ` +${topicLabels.length - 3}` : ''}`);
     }
-
     if (secondaryLabels.length) {
-      const text = secondaryLabels.slice(0, 3).join(', ') + (secondaryLabels.length > 3 ? ` +${secondaryLabels.length - 3}` : '');
-      parts.push(`Exclude secondary: ${text}`);
+      parts.push(`Exclude secondary: ${secondaryLabels.slice(0, 3).join(', ')}${secondaryLabels.length > 3 ? ` +${secondaryLabels.length - 3}` : ''}`);
     }
-
-    const current = String(target.textContent || '').replace(/\s·\sExclude topics:.*$/i, '').replace(/\s·\sExclude secondary:.*$/i, '');
-    if (!parts.length) {
-      if (/Exclude topics:|Exclude secondary:/i.test(target.textContent || '')) target.textContent = current || 'No filters in use';
-      return;
-    }
-
-    const base = current && current !== 'No filters in use' ? current : '';
-    target.textContent = [base, ...parts].filter(Boolean).join(' · ');
-    target.title = target.textContent;
+    return parts;
   }
 
-  function enhanceAll() {
+  function install() {
     if (!window.WNMU_WORKSPACE_TEST) return;
     ensureStyles();
     patchActivePrograms();
     patchResetFilters();
-    bindClearAndSelectAllButtons();
+    bindFilterButtons();
     enhanceDropdown('topic');
     enhanceDropdown('secondary');
-    syncExcludeInputs();
-    updateExcludeSummary();
+    requestSummaryRefresh();
+
+    if (document.documentElement.dataset.workspaceTopicExcludeEventBound !== '1') {
+      document.documentElement.dataset.workspaceTopicExcludeEventBound = '1';
+      document.addEventListener(RENDER_EVENT, (event) => enhanceSelectId(event.detail?.selectId || ''));
+    }
   }
 
-  function installObservers() {
-    if (window.__wnmuWorkspaceTopicExcludeObservers === '1') return;
-    window.__wnmuWorkspaceTopicExcludeObservers = '1';
-
-    const rerun = () => window.setTimeout(enhanceAll, 0);
-
-    document.addEventListener('change', (event) => {
-      if (event.target?.closest?.('#controlsPanel')) {
-        window.setTimeout(enhanceAll, 0);
-        window.setTimeout(updateExcludeSummary, 60);
-      }
-    }, true);
-
-    document.addEventListener('click', (event) => {
-      if (event.target?.closest?.('#controlsPanel')) {
-        window.setTimeout(enhanceAll, 0);
-        window.setTimeout(updateExcludeSummary, 60);
-      }
-    }, true);
-
-    const observer = new MutationObserver(rerun);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
-  function install() {
-    enhanceAll();
-    installObservers();
-    [80, 220, 500, 1000, 1800, 3200].forEach((delay) => window.setTimeout(enhanceAll, delay));
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', install);
-  } else {
-    install();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
+  else install();
 
   window.WNMUWorkspaceTopicExclude = {
     version: VERSION,
     topicExcludeState,
     clearExclusions,
-    refreshResults
+    enhanceSelectId,
+    refreshResults,
+    summaryParts
   };
 })();

@@ -252,7 +252,7 @@ function programRightsCoverDateRange(program, startIso, endIso) {
 }
 
 function activePrograms() {
-  const search = normalizeLower(els.searchInput.value);
+  const search = effectiveProgramSearchValue();
   const searchField = els.searchFieldSelect.value;
   const codes = selectedValues(els.codeFilter).map((value) => normalizeText(value).toUpperCase()).sort().join('|');
   const topics = selectedValues(els.topicFilter).sort().join('|');
@@ -593,6 +593,14 @@ async function handleCopyNote(programId, triggerButton) {
   }
 }
 
+const PROGRAM_SEARCH_MIN_CHARACTERS = 4;
+const PROGRAM_SEARCH_IDLE_MS = 2000;
+
+function effectiveProgramSearchValue() {
+  const value = normalizeLower(els.searchInput?.value || '');
+  return value.length >= PROGRAM_SEARCH_MIN_CHARACTERS ? value : '';
+}
+
 function flushSearchUpdate() {
   if (state.searchDebounceTimer) {
     clearTimeout(state.searchDebounceTimer);
@@ -606,7 +614,7 @@ function scheduleSearchUpdate() {
   state.searchDebounceTimer = setTimeout(() => {
     state.searchDebounceTimer = null;
     updateQueryStatus();
-  }, SEARCH_INPUT_DEBOUNCE_MS);
+  }, PROGRAM_SEARCH_IDLE_MS);
 }
 
 function renderTable() {

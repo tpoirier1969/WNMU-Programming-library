@@ -1,10 +1,10 @@
-// v1.5.109 Main Library UI polish
+// v1.5.125 Main Library UI polish — workspace layout isolation
 // Refines the Program / Series toggle, keeps Search Text wide,
 // makes Episode min/max filters readable, keeps Distributor/Rating inside the panel,
 // and removes description Copy buttons.
 
 (function () {
-  const VERSION = 'v1.5.109 main library UI polish';
+  const VERSION = 'v1.5.125 main library UI polish';
 
   function setImportant(element, property, value) {
     if (!element) return;
@@ -120,23 +120,23 @@
         outline-offset: -2px !important;
       }
 
-      #controlsPanel .cluster-distributor .filter-label {
+      body:not(.workspace-test-page) #controlsPanel .cluster-distributor .filter-label {
         white-space: nowrap !important;
         letter-spacing: .015em !important;
       }
-      #controlsPanel .cluster-distributor select {
+      body:not(.workspace-test-page) #controlsPanel .cluster-distributor select {
         padding-left: 8px !important;
         padding-right: 24px !important;
         text-overflow: clip !important;
       }
-      #controlsPanel .cluster-search-text input {
+      body:not(.workspace-test-page) #controlsPanel .cluster-search-text input {
         min-width: 0 !important;
       }
-      #controlsPanel .cluster-episodes {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes {
         min-width: 118px !important;
         max-width: none !important;
       }
-      #controlsPanel .cluster-episodes .filter-label-row {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes .filter-label-row {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
@@ -144,7 +144,7 @@
         min-width: 0 !important;
         overflow: visible !important;
       }
-      #controlsPanel .cluster-episodes .filter-label {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes .filter-label {
         flex: 1 1 auto !important;
         min-width: 0 !important;
         max-width: none !important;
@@ -152,26 +152,26 @@
         text-overflow: clip !important;
         white-space: nowrap !important;
       }
-      #controlsPanel .cluster-episodes .mini-clear {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes .mini-clear {
         flex: 0 0 auto !important;
         padding-left: 5px !important;
         padding-right: 5px !important;
       }
-      #controlsPanel .cluster-episodes .episode-range-filter {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes .episode-range-filter {
         grid-template-columns: minmax(48px, 1fr) minmax(48px, 1fr) !important;
         gap: 6px !important;
       }
-      #controlsPanel .cluster-episodes .episode-range-filter input {
+      body:not(.workspace-test-page) #controlsPanel .cluster-episodes .episode-range-filter input {
         min-width: 48px !important;
         padding-left: 8px !important;
         padding-right: 8px !important;
         text-align: left !important;
       }
-      #controlsPanel .cluster-rating select {
+      body:not(.workspace-test-page) #controlsPanel .cluster-rating select {
         min-width: 0 !important;
         max-width: 100% !important;
       }
-      #controlsPanel .cluster-clear-all .reset-all {
+      body:not(.workspace-test-page) #controlsPanel .cluster-clear-all .reset-all {
         display: grid !important;
         place-items: center !important;
         gap: 2px !important;
@@ -188,7 +188,7 @@
         letter-spacing: 0 !important;
         border-radius: 11px !important;
       }
-      #controlsPanel .cluster-clear-all .reset-all span {
+      body:not(.workspace-test-page) #controlsPanel .cluster-clear-all .reset-all span {
         display: block !important;
       }
 
@@ -248,7 +248,7 @@
       }
 
       @media (max-width: 1179px) {
-        #controlsPanel .program-type-native-select {
+        body:not(.workspace-test-page) #controlsPanel .program-type-native-select {
           position: static !important;
           width: 100% !important;
           height: auto !important;
@@ -258,10 +258,10 @@
           padding: 8px 9px !important;
           border: 1px solid var(--border) !important;
         }
-        #controlsPanel .program-type-toggle {
+        body:not(.workspace-test-page) #controlsPanel .program-type-toggle {
           display: none !important;
         }
-        #controlsPanel .cluster-clear-all .reset-all {
+        body:not(.workspace-test-page) #controlsPanel .cluster-clear-all .reset-all {
           width: auto !important;
           max-width: none !important;
         }
@@ -405,7 +405,7 @@
       toggle.innerHTML = `
         <button type="button" data-program-type-mode="series" aria-pressed="false">Series</button>
         <button type="button" data-program-type-mode="all" aria-pressed="true">All</button>
-        <button type="button" data-program-type-mode="program" aria-pressed="false">Program</button>
+        <button type="button" data-program-type-mode="program" aria-pressed="false">Pgm</button>
       `;
       select.insertAdjacentElement('afterend', toggle);
     }
@@ -434,6 +434,7 @@
   }
 
   function stackClearAllButton() {
+    if (window.WNMU_WORKSPACE_TEST) return;
     const button = document.getElementById('resetFiltersBtn');
     if (!button) return;
     button.setAttribute('aria-label', 'Clear all filters');
@@ -443,6 +444,8 @@
   }
 
   function applyFilterSizingLayout() {
+    // The split workspace is the sole owner of its filter geometry.
+    if (window.WNMU_WORKSPACE_TEST) return;
     const cluster = document.querySelector('#controlsPanel .compact-search-cluster');
     if (!cluster) return;
 

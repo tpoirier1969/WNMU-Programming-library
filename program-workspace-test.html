@@ -11,25 +11,25 @@
   <link rel="stylesheet" href="styles.css?v=1.5.94" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script>window.WNMU_APP_VERSION = 'v1.5.124'; window.WNMU_VERSION_MANIFEST = 'version.json'; window.WNMU_WORKSPACE_TEST = true;</script>
-  <script defer src="js/core.js?v=1.5.93"></script>
+  <script>window.WNMU_APP_VERSION = 'v1.5.125'; window.WNMU_VERSION_MANIFEST = 'version.json'; window.WNMU_WORKSPACE_TEST = true;</script>
+  <script defer src="js/core.js?v=1.5.125"></script>
   <script defer src="js/auth-init.js?v=1.5.47"></script>
   <script defer src="js/data-store.js?v=1.5.47"></script>
   <script defer src="js/quick-airdates-fix.js?v=1.5.95"></script>
-  <script defer src="js/filters-list.js?v=1.5.93"></script>
+  <script defer src="js/filters-list.js?v=1.5.125"></script>
   <script defer src="js/editor-export.js?v=1.5.47"></script>
   <script defer src="js/import-pbs.js?v=1.5.47"></script>
   <script defer src="js/lookup.js?v=1.5.47"></script>
-  <script defer src="js/events.js?v=1.5.93"></script>
+  <script defer src="js/events.js?v=1.5.125"></script>
   <script defer src="js/auth-login-fix-v15109.js?v=1.5.109"></script>
-  <script defer src="js/library-workflow.js?v=1.5.61"></script>
+  <script defer src="js/library-workflow.js?v=1.5.125"></script>
   <script defer src="js/app-version-check.js?v=1.5.109"></script>
-  <script defer src="js/library-main-ui-v15109.js?v=1.5.109"></script>
-  <script defer src="js/program-workspace-test.js?v=1.5.124"></script>
-  <script defer src="js/workspace-scope-clearall-v15119.js?v=1.5.119"></script>
-  <script defer src="js/workspace-topic-exclude-v15120.js?v=1.5.120"></script>
-  <script defer src="js/workspace-rights-sort-v15121.js?v=1.5.121"></script>
-  <script defer src="js/workspace-default-main-v15122.js?v=1.5.124"></script>
+  <script defer src="js/library-main-ui-v15109.js?v=1.5.125"></script>
+  <script defer src="js/program-workspace-test.js?v=1.5.125"></script>
+  <script defer src="js/workspace-scope-clearall-v15119.js?v=1.5.125"></script>
+  <script defer src="js/workspace-topic-exclude-v15120.js?v=1.5.125"></script>
+  <script defer src="js/workspace-rights-sort-v15121.js?v=1.5.125"></script>
+  <script defer src="js/workspace-default-main-v15122.js?v=1.5.125"></script>
 </head>
 <body class="workspace-test-page">
   <div id="setupNotice" class="setup-notice hidden">
@@ -68,7 +68,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row compact-title-row">
             <h1 id="appTitle">Programming Library</h1>
-            <span id="appVersion" class="version-pill">v1.5.124</span>
+            <span id="appVersion" class="version-pill">v1.5.125</span>
             <span id="statusLine" class="status-line topbar-status-inline">Loading…</span>
           </div>
         </div>
@@ -147,13 +147,10 @@
         <div class="filters-cluster compact-search-cluster">
           <div class="filter-box cluster-search-text">
             <label class="filter-label" for="searchInput">Search text</label>
-            <input id="searchInput" type="search" placeholder="Search programs" />
+            <input id="searchInput" type="search" placeholder="Search programs (4+ characters)" />
           </div>
           <div class="filter-box cluster-rights-start rights-range-filter-box">
-            <div class="filter-label-row">
-              <label class="filter-label" for="rightsWindowStartFilter">Rights begin</label>
-              <button type="button" id="clearRightsWindowFilter" class="mini-clear">Clear</button>
-            </div>
+            <label class="filter-label" for="rightsWindowStartFilter">Rights begin</label>
             <input id="rightsWindowStartFilter" type="date" aria-label="Rights window begin date" />
           </div>
           <div class="filter-box cluster-distributor">
@@ -165,13 +162,11 @@
             <select id="programTypeFilter"><option value="">All types</option></select>
           </div>
           <div id="episodeFilterBox" class="filter-box cluster-episodes">
-            <div class="filter-label-row">
-              <label class="filter-label" for="episodeMinFilter">Episodes</label>
-              <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
-            </div>
+            <label class="filter-label" for="episodeMinFilter">Episodes</label>
             <div class="episode-range-filter">
               <input id="episodeMinFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Min" aria-label="Minimum episode count" />
               <input id="episodeMaxFilter" type="number" inputmode="numeric" min="1" step="1" placeholder="Max" aria-label="Maximum episode count" />
+              <button type="button" id="clearEpisodeFilter" class="mini-clear">Clear</button>
             </div>
           </div>
           <div class="filter-box cluster-search-in">
@@ -192,7 +187,10 @@
           </div>
           <div class="filter-box cluster-rights-end rights-range-filter-box">
             <label class="filter-label" for="rightsWindowEndFilter">Rights end</label>
-            <input id="rightsWindowEndFilter" type="date" aria-label="Rights window end date" />
+            <div class="rights-end-filter">
+              <input id="rightsWindowEndFilter" type="date" aria-label="Rights window end date" />
+              <button type="button" id="clearRightsWindowFilter" class="mini-clear">Clear</button>
+            </div>
           </div>
           <div class="filter-box cluster-status">
             <label class="filter-label" for="statusFilter">Status</label>
@@ -221,10 +219,19 @@
               <option value="3plus">3+ stars</option>
             </select>
           </div>
+          <div id="workspaceActiveScopeBox" class="filter-box cluster-active-scope">
+            <label class="filter-label" for="workspaceActiveScopeFilter">Active/Archived</label>
+            <select id="workspaceActiveScopeFilter" aria-label="Active and archived title scope">
+              <option value="active">Active only</option>
+              <option value="all">All records</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div class="filter-box cluster-clear-all">
+            <span class="filter-label cluster-clear-all-spacer" aria-hidden="true">Filters</span>
+            <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
+          </div>
         </div>
-      </div>
-      <div class="filter-foot">
-        <button type="button" id="resetFiltersBtn" class="mini-clear reset-all">Clear all filters</button>
       </div>
     </section>
 

@@ -2,6 +2,15 @@
 // Extracted from the former monolithic app.js during the v1.5.10 structural refactor.
 
 function bindEvents() {
+  const openProgramFromLibrary = (programId) => {
+    if (!programId) return;
+    if (window.WNMU_WORKSPACE_TEST && typeof window.WNMUWorkspaceOpenProgram === 'function') {
+      void window.WNMUWorkspaceOpenProgram(programId);
+      return;
+    }
+    openEditor(programId);
+  };
+
   els.adminBtn.addEventListener('click', () => {
     if (canEdit()) {
       setStatus('Admin mode is already active.');
@@ -116,58 +125,63 @@ function bindEvents() {
   });
 
 
-  els.windowReactivateShield?.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    clearProgramActivationGuard();
-  });
-  els.windowReactivateShield?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    clearProgramActivationGuard();
-  });
+  // The normal Library page protects against accidental clicks when the browser
+  // wakes from the background. The split workspace does not use that guard:
+  // it made the first intentional title click disappear.
+  if (!window.WNMU_WORKSPACE_TEST) {
+    els.windowReactivateShield?.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      clearProgramActivationGuard();
+    });
+    els.windowReactivateShield?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      clearProgramActivationGuard();
+    });
 
-  window.addEventListener('blur', () => {
-    armProgramActivationGuard();
-  });
-  window.addEventListener('focus', () => {
-    scheduleProgramActivationGuardRelease();
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
+    window.addEventListener('blur', () => {
       armProgramActivationGuard();
-      return;
-    }
-    if (document.visibilityState === 'visible' && document.hasFocus()) {
+    });
+    window.addEventListener('focus', () => {
       scheduleProgramActivationGuardRelease();
-    }
-  });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        armProgramActivationGuard();
+        return;
+      }
+      if (document.visibilityState === 'visible' && document.hasFocus()) {
+        scheduleProgramActivationGuardRelease();
+      }
+    });
 
-  const swallowWakeActivationClick = (event) => {
-    if (!handleWakeActivationInteraction(event.target)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-  };
+    const swallowWakeActivationClick = (event) => {
+      if (!handleWakeActivationInteraction(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    };
 
-  document.addEventListener('pointerdown', swallowWakeActivationClick, true);
-  document.addEventListener('mousedown', swallowWakeActivationClick, true);
-  document.addEventListener('click', (event) => {
-    if (!state.suppressNextListWakeClick) return;
-    const hitListPanel = Boolean(event.target instanceof Element && event.target.closest('#listPanel'));
-    if (!hitListPanel) return;
-    state.suppressNextListWakeClick = false;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-  }, true);
+    document.addEventListener('pointerdown', swallowWakeActivationClick, true);
+    document.addEventListener('mousedown', swallowWakeActivationClick, true);
+    document.addEventListener('click', (event) => {
+      if (!state.suppressNextListWakeClick) return;
+      const hitListPanel = Boolean(event.target instanceof Element && event.target.closest('#listPanel'));
+      if (!hitListPanel) return;
+      state.suppressNextListWakeClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    }, true);
+  }
 
   els.tableBody?.addEventListener('click', async (event) => {
     const openBtn = event.target.closest('[data-open-program]');
     if (openBtn) {
       event.stopPropagation();
-      if (shouldSuppressProgramActivation(event.target)) return;
-      openEditor(openBtn.dataset.openProgram);
+      if (!window.WNMU_WORKSPACE_TEST && shouldSuppressProgramActivation(event.target)) return;
+      openProgramFromLibrary(openBtn.dataset.openProgram);
       return;
     }
 
@@ -259,8 +273,8 @@ The rating is still shown locally in this browser, but it may not have synced to
     if (event.target.closest('.inline-airing-editor') || isInteractiveElement(event.target)) return;
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
-    if (shouldSuppressProgramActivation(event.target)) return;
-    openEditor(row.dataset.id);
+    if (!window.WNMU_WORKSPACE_TEST && shouldSuppressProgramActivation(event.target)) return;
+    openProgramFromLibrary(row.dataset.id);
   });
 
   els.tableBody?.addEventListener('keydown', async (event) => {

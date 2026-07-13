@@ -1,5 +1,5 @@
 // WNMU Programming Library split workspace
-// v1.5.124 — workspace workflow and compact filter layout.
+// v1.5.125 — deterministic workspace workflow and filter layout.
 (function () {
   'use strict';
 
@@ -412,28 +412,28 @@
         min-width: 0 !important;
         overflow: hidden !important;
       }
-      body.workspace-test-page #controlsPanel .cluster-clear-all { padding-top: 0 !important; align-self: end !important; }
-      body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all { width: 100% !important; white-space: nowrap !important; }
-      body.workspace-test-page #controlsPanel .filter-foot {
+      body.workspace-test-page #controlsPanel .cluster-clear-all {
         display: flex !important;
-        justify-content: flex-end !important;
-        align-items: center !important;
-        margin: 5px 0 0 0 !important;
-        padding: 0 !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        align-items: stretch !important;
+        align-self: start !important;
+        padding-top: 0 !important;
+      }
+      body.workspace-test-page #controlsPanel .cluster-clear-all-spacer {
+        visibility: hidden !important;
+        white-space: nowrap !important;
+      }
+      body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all {
         width: 100% !important;
         min-width: 0 !important;
-      }
-      body.workspace-test-page #controlsPanel .filter-foot .reset-all {
-        width: auto !important;
-        min-width: 98px !important;
-        max-width: 100% !important;
         white-space: nowrap !important;
       }
       body.workspace-test-page #controlsPanel .compact-search-cluster {
         contain: layout style !important;
       }
 
-      /* v1.5.124 filter-control cleanup */
+      /* v1.5.125 modular filter-control layout */
       body.workspace-test-page #controlsPanel .filters-grid > .filter-box:nth-child(-n+4) .filter-label-row {
         align-items: flex-start !important;
         margin-bottom: 2px !important;
@@ -444,65 +444,59 @@
         text-overflow: ellipsis !important;
       }
       body.workspace-test-page #controlsPanel .filters-grid > .filter-box:nth-child(-n+4) .filter-label-actions {
-        gap: 2px !important;
+        gap: 3px !important;
         transform: translateY(-2px) !important;
       }
       body.workspace-test-page #controlsPanel .filters-grid > .filter-box:nth-child(-n+4) .filter-label-actions .mini-clear {
-        min-height: 21px !important;
-        height: 21px !important;
-        padding: 2px 3px !important;
-        font-size: .56rem !important;
+        min-height: 22px !important;
+        height: 22px !important;
+        padding: 2px 4px !important;
+        font-size: .61rem !important;
         line-height: 1 !important;
         border-radius: 8px !important;
       }
       body.workspace-test-page #controlsPanel .program-type-toggle {
         width: 100% !important;
         max-width: 100% !important;
-        grid-template-columns: minmax(0, 1fr) minmax(27px, .58fr) minmax(0, 1.22fr) !important;
+        grid-template-columns: minmax(0, 1fr) minmax(26px, .5fr) minmax(34px, .72fr) !important;
       }
       body.workspace-test-page #controlsPanel .program-type-toggle button {
         padding-left: 2px !important;
         padding-right: 2px !important;
-        font-size: .60rem !important;
+        font-size: .65rem !important;
         font-weight: 700 !important;
         letter-spacing: 0 !important;
       }
       body.workspace-test-page #controlsPanel .program-type-toggle button[data-program-type-mode="all"] {
-        font-size: .57rem !important;
+        font-size: .62rem !important;
         font-weight: 650 !important;
       }
-      body.workspace-test-page #controlsPanel .cluster-episodes .filter-label-row {
-        justify-content: flex-start !important;
-      }
-      body.workspace-test-page #controlsPanel .cluster-episodes .episode-range-filter {
-        grid-template-columns: minmax(48px, 1fr) minmax(48px, 1fr) auto !important;
+      body.workspace-test-page #controlsPanel .cluster-episodes .episode-range-filter,
+      body.workspace-test-page #controlsPanel .cluster-rights-end .rights-end-filter {
+        display: grid !important;
+        grid-template-columns: minmax(46px, 1fr) minmax(46px, 1fr) auto !important;
         gap: 5px !important;
         align-items: stretch !important;
+        min-width: 0 !important;
+        width: 100% !important;
       }
-      body.workspace-test-page #controlsPanel .cluster-episodes .episode-range-filter #clearEpisodeFilter {
+      body.workspace-test-page #controlsPanel .cluster-rights-end .rights-end-filter {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+      }
+      body.workspace-test-page #controlsPanel #clearEpisodeFilter,
+      body.workspace-test-page #controlsPanel #clearRightsWindowFilter,
+      body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all {
         min-height: 27px !important;
         height: 27px !important;
         padding: 4px 7px !important;
         align-self: stretch !important;
         white-space: nowrap !important;
       }
-      body.workspace-test-page #controlsPanel .cluster-clear-all {
-        justify-content: flex-end !important;
-        align-items: end !important;
-      }
-      body.workspace-test-page #controlsPanel .cluster-clear-all .reset-all {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        min-height: 27px !important;
-        height: 27px !important;
-        padding: 4px 7px !important;
-        white-space: nowrap !important;
-      }
       body.workspace-test-page #workspaceActiveScopeBox,
       body.workspace-test-page #workspaceActiveScopeFilter {
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 0 !important;
       }
 
       body.workspace-test-page #secondaryTopicFilter.workspace-native-secondary-select { display: none !important; }
@@ -700,7 +694,8 @@
         background: rgba(255,255,255,.82);
         border-radius: 0 16px 16px 0;
       }
-      body.workspace-test-page.workspace-editor-open #workspaceEditorEmpty { display: none !important; }
+      body.workspace-test-page.workspace-editor-open #workspaceEditorEmpty,
+      body.workspace-test-page.workspace-admin #workspaceEditorEmpty { display: none !important; }
       body.workspace-test-page #workspaceEditorEmpty .workspace-empty-card {
         max-width: 360px;
         padding: 18px 20px;
@@ -902,17 +897,10 @@
     setWorkspaceImportant(el, 'grid-row', row);
     setWorkspaceImportant(el, 'min-width', '0');
     setWorkspaceImportant(el, 'max-width', '100%');
-  }
-
-  function installEpisodeClearButtonLayout() {
-    const range = document.querySelector('#controlsPanel .cluster-episodes .episode-range-filter');
-    const button = document.getElementById('clearEpisodeFilter');
-    if (!range || !button) return;
-    if (button.parentElement !== range) range.appendChild(button);
+    setWorkspaceImportant(el, 'width', '100%');
   }
 
   function applyWorkspaceFilterLayout() {
-    installEpisodeClearButtonLayout();
     const controls = document.getElementById('controlsPanel');
     const grid = controls?.querySelector('.filters.filters-grid');
     const cluster = controls?.querySelector('.compact-search-cluster');
@@ -968,7 +956,7 @@
     const narrowCluster = width && width < 720;
     setWorkspaceImportant(cluster, 'grid-template-columns', narrowCluster
       ? 'repeat(6, minmax(0, 1fr))'
-      : 'repeat(14, minmax(0, 1fr))');
+      : 'repeat(16, minmax(0, 1fr))');
 
     const placements = narrowCluster ? [
       ['.cluster-type', '1 / span 2', '1'],
@@ -984,16 +972,16 @@
       ['.cluster-clear-all', '5 / span 2', '5']
     ] : [
       ['.cluster-type', '1 / span 2', '1'],
-      ['.cluster-search-text', '3 / span 5', '1'],
-      ['.cluster-distributor', '8 / span 2', '1'],
-      ['.cluster-episodes', '10 / span 5', '1'],
+      ['.cluster-search-text', '3 / span 6', '1'],
+      ['.cluster-distributor', '9 / span 2', '1'],
+      ['.cluster-episodes', '11 / span 6', '1'],
       ['.cluster-search-in', '1 / span 2', '2'],
       ['.cluster-rights-start', '3 / span 2', '2'],
-      ['.cluster-rights-end', '5 / span 2', '2'],
-      ['.cluster-status', '7 / span 2', '2'],
-      ['.cluster-rating', '9 / span 2', '2'],
-      ['.cluster-active-scope', '11 / span 2', '2'],
-      ['.cluster-clear-all', '13 / span 2', '2']
+      ['.cluster-rights-end', '5 / span 3', '2'],
+      ['.cluster-status', '8 / span 2', '2'],
+      ['.cluster-rating', '10 / span 2', '2'],
+      ['.cluster-active-scope', '12 / span 2', '2'],
+      ['.cluster-clear-all', '14 / span 3', '2']
     ];
 
     placements.forEach(([selector, column, row]) => placeGridItem(cluster.querySelector(selector), column, row));
@@ -1001,22 +989,13 @@
     const clearHolder = cluster.querySelector('.cluster-clear-all');
     if (clearHolder) {
       setWorkspaceImportant(clearHolder, 'display', 'flex');
-      setWorkspaceImportant(clearHolder, 'align-items', 'end');
-      setWorkspaceImportant(clearHolder, 'justify-content', 'stretch');
+      setWorkspaceImportant(clearHolder, 'align-items', 'stretch');
+      setWorkspaceImportant(clearHolder, 'justify-content', 'flex-start');
+      setWorkspaceImportant(clearHolder, 'align-self', 'start');
       setWorkspaceImportant(clearHolder, 'padding-top', '0');
     }
 
     installWorkspaceMultiSelectDropdowns();
-  }
-
-  function selectedValues(select) {
-    return new Set(Array.from(select?.selectedOptions || []).map((option) => option.value));
-  }
-
-  function escapeTextForHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
   }
 
   function workspaceMultiSelectConfigs() {
@@ -1182,6 +1161,12 @@
     renderWorkspaceMultiSelectDropdown(config.selectId);
   }
 
+  function notifyWorkspaceMultiSelectRendered(selectId) {
+    document.dispatchEvent(new CustomEvent('wnmu:workspace-multiselect-rendered', {
+      detail: { selectId }
+    }));
+  }
+
   function renderWorkspaceMultiSelectDropdown(selectId) {
     const select = document.getElementById(selectId);
     const config = getWorkspaceMultiSelectConfig(selectId);
@@ -1195,6 +1180,7 @@
     if (!options.length) {
       list.innerHTML = '<div class="workspace-multi-empty">No choices</div>';
       syncWorkspaceMultiToggle(selectId);
+      notifyWorkspaceMultiSelectRendered(selectId);
       return;
     }
 
@@ -1207,6 +1193,7 @@
       return `<label class="workspace-multi-row" for="${id}"><input id="${id}" type="checkbox" data-workspace-multi-value="${escapeTextForHtml(value)}" ${checked} ${disabled}><span class="workspace-multi-text">${escapeTextForHtml(label)}</span></label>`;
     }).join('');
     syncWorkspaceMultiToggle(selectId);
+    notifyWorkspaceMultiSelectRendered(selectId);
   }
 
   function workspaceRightsEndIso(program) {
@@ -1276,25 +1263,35 @@
     };
   }
 
+  let workspaceFilterResizeObserver = null;
+  let workspaceFilterLayoutQueued = false;
+
   function installWorkspaceFilterLayoutPatch() {
     if (window.__wnmuWorkspaceFilterLayoutPatched) return;
+    const controls = document.getElementById('controlsPanel');
+    if (!controls) return;
     window.__wnmuWorkspaceFilterLayoutPatched = true;
-    const rerun = () => window.requestAnimationFrame(() => {
-      installWorkspaceFilterToggle();
-      applyWorkspaceFilterLayout();
-      updateWorkspaceDiagnosticStats();
-      updateWorkspaceFilterSummary();
-    });
-    [0, 80, 220, 500, 1000, 1800].forEach((delay) => window.setTimeout(rerun, delay));
-    window.addEventListener('resize', rerun);
-    document.addEventListener('change', (event) => {
-      if (event.target?.closest?.('#controlsPanel')) window.setTimeout(rerun, 0);
-    }, true);
-    // Deliberately do not recalculate the filter grid on search keystrokes.
-    // The old production filter-layout helper did that, which made the buttons jump rows while typing.
-    // This one-page test page owns its filter layout directly so typing only changes results, not geometry.
-  }
 
+    const apply = () => {
+      if (workspaceFilterLayoutQueued) return;
+      workspaceFilterLayoutQueued = true;
+      window.requestAnimationFrame(() => {
+        workspaceFilterLayoutQueued = false;
+        installWorkspaceFilterToggle();
+        applyWorkspaceFilterLayout();
+        updateWorkspaceDiagnosticStats();
+        updateWorkspaceFilterSummary();
+      });
+    };
+
+    apply();
+    if (typeof ResizeObserver === 'function') {
+      workspaceFilterResizeObserver = new ResizeObserver(apply);
+      workspaceFilterResizeObserver.observe(controls);
+    } else {
+      window.addEventListener('resize', apply);
+    }
+  }
 
   function readFiltersCollapsedPreference() {
     try { return window.localStorage?.getItem(FILTERS_COLLAPSED_KEY) === '1'; }
@@ -1379,6 +1376,11 @@
     if (status && status !== 'All statuses') addFilterSummaryPart(parts, 'Status', status);
     const rating = labelForSelectedOption(document.getElementById('ratingFilter'));
     if (rating && rating !== 'All ratings') addFilterSummaryPart(parts, 'Rating', rating);
+
+    try {
+      const topicExcludeParts = window.WNMUWorkspaceTopicExclude?.summaryParts?.();
+      if (Array.isArray(topicExcludeParts)) parts.push(...topicExcludeParts.filter(Boolean));
+    } catch (_error) {}
 
     return parts;
   }
@@ -1478,21 +1480,53 @@
     document.body.classList.toggle('workspace-admin', admin);
     const pane = document.getElementById('workspaceEditorPane');
     if (pane) pane.setAttribute('aria-hidden', 'false');
+    const empty = document.getElementById('workspaceEditorEmpty');
+    if (empty) empty.setAttribute('aria-hidden', admin ? 'true' : 'false');
     const drawer = document.getElementById('editorDrawer');
     document.body.classList.toggle('workspace-editor-open', Boolean(drawer && !drawer.classList.contains('hidden')));
+  }
+
+  function showWorkspaceNewProgramTemplate(options = {}) {
+    if (!isWorkspaceAdmin() || typeof openEditor !== 'function') return false;
+    const drawer = document.getElementById('editorDrawer');
+    const form = els.programForm;
+    if (!drawer || !form) return false;
+
+    const force = Boolean(options.force);
+    const selectedId = state?.selectedId == null ? '' : String(state.selectedId);
+    const formId = String(form.dataset.programId || '');
+    if (!force && selectedId && formId) return false;
+
+    workspaceOpeningDefaultEditor = true;
+    try {
+      try { state.selectedId = null; } catch {}
+      openEditor(null);
+      applyWorkspaceNewProgramDefaults();
+      document.body.classList.add('workspace-editor-open');
+      if (isNarrowWorkspace()) setWorkspaceActivePanel('editor');
+    } finally {
+      window.setTimeout(() => { workspaceOpeningDefaultEditor = false; }, 0);
+    }
+    return true;
   }
 
   function ensureWorkspaceEditorOpen() {
     if (!isWorkspaceAdmin()) return;
     const drawer = document.getElementById('editorDrawer');
-    if (!drawer) return;
-    if (drawer.classList.contains('hidden') && typeof openEditor === 'function') {
-      workspaceOpeningDefaultEditor = true;
-      try {
-        openEditor(null);
+    const form = els.programForm;
+    if (!drawer || !form) return;
+
+    const selectedId = state?.selectedId == null ? '' : String(state.selectedId);
+    const formId = String(form.dataset.programId || '');
+    const hidden = drawer.classList.contains('hidden');
+
+    // Admin mode has a standing invariant: when no existing title is selected,
+    // the right pane is the Add New Program form, never the empty-state card.
+    if (!selectedId && (!formId || hidden)) {
+      if (hidden || formId) showWorkspaceNewProgramTemplate({ force: true });
+      else {
+        document.body.classList.add('workspace-editor-open');
         applyWorkspaceNewProgramDefaults();
-      } finally {
-        window.setTimeout(() => { workspaceOpeningDefaultEditor = false; }, 0);
       }
     }
   }
@@ -1514,31 +1548,6 @@
   let workspaceDiscardPromptOpen = false;
   let workspaceHiddenSelectedAckId = null;
   let workspaceSelectionClearInProgress = false;
-  let workspaceResetFiltersBase = null;
-
-  function clearWorkspaceActivationGuardState() {
-    try { if (typeof clearProgramActivationGuard === 'function') clearProgramActivationGuard(); } catch {}
-    try { state.suppressNextListWakeClick = false; } catch {}
-    try { state.programActivationGuardArmed = false; } catch {}
-    try { if (state.programActivationGuardTimer) clearTimeout(state.programActivationGuardTimer); } catch {}
-  }
-
-  function patchWorkspaceActivationGuard() {
-    if (window.__wnmuWorkspaceActivationGuardPatched) return;
-    window.__wnmuWorkspaceActivationGuardPatched = true;
-    clearWorkspaceActivationGuardState();
-    const noOp = function workspaceNoActivationGuard() { return false; };
-    try { armProgramActivationGuard = function workspaceDoNotArmActivationGuard() {}; } catch {}
-    try { window.armProgramActivationGuard = function workspaceDoNotArmActivationGuard() {}; } catch {}
-    try { scheduleProgramActivationGuardRelease = function workspaceNoGuardRelease() { clearWorkspaceActivationGuardState(); }; } catch {}
-    try { window.scheduleProgramActivationGuardRelease = function workspaceNoGuardRelease() { clearWorkspaceActivationGuardState(); }; } catch {}
-    try { handleWakeActivationInteraction = noOp; } catch {}
-    try { window.handleWakeActivationInteraction = noOp; } catch {}
-    try { consumeSuppressedWakeClick = noOp; } catch {}
-    try { window.consumeSuppressedWakeClick = noOp; } catch {}
-    try { shouldSuppressProgramActivation = noOp; } catch {}
-    try { window.shouldSuppressProgramActivation = noOp; } catch {}
-  }
 
   function serializeWorkspaceProgramForm() {
     const form = els.programForm;
@@ -1764,7 +1773,6 @@
       workspaceHiddenSelectedAckId = null;
       setWorkspaceFormDirty(false);
       workspaceFormBaseline = '';
-      clearWorkspaceActivationGuardState();
       if (typeof closeEditor === 'function') closeEditor();
     } finally {
       window.setTimeout(() => { workspaceSelectionClearInProgress = false; }, 0);
@@ -1774,7 +1782,6 @@
 
   async function workspaceOpenProgramWithGuard(id) {
     if (!id) return;
-    clearWorkspaceActivationGuardState();
     const current = state?.selectedId == null ? '' : String(state.selectedId);
     const next = String(id);
     if (current && current === next) {
@@ -1788,44 +1795,6 @@
     }
     workspaceHiddenSelectedAckId = null;
     openEditor(next);
-  }
-
-  function workspaceIsProgramListControl(target) {
-    const el = target instanceof Element ? target : null;
-    if (!el) return false;
-    if (el.closest('.program-title-button,[data-open-program]')) return false;
-    return Boolean(el.closest([
-      '.inline-airing-editor',
-      '[data-inline-airing-toggle]',
-      '[data-inline-airing-save]',
-      '[data-inline-rating-value]',
-      '[data-copy-note]',
-      'input',
-      'select',
-      'textarea',
-      'a',
-      'button'
-    ].join(',')));
-  }
-
-  function installWorkspaceProgramSelectionHandler() {
-    if (window.__wnmuWorkspaceSelectionHandlerInstalled) return;
-    const tableBody = els.tableBody || document.getElementById('programTableBody');
-    if (!tableBody) return;
-    window.__wnmuWorkspaceSelectionHandlerInstalled = true;
-    tableBody.addEventListener('click', (event) => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target) return;
-      const openBtn = target.closest('[data-open-program]');
-      const row = target.closest('tr[data-id]');
-      const id = openBtn?.dataset.openProgram || row?.dataset.id;
-      if (!id) return;
-      if (!openBtn && workspaceIsProgramListControl(target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-      workspaceOpenProgramWithGuard(id);
-    }, true);
   }
 
   function installWorkspaceDirtyTracking() {
@@ -1898,14 +1867,19 @@
     const btn = els.resetFiltersBtn;
     if (!btn || typeof resetFilters !== 'function') return;
     window.__wnmuWorkspaceResetFiltersInterceptorInstalled = true;
-    workspaceResetFiltersBase = resetFilters;
     btn.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
       if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
       const ok = await requestWorkspaceClearSelection('clear-filters');
       if (!ok) return;
-      workspaceResetFiltersBase.call(this);
+      const scopeReset = window.WNMUWorkspaceScopeClearAllFix?.resetAllFilters;
+      if (typeof scopeReset === 'function') scopeReset();
+      else {
+        resetFilters();
+        try { state.currentView = 'active'; } catch {}
+        try { renderTable(); renderStats(); } catch {}
+      }
     }, true);
   }
 
@@ -2009,17 +1983,12 @@
         setWorkspaceFormDirty(false);
         workspaceFormBaseline = '';
 
-        if (!programId) {
-          // A successful create should immediately become a clean Add New Program form.
-          // Do this directly instead of relying on close/reopen wrapper timing.
-          try { state.selectedId = null; } catch {}
-          openEditor(null);
-          applyWorkspaceNewProgramDefaults();
-          document.body.classList.add('workspace-editor-open');
-          if (isNarrowWorkspace()) setWorkspaceActivePanel('editor');
-        } else {
-          closeEditor();
-        }
+        // After any successful save—new or existing—return Admin mode to a
+        // clean Add New Program form. This is done directly, then guarded by
+        // the standing editor invariant so later render/update timing cannot
+        // leave the empty-state card behind.
+        showWorkspaceNewProgramTemplate({ force: true });
+        ensureWorkspaceEditorOpen();
       } catch (error) {
         console.error(error);
         setLoading('');
@@ -2144,17 +2113,14 @@
     injectWorkspaceStyles();
     installWorkspaceShell();
     patchSaveProgram();
-    patchWorkspaceActivationGuard();
     patchRightsDerivedArchiveModel();
     patchWorkspaceRenderTableSelectionWatcher();
-    installWorkspaceProgramSelectionHandler();
     installWorkspaceDirtyTracking();
     installWorkspaceEditorToolsLayout();
     installWorkspaceResetFiltersInterceptor();
     installWorkspaceFilterToggle();
     installWorkspaceResponsiveMode();
     installWorkspaceFilterLayoutPatch();
-    applyWorkspaceFilterLayout();
     updateWorkspaceFilterSummary();
 
     if (typeof bindEvents === 'function' && !window.__wnmuWorkspaceBindPatched) {
@@ -2199,7 +2165,7 @@
       updateModeUI = function workspaceUpdateModeUI(...args) {
         const result = originalUpdateModeUI.apply(this, args);
         syncWorkspaceMode();
-        window.setTimeout(ensureWorkspaceEditorOpen, 60);
+        ensureWorkspaceEditorOpen();
         return result;
       };
     }
@@ -2213,7 +2179,7 @@
         syncWorkspaceMode();
         if (typeof renderTable === 'function') renderTable();
         if (typeof renderStats === 'function') renderStats();
-        window.setTimeout(ensureWorkspaceEditorOpen, 80);
+        ensureWorkspaceEditorOpen();
         return result;
       };
     }
@@ -2229,7 +2195,8 @@
         document.body.classList.add('workspace-editor-open');
         if (!id && els.drawerTitle) els.drawerTitle.textContent = 'Add New Program';
         if (!id) {
-          [0, 60, 160].forEach((delay) => window.setTimeout(applyWorkspaceNewProgramDefaults, delay));
+          applyWorkspaceNewProgramDefaults();
+          window.requestAnimationFrame(applyWorkspaceNewProgramDefaults);
         }
         installWorkspaceEditorToolsLayout();
         scheduleWorkspaceFormBaselineCapture();
@@ -2248,25 +2215,31 @@
         const result = originalCloseEditor.apply(this, args);
         document.body.classList.remove('workspace-editor-open');
         if (isNarrowWorkspace()) setWorkspaceActivePanel('library');
+        if (isWorkspaceAdmin()) ensureWorkspaceEditorOpen();
         return result;
       };
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      syncWorkspaceMode();
-      window.setTimeout(ensureWorkspaceEditorOpen, 200);
-    });
-  } else {
-    syncWorkspaceMode();
-    window.setTimeout(ensureWorkspaceEditorOpen, 200);
-  }
-
-  window.WNMU_WORKSPACE_BUILD_VERSION = 'v1.5.124';
-  patchWorkspaceFunctions();
-  [80, 220, 500, 1000, 1800].forEach((delay) => window.setTimeout(() => {
+  function initializeWorkspaceEditorInvariant() {
     syncWorkspaceMode();
     ensureWorkspaceEditorOpen();
-  }, delay));
+  }
+
+  window.WNMUWorkspaceOpenProgram = workspaceOpenProgramWithGuard;
+  window.WNMUWorkspaceFilterUi = {
+    syncMultiDropdowns() {
+      workspaceMultiSelectConfigs().forEach((config) => renderWorkspaceMultiSelectDropdown(config.selectId));
+      updateWorkspaceFilterSummary();
+    },
+    updateSummary: updateWorkspaceFilterSummary
+  };
+  window.WNMU_WORKSPACE_BUILD_VERSION = 'v1.5.125';
+  patchWorkspaceFunctions();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWorkspaceEditorInvariant);
+  } else {
+    initializeWorkspaceEditorInvariant();
+  }
 })();
