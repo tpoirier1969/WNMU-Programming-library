@@ -6,7 +6,6 @@
   'use strict';
 
   const VERSION = String(window.WNMU_APP_VERSION || 'v1.5.125');
-  const WORKSPACE_SEARCH_IDLE_MS = 1000;
 
   function byId(id) {
     return document.getElementById(id);
@@ -39,17 +38,6 @@
     document.head.appendChild(style);
   }
 
-  function installSearchDelay() {
-    if (typeof window.scheduleSearchUpdate !== 'function') return;
-    window.scheduleSearchUpdate = function workspaceScheduleSearchUpdate() {
-      if (state.searchDebounceTimer) clearTimeout(state.searchDebounceTimer);
-      state.searchDebounceTimer = setTimeout(() => {
-        state.searchDebounceTimer = null;
-        updateQueryStatus();
-      }, WORKSPACE_SEARCH_IDLE_MS);
-    };
-  }
-
   function suppressNewProgramButton() {
     const btn = byId('newProgramBtn');
     if (!btn) return;
@@ -67,12 +55,20 @@
     if (version) version.textContent = VERSION;
   }
 
-  function loadPhoneModule() {
-    if (document.querySelector('script[data-wnmu-phone-module="1"]')) return;
+  function loadModule(path, marker) {
+    if (document.querySelector(`script[data-wnmu-module="${marker}"]`)) return;
     const script = document.createElement('script');
-    script.src = 'js/workspace-phone-menu-v15125-phone1.js?v=1.5.125.1';
-    script.dataset.wnmuPhoneModule = '1';
+    script.src = path;
+    script.dataset.wnmuModule = marker;
     document.head.appendChild(script);
+  }
+
+  function loadPhoneModule() {
+    loadModule('js/workspace-phone-menu-v15125-phone1.js?v=1.5.125.1', 'phone-menu');
+  }
+
+  function loadEditorDefaultsModule() {
+    loadModule('js/workspace-new-program-defaults-rating-v15125.js?v=1.5.125.2', 'editor-defaults-rating');
   }
 
   function install() {
@@ -100,8 +96,8 @@
     }
   }
 
-  installSearchDelay();
   loadPhoneModule();
+  loadEditorDefaultsModule();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', install);
