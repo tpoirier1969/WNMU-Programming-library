@@ -6,6 +6,7 @@
   'use strict';
 
   const VERSION = String(window.WNMU_APP_VERSION || 'v1.5.125');
+  const WORKSPACE_SEARCH_IDLE_MS = 1000;
 
   function byId(id) {
     return document.getElementById(id);
@@ -26,8 +27,27 @@
       body.workspace-test-page #appTitle {
         white-space: nowrap !important;
       }
+
+      @media (min-width: 761px) {
+        body.workspace-test-page #editorDrawer [data-date-picker],
+        body.workspace-test-page #editorDrawer input[name="rights_begin_picker"],
+        body.workspace-test-page #editorDrawer input[name="rights_end_picker"] {
+          display: none !important;
+        }
+      }
     `;
     document.head.appendChild(style);
+  }
+
+  function installSearchDelay() {
+    if (typeof window.scheduleSearchUpdate !== 'function') return;
+    window.scheduleSearchUpdate = function workspaceScheduleSearchUpdate() {
+      if (state.searchDebounceTimer) clearTimeout(state.searchDebounceTimer);
+      state.searchDebounceTimer = setTimeout(() => {
+        state.searchDebounceTimer = null;
+        updateQueryStatus();
+      }, WORKSPACE_SEARCH_IDLE_MS);
+    };
   }
 
   function suppressNewProgramButton() {
@@ -80,6 +100,7 @@
     }
   }
 
+  installSearchDelay();
   loadPhoneModule();
 
   if (document.readyState === 'loading') {
