@@ -47,6 +47,14 @@
     if (version) version.textContent = VERSION;
   }
 
+  function loadPhoneModule() {
+    if (document.querySelector('script[data-wnmu-phone-module="1"]')) return;
+    const script = document.createElement('script');
+    script.src = 'js/workspace-phone-menu-v15125-phone1.js?v=1.5.125.1';
+    script.dataset.wnmuPhoneModule = '1';
+    document.head.appendChild(script);
+  }
+
   function install() {
     ensureStyles();
     suppressNewProgramButton();
@@ -71,6 +79,8 @@
       observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'disabled', 'aria-hidden'] });
     }
   }
+
+  loadPhoneModule();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', install);
