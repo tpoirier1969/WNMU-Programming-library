@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.127",
-  "requiredAppVersion": "v1.5.127",
-  "publishedVersion": "v1.5.127",
-  "appVersion": "v1.5.127",
-  "version": "v1.5.127",
-  "legacyCompatibilityVersion": "v1.5.127",
+  "currentAppVersion": "v1.5.128",
+  "requiredAppVersion": "v1.5.128",
+  "publishedVersion": "v1.5.128",
+  "appVersion": "v1.5.128",
+  "version": "v1.5.128",
+  "legacyCompatibilityVersion": "v1.5.128",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.127 changes Holidays / Events on larger screens from separate-page navigation to an in-app popup. The popup asks for a month, keeps a compact year selector for year-specific observances, and shows only the chosen month using the existing Holidays / Events data and rendering owner. Phone behavior remains on the existing Holidays / Events page.",
-  "updated": "2026-08-24T19:20:00Z"
+  "notes": "v1.5.128 removes Fast View row trimming. Filtered program lists now always render every matching program, and the Show more / Show all / Back to fast view controls and their row-window state have been removed.",
+  "updated": "2026-08-24T19:30:00Z"
 }

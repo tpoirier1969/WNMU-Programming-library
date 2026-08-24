@@ -163,7 +163,6 @@ function applySnapshot(snapshot) {
   if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = snapshot.rightsWindowEndFilter || '';
   state.currentView = snapshot.currentView === 'expired' ? 'archived' : (snapshot.currentView || 'all');
   syncQuickViewState();
-  resetVisibleRowWindow();
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -231,7 +230,6 @@ function resetFilters() {
   if (els.rightsWindowEndFilter) els.rightsWindowEndFilter.value = '';
   state.currentView = 'all';
   syncQuickViewState();
-  resetVisibleRowWindow();
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
@@ -621,11 +619,9 @@ function renderTable() {
   const allItems = sortProgramsForDisplay(activePrograms());
   const selectedId = state.selectedId;
   const poolCount = programsInCurrentViewPool().length;
-  const renderLimit = currentVisibleRowLimit(allItems.length);
-  const items = allItems.slice(0, renderLimit);
+  const items = allItems;
 
-  updateListSummary(items.length, poolCount, allItems.length);
-  updateRenderWindowControls(allItems.length, items.length);
+  updateListSummary(allItems.length, poolCount, allItems.length);
 
   renderSortHeaders();
 
