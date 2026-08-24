@@ -3,12 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.50 · Holidays & Events</title>
+  <title>WNMU TV Programming Library v1.5.127 · Holidays & Events</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
   <link rel="stylesheet" href="styles.css?v=1.5.50" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const month = Number(params.get('month'));
+      const year = Number(params.get('year'));
+      const embedded = params.get('embed') === '1' && Number.isInteger(month) && month >= 1 && month <= 12;
+      if (!embedded) return;
+      document.documentElement.dataset.holidayEmbed = '1';
+      document.documentElement.dataset.holidayMonth = String(month);
+      if (Number.isInteger(year) && year >= 2000 && year <= 2100) document.documentElement.dataset.holidayYear = String(year);
+      document.addEventListener('DOMContentLoaded', () => {
+        const yearSelect = document.getElementById('yearSelect');
+        const requestedYear = document.documentElement.dataset.holidayYear;
+        if (!yearSelect || !requestedYear || yearSelect.value === requestedYear) return;
+        if (!Array.from(yearSelect.options).some((option) => option.value === requestedYear)) return;
+        yearSelect.value = requestedYear;
+        yearSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }, { once: true });
+    })();
+  </script>
   <style>
     body.standalone-page { overflow-y: auto; background: #eef3f7; }
     .standalone-shell { max-width: 1540px; margin: 0 auto; padding: 18px; }
@@ -93,6 +113,46 @@
     .custom-item-meta { color:#5f7386; font-size:.9rem; }
     .custom-actions { display:flex; gap:8px; flex-wrap:wrap; }
     .hidden { display:none !important; }
+
+    html[data-holiday-embed="1"] body.standalone-page { background:#fff; overflow:auto; }
+    html[data-holiday-embed="1"] .standalone-topbar,
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(1),
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(2),
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(4) { display:none !important; }
+    html[data-holiday-embed="1"] .standalone-shell { max-width:none; margin:0; padding:0; }
+    html[data-holiday-embed="1"] .standalone-grid { display:block; }
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(3) {
+      padding:0;
+      border-radius:0;
+      box-shadow:none;
+      background:#fff;
+    }
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(3) > .list-title,
+    html[data-holiday-embed="1"] .standalone-grid > .standalone-card:nth-child(3) > .mini-note { display:none !important; }
+    html[data-holiday-embed="1"] #monthsGrid { display:block !important; margin-top:0 !important; }
+    html[data-holiday-embed="1"] #monthsGrid .month-card {
+      border:0;
+      border-radius:0;
+      background:#fff;
+    }
+    html[data-holiday-embed="1"] #monthsGrid .month-head { padding:10px 12px; }
+    html[data-holiday-embed="1"] #monthsGrid .month-head h3 { font-size:1rem; }
+    html[data-holiday-embed="1"] #monthsGrid .month-body { padding:10px 12px; }
+    html[data-holiday-embed="1"] #monthsGrid .month-event { font-size:.82rem; }
+
+    html[data-holiday-month="1"] #monthsGrid .month-card:not(:nth-child(1)),
+    html[data-holiday-month="2"] #monthsGrid .month-card:not(:nth-child(2)),
+    html[data-holiday-month="3"] #monthsGrid .month-card:not(:nth-child(3)),
+    html[data-holiday-month="4"] #monthsGrid .month-card:not(:nth-child(4)),
+    html[data-holiday-month="5"] #monthsGrid .month-card:not(:nth-child(5)),
+    html[data-holiday-month="6"] #monthsGrid .month-card:not(:nth-child(6)),
+    html[data-holiday-month="7"] #monthsGrid .month-card:not(:nth-child(7)),
+    html[data-holiday-month="8"] #monthsGrid .month-card:not(:nth-child(8)),
+    html[data-holiday-month="9"] #monthsGrid .month-card:not(:nth-child(9)),
+    html[data-holiday-month="10"] #monthsGrid .month-card:not(:nth-child(10)),
+    html[data-holiday-month="11"] #monthsGrid .month-card:not(:nth-child(11)),
+    html[data-holiday-month="12"] #monthsGrid .month-card:not(:nth-child(12)) { display:none !important; }
+
     @media (max-width: 1280px) { .months-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     @media (max-width: 980px) { .months-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 820px) {
@@ -100,9 +160,10 @@
       .months-grid { grid-template-columns: 1fr; }
       .admin-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .admin-form-grid .span-2, .admin-form-grid .span-4 { grid-column: 1 / -1; }
+      html[data-holiday-embed="1"] .standalone-shell { padding:0; }
     }
   </style>
-  <script defer src="js/holidays-calendar.js?v=1.5.50"></script>
+  <script defer src="js/holidays-calendar.js?v=1.5.127"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -120,7 +181,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Holidays & Events Calendar</h1>
-            <span class="version-pill">v1.5.50</span>
+            <span class="version-pill">v1.5.127</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
