@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.125",
-  "requiredAppVersion": "v1.5.125",
-  "publishedVersion": "v1.5.125",
-  "appVersion": "v1.5.125",
-  "version": "v1.5.125",
-  "legacyCompatibilityVersion": "v1.5.125",
+  "currentAppVersion": "v1.5.126",
+  "requiredAppVersion": "v1.5.126",
+  "publishedVersion": "v1.5.126",
+  "appVersion": "v1.5.126",
+  "version": "v1.5.126",
+  "legacyCompatibilityVersion": "v1.5.126",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "Revised v1.5.125 modular workspace correction: filter controls now have one layout owner, with static HTML placement and workspace-only geometry; shared layout routines opt out. Topic exclusion uses an explicit dropdown-render event instead of a document-wide observer, and Rights Begin/End uses static markup plus the shared sort system. Episodes Clear, Rights Clear, Clear all filters, Active/Archived, and Series/All/Pgm remain stable and non-overlapping. Program search starts automatically after 4 characters and a 2-second pause. Library titles open on the first click. Admin mode always shows Add New Program whenever no existing title is selected; the Select a program message is read-only only.",
-  "updated": "2026-07-13T17:53:10Z"
+  "notes": "v1.5.126 fixes the dependent Secondary Topic facet. When Main Topics are selected, unavailable Secondary Topics are now actually hidden despite the workspace grid CSS, stale incompatible Secondary Topic selections are cleared before result filtering, and checkbox state stays synchronized with the underlying filter select. No Main Topic selected continues to show all Secondary Topics.",
+  "updated": "2026-08-24T18:25:00Z"
 }
