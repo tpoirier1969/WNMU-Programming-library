@@ -1,0 +1,131 @@
+name: One-time remove Fast View
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-remove-fast-view.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  remove-fast-view:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove Fast View and bump version
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          # core.js: remove Fast View state, DOM refs, constants, and render-window helpers.
+          path = 'js/core.js'
+          text = read(path)
+          replacements = {
+              "  poolProgramIds: [],\n  visibleRowCount: 150\n": "  poolProgramIds: []\n",
+              "  listPerfPanel: $('#listPerfPanel'),\n  listPerfText: $('#listPerfText'),\n  showMoreRowsBtn: $('#showMoreRowsBtn'),\n  showAllRowsBtn: $('#showAllRowsBtn'),\n  showFastRowsBtn: $('#showFastRowsBtn'),\n": "",
+              "const DEFAULT_VISIBLE_ROWS = 150;\nconst VISIBLE_ROW_STEP = 150;\n": "",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'Expected core.js block not found: {old[:60]!r}')
+              text = text.replace(old, new, 1)
+
+          pattern = re.compile(
+              r"\nfunction resetVisibleRowWindow\(\) \{.*?\n\}\n\nfunction updateListSummary",
+              re.S,
+          )
+          text, count = pattern.subn("\nfunction updateListSummary", text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one Fast View helper block in core.js, found {count}')
+          write(path, text)
+
+          # filters-list.js: render every matching row, and remove row-window resets.
+          path = 'js/filters-list.js'
+          text = read(path)
+          old = """  const renderLimit = currentVisibleRowLimit(allItems.length);\n  const items = allItems.slice(0, renderLimit);\n\n  updateListSummary(items.length, poolCount, allItems.length);\n  updateRenderWindowControls(allItems.length, items.length);\n"""
+          new = """  const items = allItems;\n\n  updateListSummary(allItems.length, poolCount, allItems.length);\n"""
+          if old not in text:
+              raise SystemExit('Expected render-window block not found in filters-list.js')
+          text = text.replace(old, new, 1)
+          text = text.replace('  resetVisibleRowWindow();\n', '')
+          write(path, text)
+
+          # events.js: remove controls that no longer exist.
+          path = 'js/events.js'
+          text = read(path)
+          pattern = re.compile(
+              r"\n  els\.showMoreRowsBtn\?\.addEventListener\('click', \(\) => \{.*?\n  \}\);\n  els\.showAllRowsBtn\?\.addEventListener\('click', \(\) => \{.*?\n  \}\);\n  els\.showFastRowsBtn\?\.addEventListener\('click', \(\) => \{.*?\n  \}\);",
+              re.S,
+          )
+          text, count = pattern.subn('', text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one Fast View event block in events.js, found {count}')
+          write(path, text)
+
+          # Entry pages: remove Fast View panel and bump app/cache versions.
+          for path in ('index.html', 'program-workspace-test.html'):
+              text = read(path)
+              pattern = re.compile(r"\n\s*<div id=\"listPerfPanel\" class=\"list-perf-panel hidden\">.*?</div>\n\s*</div>\n", re.S)
+              match = pattern.search(text)
+              if not match:
+                  raise SystemExit(f'Fast View panel not found in {path}')
+              # Keep the list-meta closing div that follows the panel.
+              block = match.group(0)
+              replacement = '\n      </div>\n'
+              text = text[:match.start()] + replacement + text[match.end():]
+              text = text.replace("window.WNMU_APP_VERSION = 'v1.5.127'", "window.WNMU_APP_VERSION = 'v1.5.128'", 1)
+              text = text.replace('<span id="appVersion" class="version-pill">v1.5.127</span>', '<span id="appVersion" class="version-pill">v1.5.128</span>', 1)
+              text = text.replace('js/core.js?v=1.5.125', 'js/core.js?v=1.5.128', 1)
+              text = text.replace('js/filters-list.js?v=1.5.125', 'js/filters-list.js?v=1.5.128', 1)
+              text = text.replace('js/events.js?v=1.5.125', 'js/events.js?v=1.5.128', 1)
+              write(path, text)
+
+          # Version manifest.
+          path = 'version.json'
+          data = json.loads(read(path))
+          for key in ('currentAppVersion','requiredAppVersion','publishedVersion','appVersion','version','legacyCompatibilityVersion'):
+              data[key] = 'v1.5.128'
+          data['notes'] = 'v1.5.128 removes Fast View row trimming. Filtered program lists now always render every matching program, and the Show more / Show all / Back to fast view controls and their row-window state have been removed.'
+          data['updated'] = '2026-08-24T19:30:00Z'
+          write(path, json.dumps(data, indent=2) + '\n')
+
+          # Prove Fast View is gone from the runtime owners before committing.
+          forbidden = [
+              'visibleRowCount', 'DEFAULT_VISIBLE_ROWS', 'VISIBLE_ROW_STEP',
+              'resetVisibleRowWindow', 'currentVisibleRowLimit', 'updateRenderWindowControls',
+              'listPerfPanel', 'listPerfText', 'showMoreRowsBtn', 'showAllRowsBtn', 'showFastRowsBtn',
+              'Fast view is showing', 'Back to fast view'
+          ]
+          check_files = ['js/core.js','js/filters-list.js','js/events.js','index.html','program-workspace-test.html']
+          leftovers = []
+          for file in check_files:
+              body = read(file)
+              for token in forbidden:
+                  if token in body:
+                      leftovers.append(f'{file}: {token}')
+          if leftovers:
+              raise SystemExit('Fast View references remain:\n' + '\n'.join(leftovers))
+
+          # The workflow is one-time scaffolding. Remove it from the resulting app state.
+          Path('.github/workflows/one-time-remove-fast-view.yml').unlink()
+
+      - name: Commit clean v1.5.128 result
+        run: |
+          git config user.name "WNMU Programming maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove Fast View and always show filtered results"
+          git push origin main
