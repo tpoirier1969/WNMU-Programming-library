@@ -1,5 +1,5 @@
 // WNMU Programming Workspace — Topic include/exclude filter
-// v1.5.125
+// v1.5.126
 // Behavior-only module. It augments Topic and Secondary Topic dropdown rows,
 // filters excluded topics, keeps Secondary Topic choices dependent on selected
 // Main Topics, and exposes summary data to the workspace UI owner.
@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.5.125';
+  const VERSION = 'v1.5.126';
   const TOPIC_SELECT_ID = 'topicFilter';
   const SECONDARY_SELECT_ID = 'secondaryTopicFilter';
   const RENDER_EVENT = 'wnmu:workspace-multiselect-rendered';
@@ -77,6 +77,12 @@
     Array.from(select.options || []).forEach((option) => {
       if (normalize(option.value) === wanted) option.selected = Boolean(selected);
     });
+  }
+
+  function isOptionSelected(select, value) {
+    if (!select) return false;
+    const wanted = normalize(value);
+    return Array.from(select.options || []).some((option) => normalize(option.value) === wanted && option.selected);
   }
 
   function selectedMainTopicKeys() {
@@ -252,6 +258,10 @@
         grid-template-columns: 14px minmax(0, 1fr) 34px !important;
       }
 
+      body.workspace-test-page #controlsPanel .workspace-multi-row.workspace-secondary-unavailable {
+        display: none !important;
+      }
+
       body.workspace-test-page #controlsPanel .workspace-topic-exclude-check {
         justify-self: end !important;
         width: 14px !important;
@@ -332,7 +342,6 @@
     if (!select || !dropdown) return;
 
     ensureLegend(dropdown);
-    const selected = selectedValuesFromSelect(select);
     const exclusionSet = getSet(kind);
     const allowedSecondary = kind === 'secondary' ? allowedSecondaryTopicKeys() : null;
 
@@ -344,13 +353,16 @@
 
       const available = !allowedSecondary || allowedSecondary.has(normalizeKey(value));
       row.hidden = !available;
+      row.classList.toggle('workspace-secondary-unavailable', !available);
       if (!available) {
         setOptionSelected(select, value, false);
         exclusionSet.delete(value);
       }
+      includeInput.disabled = !available;
+      includeInput.checked = available && isOptionSelected(select, value);
 
       row.classList.add('workspace-topic-exclude-row');
-      if (selected.has(value) && exclusionSet.has(value)) exclusionSet.delete(value);
+      if (isOptionSelected(select, value) && exclusionSet.has(value)) exclusionSet.delete(value);
 
       let excludeInput = row.querySelector('input.workspace-topic-exclude-check');
       if (!excludeInput) {
@@ -365,6 +377,7 @@
         row.appendChild(excludeInput);
       }
 
+      excludeInput.disabled = !available;
       excludeInput.dataset.workspaceExcludeKind = kind;
       excludeInput.dataset.workspaceExcludeValue = value;
       excludeInput.title = `Exclude ${value}`;
