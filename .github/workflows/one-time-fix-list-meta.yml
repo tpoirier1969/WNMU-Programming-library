@@ -1,0 +1,36 @@
+name: One-time fix list markup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-fix-list-meta.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-markup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove duplicate list-meta closing tag
+        shell: python
+        run: |
+          from pathlib import Path
+          for path in ('index.html', 'program-workspace-test.html'):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              old = '      </div>\n      </div>\n      <div id="windowReactivateShield"'
+              new = '      </div>\n      <div id="windowReactivateShield"'
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one duplicate closing tag in {path}, found {text.count(old)}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          Path('.github/workflows/one-time-fix-list-meta.yml').unlink()
+      - name: Commit cleanup
+        run: |
+          git config user.name "WNMU Programming maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix list markup after Fast View removal"
+          git push origin main
