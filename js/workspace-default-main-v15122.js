@@ -68,7 +68,7 @@
   }
 
   function loadEditorDefaultsModule() {
-    loadModule('js/workspace-new-program-defaults-rating-v15125.js?v=1.5.125.2', 'editor-defaults-rating');
+    loadModule('js/workspace-new-program-defaults-rating-v15125.js?v=1.5.129', 'editor-defaults-rating');
   }
 
   function install() {

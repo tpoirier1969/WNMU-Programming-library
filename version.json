@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.128",
-  "requiredAppVersion": "v1.5.128",
-  "publishedVersion": "v1.5.128",
-  "appVersion": "v1.5.128",
-  "version": "v1.5.128",
-  "legacyCompatibilityVersion": "v1.5.128",
+  "currentAppVersion": "v1.5.129",
+  "requiredAppVersion": "v1.5.129",
+  "publishedVersion": "v1.5.129",
+  "appVersion": "v1.5.129",
+  "version": "v1.5.129",
+  "legacyCompatibilityVersion": "v1.5.129",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.128 removes Fast View row trimming. Filtered program lists now always render every matching program, and the Show more / Show all / Back to fast view controls and their row-window state have been removed.",
-  "updated": "2026-08-24T19:30:00Z"
+  "notes": "v1.5.129 fixes Search Text by restoring a single search owner. The 4-character search now uses the normal filter event path with a 667 ms debounce; the duplicate capture-phase handler and stopImmediatePropagation override were removed from the editor-defaults module.",
+  "updated": "2026-08-25T19:05:00Z"
 }

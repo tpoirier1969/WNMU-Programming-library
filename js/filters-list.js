@@ -592,7 +592,7 @@ async function handleCopyNote(programId, triggerButton) {
 }
 
 const PROGRAM_SEARCH_MIN_CHARACTERS = 4;
-const PROGRAM_SEARCH_IDLE_MS = 2000;
+const PROGRAM_SEARCH_IDLE_MS = 667;
 
 function effectiveProgramSearchValue() {
   const value = normalizeLower(els.searchInput?.value || '');

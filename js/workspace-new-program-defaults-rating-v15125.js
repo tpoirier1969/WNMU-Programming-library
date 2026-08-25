@@ -4,9 +4,7 @@
   'use strict';
 
   const LAST_DISTRIBUTOR_KEY = 'wnmu-programming-last-distributor';
-  const SEARCH_IDLE_MS = 667;
   let installed = false;
-  let searchTimer = null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -144,20 +142,6 @@
     return true;
   }
 
-  function installSearchDelay() {
-    const input = byId('searchInput');
-    if (!input || input.dataset.search667Owner === '1') return Boolean(input);
-    input.dataset.search667Owner = '1';
-    input.addEventListener('input', (event) => {
-      event.stopImmediatePropagation();
-      if (searchTimer) window.clearTimeout(searchTimer);
-      searchTimer = window.setTimeout(() => {
-        searchTimer = null;
-        if (typeof window.updateQueryStatus === 'function') window.updateQueryStatus();
-      }, SEARCH_IDLE_MS);
-    }, true);
-    return true;
-  }
 
   function injectStyles() {
     if (byId('wnmuEditorDefaultsRatingStyles')) return;
@@ -211,8 +195,7 @@
     injectStyles();
     const ready = installOpenEditorDefaults()
       && installRatingRenderer()
-      && installDistributorMemory()
-      && installSearchDelay();
+      && installDistributorMemory();
     if (!ready) return false;
     scheduleNewProgramDefaults();
     installed = true;
