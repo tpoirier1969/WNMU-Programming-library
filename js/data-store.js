@@ -111,9 +111,28 @@ function scheduleBackgroundRatingWarmup() {
 
 function persistProgramsCache() {
   try {
-    window.localStorage?.setItem(PROGRAM_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), programs: state.programs }));
+    const storage = window.localStorage;
+    if (!storage) return false;
+
+    const payload = JSON.stringify({ savedAt: Date.now(), programs: state.programs });
+    const estimatedBytes = payload.length * 2;
+    const safeCacheLimitBytes = 3 * 1024 * 1024;
+
+    if (estimatedBytes > safeCacheLimitBytes) {
+      storage.removeItem(PROGRAM_CACHE_KEY);
+      return false;
+    }
+
+    storage.setItem(PROGRAM_CACHE_KEY, payload);
+    return true;
   } catch (error) {
+    try { window.localStorage?.removeItem(PROGRAM_CACHE_KEY); } catch {}
+    if (error?.name === 'QuotaExceededError') {
+      console.warn('Programs cache skipped: library is larger than available browser storage.');
+      return false;
+    }
     console.warn('Programs cache skipped:', error);
+    return false;
   }
 }
 
@@ -366,4 +385,3 @@ async function loadLookups() {
   state.lookups.server_locations = serverLocations.length ? serverLocations : uniqueLookupFromPrograms('server_tape').map((name, index) => ({ name, sort_order: index + 1 }));
   state.lookups.program_types = programTypes.length ? programTypes : uniqueLookupFromPrograms('program_type').map((name, index) => ({ name, sort_order: index + 1 }));
 }
-
