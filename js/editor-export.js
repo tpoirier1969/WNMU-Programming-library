@@ -36,104 +36,6 @@ function openEditor(id = null, duplicate = false) {
   updateRestoreButtonVisibility();
   els.duplicateCheck.innerHTML = '';
   els.duplicateCheck.classList.add('hidden');
-  els.formFlags.innerHTML = '<span class="badge info">Loading…</span>';
-  applyEditorMode();
-  if (els.lookupBtn) els.lookupBtn.disabled = true;
-  setLookupMessage('Loading program window…', 'info');
-  setSelectedRowHighlight(state.selectedId);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (state.editorOpenToken !== openToken || els.drawer.classList.contains('hidden')) return;
-
-      for (const field of fields) {
-        let value = field === 'secondary_topic' ? normalizeMultiValueInput(item?.[field]) : (item?.[field] ?? '');
-        if (field === 'rights_begin' || field === 'rights_end') value = formatShortDateInput(value);
-        form.elements[field].value = value;
-      }
-      if (!item?.id) {
-        Object.entries(DEFAULT_NEW_PROGRAM_VALUES).forEach(([field, value]) => {
-          if (form.elements[field] && !normalizeText(form.elements[field].value)) form.elements[field].value = value;
-        });
-      }
-      ['rights_begin', 'rights_end'].forEach(syncDateProxyField);
-
-      if (!item?.id) renderTemplateSourceList();
-
-      updateVoteVisibility();
-      renderEditorRatingControl();
-      setLookupMessage(item ? 'Lookup can fill remaining blank fields from online sources.' : 'Enter a title, then click Lookup online to fill whatever can be found.');
-      updateLookupButtonState();
-      renderFormFlags(item);
-      renderDuplicateCheck();
-      updateRestoreButtonVisibility();
-      applyEditorMode();
-      els.drawer.classList.remove('drawer-loading');
-
-      if (canEdit() && !state.lookupsLoaded) {
-        ensureLookupsLoaded(true).catch((error) => console.warn('Lookup warm load skipped:', error));
-      }
-
-      requestAnimationFrame(() => form.elements.title.focus());
-    });
-  });
-}
-
-function renderFormFlags(item) {
-  if (!item) {
-    els.formFlags.innerHTML = '<span class="badge info">New record</span>';
-    return;
-  }
-  els.formFlags.innerHTML = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
-}
-
-async function restoreArchivedProgram() {
-  if (!canEdit()) return;
-  const id = els.programForm?.dataset?.programId;
-  if (!id) return;
-  const item = state.programs.find((program) => String(program.id) === String(id));
-  if (!item?.is_archived) return;
-
-  const proceed = confirm(`Restore ${item.title || 'this program'} to active programming?`);
-  if (!proceed) return;
-
-  setLoading('Restoring program to active…');
-  try {
-    const { error } = await state.supabase
-      .from('programs')
-      .update({ is_archived: false })
-      .eq('id', id);
-    if (error) throw error;
-
-    const refreshedProgram = await fetchProgramById(id);
-    mergeProgramIntoState(refreshedProgram);
-    refreshUiAfterProgramMutation('Program restored to active.');
-    setLoading('');
-    openEditor(id);
-  } catch (error) {
-    console.error(error);
-    setLoading('');
-    alert(error.message);
-    setStatus(error.message);
-  }
-}
-
-function updateVoteVisibility() {
-  const isApt = normalizeLower(els.programForm.elements.distributor.value) === 'apt';
-  els.voteFieldWrap.classList.toggle('hidden-field', !isApt);
-  els.programForm.elements.vote.disabled = !isApt;
-  if (!isApt) els.programForm.elements.vote.value = '';
-}
-
-function closeEditor() {
-  state.editorOpenToken += 1;
-  els.drawer.classList.add('hidden');
-  els.drawer.classList.remove('drawer-loading');
-  els.drawerBackdrop.classList.add('hidden');
-  document.body.classList.remove('modal-open');
-  state.selectedId = null;
-  els.duplicateCheck.innerHTML = '';
-  els.duplicateCheck.classList.add('hidden');
   state.lookupBusy = false;
   state.pbsImportPanelOpen = false;
   resetPbsImportUi({ clearText: false });
@@ -260,7 +162,6 @@ async function deleteProgram() {
     return;
   }
   if (!confirm('Delete this program permanently? This is the real woodchipper option.')) return;
-
   setLoading('Deleting program…');
   const { error } = await state.supabase.from('programs').delete().eq('id', id);
   if (error) {
@@ -295,7 +196,7 @@ function exportCurrentView() {
 
 function csvEscape(value) {
   const text = value == null ? '' : String(value);
-  if (/[",\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
+  if (/[\",\n]/.test(text)) return `\"${text.replaceAll('\"', '\"\"')}\"`;
   return text;
 }
 
@@ -304,16 +205,14 @@ function escapeHtml(text) {
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+    .replaceAll('\"', '&quot;');
 }
 
 function updateQueryStatus() {
   rememberViewState();
-  resetVisibleRowWindow();
   const count = activePrograms().length;
   renderTable();
   state.lastAppliedViewState = snapshotViewState();
   syncUndoButton();
   setStatus(`${count.toLocaleString()} matching programs.`);
 }
-
