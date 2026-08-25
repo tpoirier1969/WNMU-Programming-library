@@ -38,21 +38,34 @@
     document.head.appendChild(style);
   }
 
-  function suppressNewProgramButton() {
+  function guardNewProgramButton() {
     const btn = byId('newProgramBtn');
     if (!btn) return;
-    btn.classList.add('hidden', 'removed-control');
-    btn.setAttribute('aria-hidden', 'true');
-    btn.setAttribute('tabindex', '-1');
-    btn.disabled = true;
+    if (!btn.classList.contains('hidden')) btn.classList.add('hidden');
+    if (!btn.classList.contains('removed-control')) btn.classList.add('removed-control');
+    if (btn.getAttribute('aria-hidden') !== 'true') btn.setAttribute('aria-hidden', 'true');
+    if (btn.getAttribute('tabindex') !== '-1') btn.setAttribute('tabindex', '-1');
+    if (!btn.disabled) btn.disabled = true;
+  }
+
+  function installNewProgramButtonGuard() {
+    const btn = byId('newProgramBtn');
+    if (!btn || window.__wnmuNewProgramButtonObserver) return;
+    guardNewProgramButton();
+    const observer = new MutationObserver(() => guardNewProgramButton());
+    observer.observe(btn, {
+      attributes: true,
+      attributeFilter: ['class', 'disabled', 'aria-hidden', 'tabindex']
+    });
+    window.__wnmuNewProgramButtonObserver = observer;
   }
 
   function normalizeLabels() {
-    document.title = 'WNMU-TV PBS Programming Library';
+    if (document.title !== 'WNMU-TV PBS Programming Library') document.title = 'WNMU-TV PBS Programming Library';
     const title = byId('appTitle');
     if (title && /workspace test/i.test(title.textContent || '')) title.textContent = 'Programming Library';
     const version = byId('appVersion');
-    if (version) version.textContent = VERSION;
+    if (version && version.textContent !== VERSION) version.textContent = VERSION;
   }
 
   function loadModule(path, marker) {
@@ -73,27 +86,17 @@
 
   function install() {
     ensureStyles();
-    suppressNewProgramButton();
+    guardNewProgramButton();
     normalizeLabels();
+    installNewProgramButtonGuard();
 
     [60, 180, 500, 1000, 1800, 3200].forEach((delay) => {
       window.setTimeout(() => {
         ensureStyles();
-        suppressNewProgramButton();
+        guardNewProgramButton();
         normalizeLabels();
       }, delay);
     });
-
-    if (window.__wnmuWorkspaceDefaultMainObserver !== '1') {
-      window.__wnmuWorkspaceDefaultMainObserver = '1';
-      const observer = new MutationObserver(() => {
-        window.setTimeout(() => {
-          suppressNewProgramButton();
-          normalizeLabels();
-        }, 0);
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'disabled', 'aria-hidden'] });
-    }
   }
 
   loadPhoneModule();
@@ -107,6 +110,6 @@
 
   window.WNMUWorkspaceDefaultMain = {
     version: VERSION,
-    suppressNewProgramButton
+    suppressNewProgramButton: guardNewProgramButton
   };
 })();

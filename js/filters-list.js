@@ -615,22 +615,26 @@ function scheduleSearchUpdate() {
   }, PROGRAM_SEARCH_IDLE_MS);
 }
 
-function renderTable() {
-  const allItems = sortProgramsForDisplay(activePrograms());
-  const selectedId = state.selectedId;
-  const poolCount = programsInCurrentViewPool().length;
-  const items = allItems;
+const VIRTUAL_ROW_OVERSCAN = 12;
+const VIRTUAL_ROW_MIN_WINDOW = 48;
+const VIRTUAL_ROW_ESTIMATED_HEIGHT = 104;
+const PROGRAM_TABLE_COLUMN_COUNT = 9;
 
-  updateListSummary(allItems.length, poolCount, allItems.length);
+const virtualProgramTable = {
+  items: [],
+  key: '',
+  start: -1,
+  end: -1,
+  frame: null,
+  scroller: null
+};
 
-  renderSortHeaders();
-
-  els.tableBody.innerHTML = items.map((item) => {
-    const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
-    const selectedClass = item.id === selectedId ? 'selected' : '';
-    const archivedClass = item.is_archived ? 'archived-row' : '';
-    return `
-      <tr data-id="${item.id}" class="${selectedClass} ${archivedClass}">
+function programRowMarkup(item) {
+  const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+  const selectedClass = item.id === state.selectedId ? 'selected' : '';
+  const archivedClass = item.is_archived ? 'archived-row' : '';
+  return `
+      <tr data-id="${item.id}" class="virtual-program-row ${selectedClass} ${archivedClass}">
         <td>
           <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
           <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
@@ -652,8 +656,85 @@ function renderTable() {
         <td><div class="badges">${badges}</div></td>
       </tr>
     `;
-  }).join('');
-  setSelectedRowHighlight(selectedId);
+}
+
+function virtualSpacerMarkup(height, position) {
+  const safeHeight = Math.max(0, Math.round(height));
+  if (!safeHeight) return '';
+  return `<tr class="virtual-row-spacer virtual-row-spacer-${position}" aria-hidden="true"><td colspan="${PROGRAM_TABLE_COLUMN_COUNT}" style="height:${safeHeight}px;padding:0;border:0;line-height:0;font-size:0"></td></tr>`;
+}
+
+function getProgramTableScroller() {
+  if (virtualProgramTable.scroller?.isConnected) return virtualProgramTable.scroller;
+  virtualProgramTable.scroller = els.tableBody?.closest('.table-wrap') || null;
+  return virtualProgramTable.scroller;
+}
+
+function renderVirtualProgramWindow(force = false) {
+  const items = virtualProgramTable.items;
+  const total = items.length;
+  const scroller = getProgramTableScroller();
+  if (!els.tableBody || !scroller) return;
+  if (!total) {
+    els.tableBody.innerHTML = '';
+    virtualProgramTable.start = 0;
+    virtualProgramTable.end = 0;
+    return;
+  }
+
+  const viewportHeight = Math.max(VIRTUAL_ROW_ESTIMATED_HEIGHT, scroller.clientHeight || window.innerHeight || 800);
+  const visibleRows = Math.max(1, Math.ceil(viewportHeight / VIRTUAL_ROW_ESTIMATED_HEIGHT));
+  const windowSize = Math.max(VIRTUAL_ROW_MIN_WINDOW, visibleRows + (VIRTUAL_ROW_OVERSCAN * 2));
+  const maxStart = Math.max(0, total - windowSize);
+  const requestedStart = Math.floor(Math.max(0, scroller.scrollTop) / VIRTUAL_ROW_ESTIMATED_HEIGHT) - VIRTUAL_ROW_OVERSCAN;
+  const start = Math.max(0, Math.min(maxStart, requestedStart));
+  const end = Math.min(total, start + windowSize);
+
+  if (!force && start === virtualProgramTable.start && end === virtualProgramTable.end) return;
+  virtualProgramTable.start = start;
+  virtualProgramTable.end = end;
+
+  const topHeight = start * VIRTUAL_ROW_ESTIMATED_HEIGHT;
+  const bottomHeight = Math.max(0, (total - end) * VIRTUAL_ROW_ESTIMATED_HEIGHT);
+  els.tableBody.innerHTML = `${virtualSpacerMarkup(topHeight, 'top')}${items.slice(start, end).map(programRowMarkup).join('')}${virtualSpacerMarkup(bottomHeight, 'bottom')}`;
+  setSelectedRowHighlight(state.selectedId);
+}
+
+function scheduleVirtualProgramWindow() {
+  if (virtualProgramTable.frame != null) return;
+  virtualProgramTable.frame = window.requestAnimationFrame(() => {
+    virtualProgramTable.frame = null;
+    renderVirtualProgramWindow(false);
+  });
+}
+
+function ensureVirtualProgramScrollOwner() {
+  const scroller = getProgramTableScroller();
+  if (!scroller || scroller.dataset.virtualProgramRowsBound === '1') return;
+  scroller.dataset.virtualProgramRowsBound = '1';
+  scroller.addEventListener('scroll', scheduleVirtualProgramWindow, { passive: true });
+  window.addEventListener('resize', scheduleVirtualProgramWindow, { passive: true });
+}
+
+function renderTable() {
+  const allItems = sortProgramsForDisplay(activePrograms());
+  const poolCount = programsInCurrentViewPool().length;
+  const scroller = getProgramTableScroller();
+  const virtualKey = `${state.filteredCacheKey}|${state.currentSort?.field || 'title'}|${state.currentSort?.direction || 'asc'}|${allItems.length}`;
+  const dataChanged = virtualKey !== virtualProgramTable.key;
+
+  virtualProgramTable.items = allItems;
+  virtualProgramTable.key = virtualKey;
+  if (dataChanged && scroller) scroller.scrollTop = 0;
+  if (dataChanged) {
+    virtualProgramTable.start = -1;
+    virtualProgramTable.end = -1;
+  }
+
+  updateListSummary(allItems.length, poolCount, allItems.length);
+  renderSortHeaders();
+  ensureVirtualProgramScrollOwner();
+  renderVirtualProgramWindow(true);
 }
 
 function renderStats() {

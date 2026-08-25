@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.129",
-  "requiredAppVersion": "v1.5.129",
-  "publishedVersion": "v1.5.129",
-  "appVersion": "v1.5.129",
-  "version": "v1.5.129",
-  "legacyCompatibilityVersion": "v1.5.129",
+  "currentAppVersion": "v1.5.130",
+  "requiredAppVersion": "v1.5.130",
+  "publishedVersion": "v1.5.130",
+  "appVersion": "v1.5.130",
+  "version": "v1.5.130",
+  "legacyCompatibilityVersion": "v1.5.130",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.129 fixes Search Text by restoring a single search owner. The 4-character search now uses the normal filter event path with a 667 ms debounce; the duplicate capture-phase handler and stopImmediatePropagation override were removed from the editor-defaults module.",
-  "updated": "2026-08-25T19:05:00Z"
+  "notes": "v1.5.130 reduces browser memory pressure by virtualizing the program table while keeping every filtered result reachable by scrolling, and replaces the document-wide workspace MutationObserver with a narrowly scoped new-program-button guard.",
+  "updated": "2026-08-25T19:22:00Z"
 }
