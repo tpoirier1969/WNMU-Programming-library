@@ -1,0 +1,260 @@
+name: One-time v1.5.130 memory stability repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-memory-stability-v15130.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply memory stability fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          filters_path = Path('js/filters-list.js')
+          filters = filters_path.read_text(encoding='utf-8')
+          start_marker = 'function renderTable() {'
+          end_marker = '\nfunction renderStats() {'
+          if filters.count(start_marker) != 1 or filters.count(end_marker) != 1:
+              raise SystemExit('Could not uniquely locate renderTable/renderStats boundary')
+          before, remainder = filters.split(start_marker, 1)
+          old_render, after = remainder.split(end_marker, 1)
+
+          virtual_code = r'''const VIRTUAL_ROW_OVERSCAN = 12;
+const VIRTUAL_ROW_MIN_WINDOW = 48;
+const VIRTUAL_ROW_INITIAL_HEIGHT = 96;
+const PROGRAM_TABLE_COLUMN_COUNT = 9;
+
+const virtualProgramTable = {
+  items: [],
+  key: '',
+  rowHeight: VIRTUAL_ROW_INITIAL_HEIGHT,
+  start: -1,
+  end: -1,
+  frame: null,
+  scroller: null
+};
+
+function programRowMarkup(item) {
+  const badges = badgesFor(item).map((b) => `<span class="badge ${b.cls}">${b.label}</span>`).join('');
+  const selectedClass = item.id === state.selectedId ? 'selected' : '';
+  const archivedClass = item.is_archived ? 'archived-row' : '';
+  return `
+      <tr data-id="${item.id}" class="virtual-program-row ${selectedClass} ${archivedClass}">
+        <td>
+          <button type="button" class="program-title-button" data-open-program="${item.id}"><span class="program-title">${escapeHtml(item.title || '')}</span></button>
+          <div class="program-sub">${item.legacy_code ? `<span class="code-pill">${escapeHtml(item.legacy_code)}</span>` : ''}${item.nola_eidr ? `<span class="program-meta">${escapeHtml(item.nola_eidr)}</span>` : ''}${formatEpisodeTagBadge(item)}${formatSeriesCountBadge(item)}</div>
+          ${renderRatingStarsMarkup(item, { editable: canEdit() })}
+          ${renderInlineAiringEditor(item)}
+        </td>
+        <td>
+          <div class="notes-cell">
+            <div class="notes-text">${escapeHtml(item.notes || '')}</div>
+            <button type="button" class="copy-note-btn" data-copy-note="${item.id}">Copy</button>
+          </div>
+        </td>
+        <td>${formatDetailsCell(item)}</td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_1)}</div></td>
+        <td><div class="airing-stack">${formatAiringSegments(item.aired_13_3)}</div></td>
+        <td class="type-cell">${escapeHtml(item.package_type || '')}</td>
+        <td>${formatRightsWindow(item)}</td>
+        <td>${escapeHtml(item.distributor || '')}</td>
+        <td><div class="badges">${badges}</div></td>
+      </tr>
+    `;
+}
+
+function virtualSpacerMarkup(height, position) {
+  const safeHeight = Math.max(0, Math.round(height));
+  if (!safeHeight) return '';
+  return `<tr class="virtual-row-spacer virtual-row-spacer-${position}" aria-hidden="true"><td colspan="${PROGRAM_TABLE_COLUMN_COUNT}" style="height:${safeHeight}px;padding:0;border:0;line-height:0;font-size:0"></td></tr>`;
+}
+
+function getProgramTableScroller() {
+  if (virtualProgramTable.scroller?.isConnected) return virtualProgramTable.scroller;
+  virtualProgramTable.scroller = els.tableBody?.closest('.table-wrap') || null;
+  return virtualProgramTable.scroller;
+}
+
+function measureVirtualRows() {
+  const rows = Array.from(els.tableBody?.querySelectorAll('tr.virtual-program-row') || []);
+  if (!rows.length) return;
+  const heights = rows
+    .map((row) => row.getBoundingClientRect().height)
+    .filter((height) => Number.isFinite(height) && height >= 32 && height <= 600);
+  if (!heights.length) return;
+  heights.sort((a, b) => a - b);
+  const median = heights[Math.floor(heights.length / 2)];
+  virtualProgramTable.rowHeight = Math.max(48, Math.min(240, (virtualProgramTable.rowHeight * 0.7) + (median * 0.3)));
+}
+
+function renderVirtualProgramWindow(force = false) {
+  const items = virtualProgramTable.items;
+  const total = items.length;
+  const scroller = getProgramTableScroller();
+  if (!els.tableBody || !scroller) return;
+  if (!total) {
+    els.tableBody.innerHTML = '';
+    virtualProgramTable.start = 0;
+    virtualProgramTable.end = 0;
+    return;
+  }
+
+  const rowHeight = Math.max(48, Number(virtualProgramTable.rowHeight || VIRTUAL_ROW_INITIAL_HEIGHT));
+  const viewportHeight = Math.max(rowHeight, scroller.clientHeight || window.innerHeight || 800);
+  const visibleRows = Math.max(1, Math.ceil(viewportHeight / rowHeight));
+  const windowSize = Math.max(VIRTUAL_ROW_MIN_WINDOW, visibleRows + (VIRTUAL_ROW_OVERSCAN * 2));
+  const maxStart = Math.max(0, total - windowSize);
+  const requestedStart = Math.floor(Math.max(0, scroller.scrollTop) / rowHeight) - VIRTUAL_ROW_OVERSCAN;
+  const start = Math.max(0, Math.min(maxStart, requestedStart));
+  const end = Math.min(total, start + windowSize);
+
+  if (!force && start === virtualProgramTable.start && end === virtualProgramTable.end) return;
+  virtualProgramTable.start = start;
+  virtualProgramTable.end = end;
+
+  const topHeight = start * rowHeight;
+  const bottomHeight = Math.max(0, (total - end) * rowHeight);
+  const visibleItems = items.slice(start, end);
+  els.tableBody.innerHTML = `${virtualSpacerMarkup(topHeight, 'top')}${visibleItems.map(programRowMarkup).join('')}${virtualSpacerMarkup(bottomHeight, 'bottom')}`;
+  setSelectedRowHighlight(state.selectedId);
+
+  window.requestAnimationFrame(() => {
+    measureVirtualRows();
+  });
+}
+
+function scheduleVirtualProgramWindow() {
+  if (virtualProgramTable.frame != null) return;
+  virtualProgramTable.frame = window.requestAnimationFrame(() => {
+    virtualProgramTable.frame = null;
+    renderVirtualProgramWindow(false);
+  });
+}
+
+function ensureVirtualProgramScrollOwner() {
+  const scroller = getProgramTableScroller();
+  if (!scroller || scroller.dataset.virtualProgramRowsBound === '1') return;
+  scroller.dataset.virtualProgramRowsBound = '1';
+  scroller.addEventListener('scroll', scheduleVirtualProgramWindow, { passive: true });
+  window.addEventListener('resize', scheduleVirtualProgramWindow, { passive: true });
+}
+
+function renderTable() {
+  const allItems = sortProgramsForDisplay(activePrograms());
+  const poolCount = programsInCurrentViewPool().length;
+  const scroller = getProgramTableScroller();
+  const virtualKey = `${state.filteredCacheKey}|${state.currentSort?.field || 'title'}|${state.currentSort?.direction || 'asc'}|${allItems.length}`;
+  const dataChanged = virtualKey !== virtualProgramTable.key;
+
+  virtualProgramTable.items = allItems;
+  virtualProgramTable.key = virtualKey;
+  if (dataChanged && scroller) scroller.scrollTop = 0;
+  if (dataChanged) {
+    virtualProgramTable.start = -1;
+    virtualProgramTable.end = -1;
+  }
+
+  updateListSummary(allItems.length, poolCount, allItems.length);
+  renderSortHeaders();
+  ensureVirtualProgramScrollOwner();
+  renderVirtualProgramWindow(true);
+}
+'''
+          filters_path.write_text(before + virtual_code + end_marker + after, encoding='utf-8')
+
+          workspace_path = Path('js/workspace-default-main-v15122.js')
+          workspace = workspace_path.read_text(encoding='utf-8')
+          install_start = '  function install() {'
+          install_end = '\n\n  loadPhoneModule();'
+          if workspace.count(install_start) != 1 or workspace.count(install_end) != 1:
+              raise SystemExit('Could not uniquely locate workspace install block')
+          wb, wr = workspace.split(install_start, 1)
+          _, wa = wr.split(install_end, 1)
+          install_replacement = r'''  function guardNewProgramButton() {
+    const btn = byId('newProgramBtn');
+    if (!btn) return;
+    if (!btn.classList.contains('hidden')) btn.classList.add('hidden');
+    if (!btn.classList.contains('removed-control')) btn.classList.add('removed-control');
+    if (btn.getAttribute('aria-hidden') !== 'true') btn.setAttribute('aria-hidden', 'true');
+    if (btn.getAttribute('tabindex') !== '-1') btn.setAttribute('tabindex', '-1');
+    if (!btn.disabled) btn.disabled = true;
+  }
+
+  function installNewProgramButtonGuard() {
+    const btn = byId('newProgramBtn');
+    if (!btn || window.__wnmuNewProgramButtonObserver) return;
+    guardNewProgramButton();
+    const observer = new MutationObserver(() => guardNewProgramButton());
+    observer.observe(btn, {
+      attributes: true,
+      attributeFilter: ['class', 'disabled', 'aria-hidden', 'tabindex']
+    });
+    window.__wnmuNewProgramButtonObserver = observer;
+  }
+
+  function install() {
+    ensureStyles();
+    guardNewProgramButton();
+    normalizeLabels();
+    installNewProgramButtonGuard();
+
+    [60, 180, 500, 1000, 1800, 3200].forEach((delay) => {
+      window.setTimeout(() => {
+        ensureStyles();
+        guardNewProgramButton();
+        normalizeLabels();
+      }, delay);
+    });
+  }'''
+          workspace = wb + install_replacement + install_end + wa
+          workspace = workspace.replace("    document.title = 'WNMU-TV PBS Programming Library';", "    if (document.title !== 'WNMU-TV PBS Programming Library') document.title = 'WNMU-TV PBS Programming Library';")
+          workspace = workspace.replace("    if (version) version.textContent = VERSION;", "    if (version && version.textContent !== VERSION) version.textContent = VERSION;")
+          workspace = workspace.replace('    suppressNewProgramButton\n', '    guardNewProgramButton\n')
+          workspace_path.write_text(workspace, encoding='utf-8')
+
+          for html_name in ('index.html', 'program-workspace-test.html'):
+            p = Path(html_name)
+            text = p.read_text(encoding='utf-8')
+            if "v1.5.129" not in text:
+              raise SystemExit(f'Expected v1.5.129 in {html_name}')
+            text = text.replace("v1.5.129", "v1.5.130")
+            p.write_text(text, encoding='utf-8')
+
+          version_path = Path('version.json')
+          manifest = json.loads(version_path.read_text(encoding='utf-8'))
+          for key in ('currentAppVersion','requiredAppVersion','publishedVersion','appVersion','version','legacyCompatibilityVersion'):
+            manifest[key] = 'v1.5.130'
+          manifest['notes'] = 'v1.5.130 reduces browser memory pressure by virtualizing the program table while keeping every filtered result reachable by scrolling, and replaces the document-wide workspace MutationObserver with a narrowly scoped new-program-button guard.'
+          manifest['updated'] = '2026-08-25T19:22:00Z'
+          version_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          Path('.github/workflows/one-time-memory-stability-v15130.yml').unlink()
+
+      - name: Validate JavaScript syntax and ownership
+        run: |
+          node --check js/filters-list.js
+          node --check js/workspace-default-main-v15122.js
+          test "$(grep -c 'observer.observe(document.documentElement' js/workspace-default-main-v15122.js || true)" = "0"
+          test "$(grep -c 'observer.observe(btn' js/workspace-default-main-v15122.js || true)" = "1"
+          test "$(grep -c 'virtualProgramRowsBound' js/filters-list.js || true)" = "2"
+          grep -q "v1.5.130" version.json
+          grep -q "v1.5.130" index.html
+          grep -q "v1.5.130" program-workspace-test.html
+
+      - name: Commit repair
+        run: |
+          git config user.name "WNMU Programming maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Stabilize program list memory and publish v1.5.130"
+          git push origin main
