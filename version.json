@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.130",
-  "requiredAppVersion": "v1.5.130",
-  "publishedVersion": "v1.5.130",
-  "appVersion": "v1.5.130",
-  "version": "v1.5.130",
-  "legacyCompatibilityVersion": "v1.5.130",
+  "currentAppVersion": "v1.5.131",
+  "requiredAppVersion": "v1.5.131",
+  "publishedVersion": "v1.5.131",
+  "appVersion": "v1.5.131",
+  "version": "v1.5.131",
+  "legacyCompatibilityVersion": "v1.5.131",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.130 reduces browser memory pressure by virtualizing the program table while keeping every filtered result reachable by scrolling, and replaces the document-wide workspace MutationObserver with a narrowly scoped new-program-button guard.",
-  "updated": "2026-08-25T19:22:00Z"
+  "notes": "v1.5.131 fixes Search Text after Fast View removal, avoids oversized localStorage program-cache writes, and refreshes cache keys for the memory-stability modules.",
+  "updated": "2026-08-25T19:35:00Z"
 }
