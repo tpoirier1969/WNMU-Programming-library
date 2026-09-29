@@ -1582,7 +1582,13 @@
       return;
     }
     const drawer = els.drawer;
-    if (!drawer || drawer.classList.contains('hidden')) {
+    const form = els.programForm;
+    const formId = String(form?.dataset?.programId || '');
+    const selectedId = state?.selectedId == null ? '' : String(state.selectedId);
+    // Guard only a real, currently loaded library title. Merely focusing,
+    // clicking in, or tabbing through fields is not a change; dirty state is
+    // based on the serialized persisted values differing from the load baseline.
+    if (!drawer || drawer.classList.contains('hidden') || !formId || !selectedId || formId !== selectedId) {
       setWorkspaceFormDirty(false);
       return;
     }
@@ -1782,13 +1788,14 @@
 
   async function workspaceOpenProgramWithGuard(id) {
     if (!id) return;
-    const current = state?.selectedId == null ? '' : String(state.selectedId);
     const next = String(id);
-    if (current && current === next) {
-      await requestWorkspaceClearSelection('toggle');
-      return;
-    }
-    if (workspaceFormDirty) {
+    const formId = String(els.programForm?.dataset?.programId || '');
+    const selectedId = state?.selectedId == null ? '' : String(state.selectedId);
+    const hasLoadedExistingProgram = Boolean(formId && selectedId && formId === selectedId);
+
+    // A title click always means open/select that title. Do not toggle the
+    // current selection off, and never guard the blank/new-program form.
+    if (workspaceFormDirty && hasLoadedExistingProgram && selectedId !== next) {
       const discard = await promptDiscardWorkspaceEdits('Continue editing the current program, or discard edits and open the selected program.');
       if (!discard) return;
       setWorkspaceFormDirty(false);
