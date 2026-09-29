@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.131",
-  "requiredAppVersion": "v1.5.131",
-  "publishedVersion": "v1.5.131",
-  "appVersion": "v1.5.131",
-  "version": "v1.5.131",
-  "legacyCompatibilityVersion": "v1.5.131",
+  "currentAppVersion": "v1.5.132",
+  "requiredAppVersion": "v1.5.132",
+  "publishedVersion": "v1.5.132",
+  "appVersion": "v1.5.132",
+  "version": "v1.5.132",
+  "legacyCompatibilityVersion": "v1.5.132",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.131 fixes Search Text after Fast View removal, avoids oversized localStorage program-cache writes, and refreshes cache keys for the memory-stability modules.",
-  "updated": "2026-08-25T19:35:00Z"
+  "notes": "v1.5.132 makes library titles open on the first click and limits unsaved-change warnings to actual value changes on a loaded existing program.",
+  "updated": "2026-09-29T14:45:00Z"
 }
