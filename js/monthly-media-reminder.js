@@ -16,10 +16,10 @@
       return { year: next.getFullYear(), month: next.getMonth() };
     }
 
-    // Once a reminder window has begun, keep requiring that month until every
-    // active series reaches it. On the 1st through 7th, that is this month.
-    if (day <= WINDOW_DAYS) return { year, month };
-    return null;
+    // After the month turns, keep requiring the current month until every
+    // active series reaches it. The threshold advances again in the next
+    // month's final seven days.
+    return { year, month };
   }
 
   function dateReachesRequiredMonth(value, target) {
