@@ -5,6 +5,7 @@
   const WINDOW_DAYS = 7;
   const SNOOZE_MS = 30 * 60 * 1000;
   let snoozedUntil = 0;
+  let reminderCheckInFlight = null;
 
   function requiredMonthForReminder(now = new Date()) {
     const year = now.getFullYear();
@@ -118,18 +119,28 @@
     document.body.appendChild(backdrop);
   }
 
-  async function checkMonthlyMediaReminder() {
-    if (document.documentElement.dataset.holidayEmbed === '1') return;
-    if (Date.now() < snoozedUntil) return;
+  function checkMonthlyMediaReminder() {
+    if (document.documentElement.dataset.holidayEmbed === '1') return Promise.resolve();
+    if (Date.now() < snoozedUntil) return Promise.resolve();
+    if (document.getElementById('monthlyMediaReminderBackdrop')) return Promise.resolve();
+    if (reminderCheckInFlight) return reminderCheckInFlight;
+
     const target = requiredMonthForReminder();
-    if (!target) return;
-    try {
-      const rows = await loadActiveRows();
-      const staleRows = rows.filter((row) => !dateReachesRequiredMonth(row.last_scheduled_date, target));
-      showReminder(target, staleRows);
-    } catch (error) {
-      console.warn('Monthly Media reminder skipped:', error?.message || error);
-    }
+    if (!target) return Promise.resolve();
+
+    reminderCheckInFlight = (async () => {
+      try {
+        const rows = await loadActiveRows();
+        if (Date.now() < snoozedUntil || document.getElementById('monthlyMediaReminderBackdrop')) return;
+        const staleRows = rows.filter((row) => !dateReachesRequiredMonth(row.last_scheduled_date, target));
+        showReminder(target, staleRows);
+      } catch (error) {
+        console.warn('Monthly Media reminder skipped:', error?.message || error);
+      } finally {
+        reminderCheckInFlight = null;
+      }
+    })();
+    return reminderCheckInFlight;
   }
 
   function checkWhenVisible() {
