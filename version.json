@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.137",
-  "requiredAppVersion": "v1.5.137",
-  "publishedVersion": "v1.5.137",
-  "appVersion": "v1.5.137",
-  "version": "v1.5.137",
-  "legacyCompatibilityVersion": "v1.5.137",
+  "currentAppVersion": "v1.5.138",
+  "requiredAppVersion": "v1.5.138",
+  "publishedVersion": "v1.5.138",
+  "appVersion": "v1.5.138",
+  "version": "v1.5.138",
+  "legacyCompatibilityVersion": "v1.5.138",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.137 rechecks the Monthly Media readiness warning when the browser window regains focus as well as when the tab becomes visible.",
-  "updated": "2026-10-01T14:00:00Z"
+  "notes": "v1.5.138 adds automatic slash insertion while typing Last Scheduled dates in Monthly Media only.",
+  "updated": "2026-10-01T14:15:00Z"
 }
