@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WNMU TV Programming Library v1.5.50 · Monthly Media</title>
+  <title>WNMU TV Programming Library · Monthly Media</title>
   <link rel="icon" type="image/png" sizes="512x512" href="wnmu-programming-library-icon-512.png" />
   <link rel="apple-touch-icon" href="wnmu-programming-library-icon-512.png" />
   <link rel="stylesheet" href="styles.css?v=1.5.50" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script>window.WNMU_APP_VERSION = 'v1.5.136'; window.WNMU_VERSION_MANIFEST = 'version.json';</script>
   <script defer src="js/monthly-media-reminder.js?v=1.5.135"></script>
+  <script defer src="js/app-version-check.js?v=1.5.109"></script>
   <style>
     body.standalone-page { overflow-y: auto; background: #eef3f7; }
     .standalone-shell { max-width: 1320px; margin: 0 auto; padding: 18px; }
@@ -149,7 +151,7 @@
       }
     }
   </style>
-  <script defer src="js/monthly-media.js?v=1.5.50"></script>
+  <script defer src="js/monthly-media.js?v=1.5.136"></script>
 </head>
 <body class="standalone-page">
   <div id="setupNotice" class="standalone-shell hidden">
@@ -167,7 +169,7 @@
           <div class="brand-name">WNMU-TV PBS</div>
           <div class="title-row">
             <h1 style="margin:0;">Monthly Media to Schedule</h1>
-            <span class="version-pill">v1.5.50</span>
+            <span id="appVersion" class="version-pill">v1.5.136</span>
           </div>
           <div id="statusLine" class="status-line">Starting up…</div>
         </div>
