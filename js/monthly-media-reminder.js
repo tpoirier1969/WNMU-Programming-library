@@ -2,7 +2,6 @@
   'use strict';
 
   const TABLE = 'monthly_media_schedule';
-  const DISMISS_PREFIX = 'wnmu-monthly-media-reminder-dismissed-';
   const WINDOW_DAYS = 7;
 
   function targetMonthForReminder(now = new Date()) {
@@ -11,20 +10,11 @@
     const day = now.getDate();
     const lastDay = new Date(year, month + 1, 0).getDate();
 
-    if (day <= WINDOW_DAYS) return { year, month };
     if ((lastDay - day) < WINDOW_DAYS) {
       const next = new Date(year, month + 1, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     }
     return null;
-  }
-
-  function monthKey(target) {
-    return `${target.year}-${String(target.month + 1).padStart(2, '0')}`;
-  }
-
-  function localDayKey(now = new Date()) {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }
 
   function dateIsInTargetMonth(value, target) {
@@ -119,14 +109,13 @@
         <p><strong>${staleRows.length} active series</strong> do not have a Last Sched date in ${monthName} ${target.year}.</p>
         <div class="media-reminder-titles"></div>
         <div class="media-reminder-actions">
-          <button type="button" data-media-reminder-dismiss>Dismiss for today</button>
+          <button type="button" data-media-reminder-dismiss>Dismiss</button>
           <a href="monthly-media.html">Open Monthly Media</a>
         </div>
       </div>
     `;
     backdrop.querySelector('.media-reminder-titles').textContent = preview + more;
     backdrop.querySelector('[data-media-reminder-dismiss]').addEventListener('click', () => {
-      dismissForToday(target);
       backdrop.remove();
     });
     document.body.appendChild(backdrop);
@@ -135,7 +124,7 @@
   async function checkMonthlyMediaReminder() {
     if (document.documentElement.dataset.holidayEmbed === '1') return;
     const target = targetMonthForReminder();
-    if (!target || dismissedToday(target)) return;
+    if (!target) return;
     try {
       const rows = await loadActiveRows();
       const staleRows = rows.filter((row) => !dateIsInTargetMonth(row.last_scheduled_date, target));
