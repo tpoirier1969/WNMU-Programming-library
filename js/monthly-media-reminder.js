@@ -151,4 +151,5 @@
     void checkMonthlyMediaReminder();
   }
   document.addEventListener('visibilitychange', checkWhenVisible);
+  window.addEventListener('focus', () => void checkMonthlyMediaReminder());
 })();
