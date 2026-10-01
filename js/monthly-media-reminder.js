@@ -3,6 +3,8 @@
 
   const TABLE = 'monthly_media_schedule';
   const WINDOW_DAYS = 7;
+  const SNOOZE_MS = 30 * 60 * 1000;
+  let snoozedUntil = 0;
 
   function requiredMonthForReminder(now = new Date()) {
     const year = now.getFullYear();
@@ -32,19 +34,6 @@
     return rowMonthIndex >= requiredMonthIndex;
   }
 
-  function dismissedToday(target) {
-    try {
-      return localStorage.getItem(DISMISS_PREFIX + monthKey(target)) === localDayKey();
-    } catch {
-      return false;
-    }
-  }
-
-  function dismissForToday(target) {
-    try {
-      localStorage.setItem(DISMISS_PREFIX + monthKey(target), localDayKey());
-    } catch {}
-  }
 
   async function loadActiveRows() {
     const config = window.APP_CONFIG || {};
@@ -116,13 +105,14 @@
         <p><strong>${staleRows.length} active series</strong> do not have a Last Sched date in ${monthName} ${target.year} or later.</p>
         <div class="media-reminder-titles"></div>
         <div class="media-reminder-actions">
-          <button type="button" data-media-reminder-dismiss>Dismiss</button>
+          <button type="button" data-media-reminder-snooze>Dismiss for 30 minutes</button>
           <a href="monthly-media.html">Open Monthly Media</a>
         </div>
       </div>
     `;
     backdrop.querySelector('.media-reminder-titles').textContent = preview + more;
-    backdrop.querySelector('[data-media-reminder-dismiss]').addEventListener('click', () => {
+    backdrop.querySelector('[data-media-reminder-snooze]').addEventListener('click', () => {
+      snoozedUntil = Date.now() + SNOOZE_MS;
       backdrop.remove();
     });
     document.body.appendChild(backdrop);
@@ -130,6 +120,7 @@
 
   async function checkMonthlyMediaReminder() {
     if (document.documentElement.dataset.holidayEmbed === '1') return;
+    if (Date.now() < snoozedUntil) return;
     const target = requiredMonthForReminder();
     if (!target) return;
     try {
