@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.132",
-  "requiredAppVersion": "v1.5.132",
-  "publishedVersion": "v1.5.132",
-  "appVersion": "v1.5.132",
-  "version": "v1.5.132",
-  "legacyCompatibilityVersion": "v1.5.132",
+  "currentAppVersion": "v1.5.133",
+  "requiredAppVersion": "v1.5.133",
+  "publishedVersion": "v1.5.133",
+  "appVersion": "v1.5.133",
+  "version": "v1.5.133",
+  "legacyCompatibilityVersion": "v1.5.133",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.132 makes library titles open on the first click and limits unsaved-change warnings to actual value changes on a loaded existing program.",
-  "updated": "2026-09-29T14:45:00Z"
+  "notes": "v1.5.133 adds Ctrl+Shift+F to focus Search Text and a cross-module Monthly Media reminder around month boundaries when active series lack a Last Sched date in the target month.",
+  "updated": "2026-10-01T12:55:00Z"
 }
