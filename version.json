@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.136",
-  "requiredAppVersion": "v1.5.136",
-  "publishedVersion": "v1.5.136",
-  "appVersion": "v1.5.136",
-  "version": "v1.5.136",
-  "legacyCompatibilityVersion": "v1.5.136",
+  "currentAppVersion": "v1.5.137",
+  "requiredAppVersion": "v1.5.137",
+  "publishedVersion": "v1.5.137",
+  "appVersion": "v1.5.137",
+  "version": "v1.5.137",
+  "legacyCompatibilityVersion": "v1.5.137",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.136 wires Monthly Media to the Programming Library version manifest so its visible version stays aligned with the current app release.",
-  "updated": "2026-10-01T13:40:00Z"
+  "notes": "v1.5.137 rechecks the Monthly Media readiness warning when the browser window regains focus as well as when the tab becomes visible.",
+  "updated": "2026-10-01T14:00:00Z"
 }
