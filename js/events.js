@@ -295,6 +295,14 @@ The rating is still shown locally in this browser, but it may not have synced to
     }, true);
   });
 
+  document.addEventListener('keydown', (event) => {
+    if (!event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey || event.key.toLowerCase() !== 'f') return;
+    if (!els.searchInput) return;
+    event.preventDefault();
+    els.searchInput.focus();
+    if (typeof els.searchInput.select === 'function') els.searchInput.select();
+  });
+
   els.searchInput?.addEventListener('input', scheduleSearchUpdate);
   els.searchInput?.addEventListener('blur', flushSearchUpdate);
   els.searchInput?.addEventListener('keydown', (event) => {
