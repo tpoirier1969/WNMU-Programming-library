@@ -133,6 +133,7 @@
   }
 
   async function checkMonthlyMediaReminder() {
+    if (document.documentElement.dataset.holidayEmbed === '1') return;
     const target = targetMonthForReminder();
     if (!target || dismissedToday(target)) return;
     try {
