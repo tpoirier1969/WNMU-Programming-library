@@ -35,6 +35,17 @@ function normalizeLower(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function autoFormatMonthlyMediaDateInput(input) {
+  if (!input || input.name !== 'last_scheduled_date') return;
+  const digits = String(input.value || '').replace(/\D/g, '').slice(0, 6);
+  let formatted = digits.slice(0, 2);
+  if (digits.length >= 2) formatted += '/';
+  if (digits.length > 2) formatted += digits.slice(2, 4);
+  if (digits.length >= 4) formatted += '/';
+  if (digits.length > 4) formatted += digits.slice(4, 6);
+  input.value = formatted;
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -418,8 +429,12 @@ function bindEvents() {
 
   els.addForm?.addEventListener('submit', createRow);
   els.clearFormBtn?.addEventListener('click', clearAddForm);
+  els.addForm?.elements?.last_scheduled_date?.addEventListener('input', (event) => {
+    autoFormatMonthlyMediaDateInput(event.target);
+  });
 
   els.mediaTableBody?.addEventListener('input', (event) => {
+    autoFormatMonthlyMediaDateInput(event.target);
     const rowNode = event.target.closest('[data-row-id]');
     const id = rowNode?.dataset?.rowId;
     if (!id || !rowNode || !canEdit()) return;
