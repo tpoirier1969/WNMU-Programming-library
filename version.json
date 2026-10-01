@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.138",
-  "requiredAppVersion": "v1.5.138",
-  "publishedVersion": "v1.5.138",
-  "appVersion": "v1.5.138",
-  "version": "v1.5.138",
-  "legacyCompatibilityVersion": "v1.5.138",
+  "currentAppVersion": "v1.5.139",
+  "requiredAppVersion": "v1.5.139",
+  "publishedVersion": "v1.5.139",
+  "appVersion": "v1.5.139",
+  "version": "v1.5.139",
+  "legacyCompatibilityVersion": "v1.5.139",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.138 adds automatic slash insertion while typing Last Scheduled dates in Monthly Media only.",
-  "updated": "2026-10-01T14:15:00Z"
+  "notes": "v1.5.139 replaces the Monthly Media reminder's plain Dismiss action with a 30-minute snooze, preventing repeated warnings while moving between tabs and windows during scheduling.",
+  "updated": "2026-10-01T14:30:00Z"
 }
