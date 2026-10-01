@@ -4,25 +4,32 @@
   const TABLE = 'monthly_media_schedule';
   const WINDOW_DAYS = 7;
 
-  function targetMonthForReminder(now = new Date()) {
+  function requiredMonthForReminder(now = new Date()) {
     const year = now.getFullYear();
     const month = now.getMonth();
     const day = now.getDate();
     const lastDay = new Date(year, month + 1, 0).getDate();
+    const inLastWeek = (lastDay - day) < WINDOW_DAYS;
 
-    if ((lastDay - day) < WINDOW_DAYS) {
+    if (inLastWeek) {
       const next = new Date(year, month + 1, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     }
+
+    // Once a reminder window has begun, keep requiring that month until every
+    // active series reaches it. On the 1st through 7th, that is this month.
+    if (day <= WINDOW_DAYS) return { year, month };
     return null;
   }
 
-  function dateIsInTargetMonth(value, target) {
+  function dateReachesRequiredMonth(value, target) {
     const raw = String(value || '').trim();
     if (!raw) return false;
     const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return false;
-    return Number(match[1]) === target.year && Number(match[2]) === target.month + 1;
+    const rowMonthIndex = (Number(match[1]) * 12) + Number(match[2]);
+    const requiredMonthIndex = (target.year * 12) + (target.month + 1);
+    return rowMonthIndex >= requiredMonthIndex;
   }
 
   function dismissedToday(target) {
@@ -106,7 +113,7 @@
     backdrop.innerHTML = `
       <div class="monthly-media-reminder" role="dialog" aria-modal="true" aria-labelledby="monthlyMediaReminderTitle">
         <h2 id="monthlyMediaReminderTitle">Monthly Media needs attention</h2>
-        <p><strong>${staleRows.length} active series</strong> do not have a Last Sched date in ${monthName} ${target.year}.</p>
+        <p><strong>${staleRows.length} active series</strong> do not have a Last Sched date in ${monthName} ${target.year} or later.</p>
         <div class="media-reminder-titles"></div>
         <div class="media-reminder-actions">
           <button type="button" data-media-reminder-dismiss>Dismiss</button>
@@ -123,15 +130,19 @@
 
   async function checkMonthlyMediaReminder() {
     if (document.documentElement.dataset.holidayEmbed === '1') return;
-    const target = targetMonthForReminder();
+    const target = requiredMonthForReminder();
     if (!target) return;
     try {
       const rows = await loadActiveRows();
-      const staleRows = rows.filter((row) => !dateIsInTargetMonth(row.last_scheduled_date, target));
+      const staleRows = rows.filter((row) => !dateReachesRequiredMonth(row.last_scheduled_date, target));
       showReminder(target, staleRows);
     } catch (error) {
       console.warn('Monthly Media reminder skipped:', error?.message || error);
     }
+  }
+
+  function checkWhenVisible() {
+    if (document.visibilityState === 'visible') void checkMonthlyMediaReminder();
   }
 
   if (document.readyState === 'loading') {
@@ -139,4 +150,5 @@
   } else {
     void checkMonthlyMediaReminder();
   }
+  document.addEventListener('visibilitychange', checkWhenVisible);
 })();
