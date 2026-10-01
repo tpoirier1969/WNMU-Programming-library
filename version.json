@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.135",
-  "requiredAppVersion": "v1.5.135",
-  "publishedVersion": "v1.5.135",
-  "appVersion": "v1.5.135",
-  "version": "v1.5.135",
-  "legacyCompatibilityVersion": "v1.5.135",
+  "currentAppVersion": "v1.5.136",
+  "requiredAppVersion": "v1.5.136",
+  "publishedVersion": "v1.5.136",
+  "appVersion": "v1.5.136",
+  "version": "v1.5.136",
+  "legacyCompatibilityVersion": "v1.5.136",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.135 makes Monthly Media a rolling readiness check: seven days before month end the required Last Sched month advances, the warning continues until all active series reach that month or later, and it rechecks whenever the tab becomes visible.",
-  "updated": "2026-10-01T13:25:00Z"
+  "notes": "v1.5.136 wires Monthly Media to the Programming Library version manifest so its visible version stays aligned with the current app release.",
+  "updated": "2026-10-01T13:40:00Z"
 }
