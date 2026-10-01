@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.139",
-  "requiredAppVersion": "v1.5.139",
-  "publishedVersion": "v1.5.139",
-  "appVersion": "v1.5.139",
-  "version": "v1.5.139",
-  "legacyCompatibilityVersion": "v1.5.139",
+  "currentAppVersion": "v1.5.140",
+  "requiredAppVersion": "v1.5.140",
+  "publishedVersion": "v1.5.140",
+  "appVersion": "v1.5.140",
+  "version": "v1.5.140",
+  "legacyCompatibilityVersion": "v1.5.140",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.139 replaces the Monthly Media reminder's plain Dismiss action with a 30-minute snooze, preventing repeated warnings while moving between tabs and windows during scheduling.",
-  "updated": "2026-10-01T14:30:00Z"
+  "notes": "v1.5.140 prevents overlapping Monthly Media reminder checks from stacking multiple warning popups when visibility and window-focus events occur close together.",
+  "updated": "2026-10-01T14:40:00Z"
 }
