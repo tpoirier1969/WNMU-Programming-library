@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.133",
-  "requiredAppVersion": "v1.5.133",
-  "publishedVersion": "v1.5.133",
-  "appVersion": "v1.5.133",
-  "version": "v1.5.133",
-  "legacyCompatibilityVersion": "v1.5.133",
+  "currentAppVersion": "v1.5.134",
+  "requiredAppVersion": "v1.5.134",
+  "publishedVersion": "v1.5.134",
+  "appVersion": "v1.5.134",
+  "version": "v1.5.134",
+  "legacyCompatibilityVersion": "v1.5.134",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.133 adds Ctrl+Shift+F to focus Search Text and a cross-module Monthly Media reminder around month boundaries when active series lack a Last Sched date in the target month.",
-  "updated": "2026-10-01T12:55:00Z"
+  "notes": "v1.5.134 corrects the Monthly Media reminder: it runs only during the seven days before a new month and returns on the next page visit after dismissal until the media dates are current.",
+  "updated": "2026-10-01T13:10:00Z"
 }
