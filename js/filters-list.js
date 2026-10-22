@@ -104,16 +104,83 @@ function renderEditorSecondaryTopicSuggestions() {
   const list = els.secondaryTopicList;
   if (!form || !list) return;
   const topic = normalizeLower(form.elements.topic?.value);
-  const matching = new Set();
+  const matching = new Map();
   if (topic) {
+    (state.lookups.secondary_topic_assignments || []).forEach((entry) => {
+      if (normalizeLower(entry.main_topic) === topic) {
+        matching.set(normalizeLower(entry.secondary_topic), entry.secondary_topic);
+      }
+    });
+    // Include assignments visible in the loaded library, including recently
+    // saved programs that may not yet have been synchronized to the mapping table.
     state.programs.forEach((program) => {
       if (normalizeLower(program.topic) !== topic) return;
-      splitMultiValues(program.secondary_topic).forEach((name) => matching.add(normalizeLower(name)));
+      splitMultiValues(program.secondary_topic).forEach((name) => {
+        if (!matching.has(normalizeLower(name))) matching.set(normalizeLower(name), name);
+      });
     });
   }
-  const items = lookupItemsOrFallback('secondary_topics', 'secondary_topic')
-    .filter((item) => topic && matching.has(normalizeLower(typeof item === 'string' ? item : item.name)));
-  fillDatalist(list, items);
+  fillDatalist(list, [...matching.values()].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' })));
+}
+
+async function persistSecondaryTopicAssociations(mainTopic, secondaryValues) {
+  const topic = normalizeText(mainTopic);
+  const values = splitMultiValues(secondaryValues);
+  if (!topic || !values.length) return;
+  const assignments = state.lookups.secondary_topic_assignments || [];
+  const pending = values.filter((name) => !assignments.some((item) =>
+    normalizeLower(item.main_topic) === normalizeLower(topic) &&
+    normalizeLower(item.secondary_topic) === normalizeLower(name)));
+  if (!pending.length) return;
+
+  const { error } = await state.supabase
+    .from('secondary_topic_assignments')
+    .upsert(pending.map((name) => ({ main_topic: topic, secondary_topic: name })),
+      { onConflict: 'main_topic,secondary_topic', ignoreDuplicates: true });
+  if (error) throw error;
+  pending.forEach((name) => {
+    assignments.push({ main_topic: topic, secondary_topic: name });
+    ensureLookupValue('secondary_topics', name);
+  });
+  state.lookups.secondary_topic_assignments = assignments;
+  renderEditorSecondaryTopicSuggestions();
+}
+
+async function addNewEditorSecondaryTopic() {
+  if (!canEdit()) return;
+  const form = els.programForm;
+  const mainTopic = normalizeText(form?.elements?.topic?.value);
+  if (!mainTopic) {
+    window.alert('Choose a Main Topic before adding a Secondary Topic.');
+    form?.elements?.topic?.focus();
+    return;
+  }
+  const typed = window.prompt(`New Secondary Topic for "${mainTopic}":`);
+  if (typed === null) return;
+  const name = normalizeText(typed);
+  if (!name || /[,;|]/.test(name)) {
+    window.alert('Enter one Secondary Topic name without commas, semicolons, or vertical bars.');
+    return;
+  }
+  const button = document.getElementById('addSecondaryTopicBtn');
+  if (button) button.disabled = true;
+  try {
+    await persistSecondaryTopicAssociations(mainTopic, name);
+    const input = form.elements.secondary_topic;
+    const selected = splitMultiValues(input.value);
+    if (!selected.some((value) => normalizeLower(value) === normalizeLower(name))) {
+      input.value = [...selected, name].join(', ');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    input.focus();
+  } catch (error) {
+    console.error('Could not save Secondary Topic:', error);
+    window.alert(`Could not save Secondary Topic: ${error.message || error}`);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 document.addEventListener('change', (event) => {
@@ -121,6 +188,9 @@ document.addEventListener('change', (event) => {
 });
 document.addEventListener('focusin', (event) => {
   if (event.target === els.programForm?.elements?.secondary_topic) renderEditorSecondaryTopicSuggestions();
+});
+document.addEventListener('click', (event) => {
+  if (event.target?.closest?.('#addSecondaryTopicBtn')) void addNewEditorSecondaryTopic();
 });
 
 function renderFilters() {
