@@ -37,13 +37,45 @@ function normalizeLower(value) {
 
 function autoFormatMonthlyMediaDateInput(input) {
   if (!input || input.name !== 'last_scheduled_date') return;
-  const digits = String(input.value || '').replace(/\D/g, '').slice(0, 6);
-  let formatted = digits.slice(0, 2);
-  if (digits.length >= 2) formatted += '/';
-  if (digits.length > 2) formatted += digits.slice(2, 4);
-  if (digits.length >= 4) formatted += '/';
-  if (digits.length > 4) formatted += digits.slice(4, 6);
+  const raw = String(input.value || '');
+  const caret = input.selectionStart ?? raw.length;
+  // Accept pasted four-digit years and ISO dates without truncating 2026 to 20.
+  const completeDate = /^(?:\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{1,2}-\d{1,2})$/.test(raw)
+    ? formatDateForInput(raw) : '';
+  const compactDate = raw.match(/^(\d{2})(\d{2})(\d{4})$/);
+  const compactFormatted = compactDate ? formatDateForInput(
+    `${compactDate[1]}/${compactDate[2]}/${compactDate[3]}`) : '';
+  const digits = raw.replace(/\D/g, '').slice(0, 6);
+  const formatted = completeDate || compactFormatted ||
+    (digits.slice(0, 2) + (digits.length >= 2 ? '/' : '') +
+     digits.slice(2, 4) + (digits.length >= 4 ? '/' : '') + digits.slice(4, 6));
+  const digitOffset = raw.slice(0, caret).replace(/\D/g, '').length;
   input.value = formatted;
+  if (typeof input.setSelectionRange !== 'function') return;
+  if (completeDate || compactFormatted) {
+    input.setSelectionRange(formatted.length, formatted.length);
+    return;
+  }
+  let pos = 0;
+  let remaining = digitOffset;
+  while (pos < formatted.length && remaining > 0) {
+    if (/\d/.test(formatted[pos])) remaining -= 1;
+    pos += 1;
+  }
+  if (formatted[pos] === '/') pos += 1;
+  input.setSelectionRange(pos, pos);
+}
+
+function handleMonthlyMediaDateBackspace(event) {
+  const input = event.target;
+  if (input?.name !== 'last_scheduled_date' ||
+      input.selectionStart !== input.selectionEnd) return;
+  const pos = input.selectionStart;
+  if (event.key === 'Backspace' && pos > 1 && input.value[pos - 1] === '/') {
+    input.setSelectionRange(pos - 2, pos);
+  } else if (event.key === 'Delete' && input.value[pos] === '/') {
+    input.setSelectionRange(pos, Math.min(pos + 2, input.value.length));
+  }
 }
 
 function escapeHtml(value) {
@@ -77,7 +109,7 @@ function canEdit() {
 function formatDateForInput(value) {
   const parts = parseDateInputParts(value);
   if (!parts) return '';
-  return `${parts.month}/${parts.day}/${parts.year}`;
+  return `${String(parts.month).padStart(2, '0')}/${String(parts.day).padStart(2, '0')}/${String(parts.year % 100).padStart(2, '0')}`;
 }
 
 function parseDateInputParts(value) {
@@ -280,6 +312,11 @@ async function createRow(event) {
     els.addForm?.elements?.series_title?.focus();
     return;
   }
+  if (normalizeText(els.addForm.elements.last_scheduled_date.value) && !payload.last_scheduled_date) {
+    setFeedback('Last Scheduled must be a valid date (MM/DD/YY).', 'error');
+    els.addForm.elements.last_scheduled_date.focus();
+    return;
+  }
   els.addRowBtn.disabled = true;
   setFeedback('Adding row…', 'info');
   setStatus('Adding row…');
@@ -333,6 +370,12 @@ async function persistRow(id, rowNode) {
   if (!payload.series_title) {
     setRowState(rowNode, 'Need title', 'error');
     rowNode.classList.add('save-error');
+    return;
+  }
+  const dateField = rowNode.querySelector('[name="last_scheduled_date"]');
+  if (normalizeText(dateField?.value) && !payload.last_scheduled_date) {
+    rowNode.classList.add('save-error');
+    setRowState(rowNode, 'Invalid date', 'error');
     return;
   }
   rowNode.classList.remove('save-error');
@@ -432,6 +475,8 @@ function bindEvents() {
   els.addForm?.elements?.last_scheduled_date?.addEventListener('input', (event) => {
     autoFormatMonthlyMediaDateInput(event.target);
   });
+  els.addForm?.elements?.last_scheduled_date?.addEventListener('keydown', handleMonthlyMediaDateBackspace);
+  els.mediaTableBody?.addEventListener('keydown', handleMonthlyMediaDateBackspace);
 
   els.mediaTableBody?.addEventListener('input', (event) => {
     autoFormatMonthlyMediaDateInput(event.target);
