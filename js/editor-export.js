@@ -225,6 +225,13 @@ async function saveProgram(event) {
     const refreshedProgram = await fetchProgramById(refreshedId);
     mergeProgramIntoState(refreshedProgram);
     const lookupsChanged = syncLookupsFromProgram(refreshedProgram);
+    let topicWarning = '';
+    try {
+      await persistSecondaryTopicAssociations(refreshedProgram.topic, refreshedProgram.secondary_topic);
+    } catch (topicError) {
+      console.warn('Program saved, but Secondary Topic association could not be updated:', topicError);
+      topicWarning = ' Secondary Topic suggestion could not be saved; program record was saved.';
+    }
 
     let ratingWarning = '';
     const existingRating = normalizeRating(existingItem?.rating);
@@ -240,7 +247,7 @@ async function saveProgram(event) {
 
     const savedMessage = (!programId
       ? 'Created program.'
-      : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.')) + ratingWarning;
+      : (existingItem?.is_archived && payload.is_archived === false ? 'Saved changes. Program restored to active.' : 'Saved changes.')) + ratingWarning + topicWarning;
     refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
     setLoading('');
     closeEditor();
