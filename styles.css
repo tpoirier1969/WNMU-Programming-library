@@ -345,6 +345,9 @@ button:hover { transform: translateY(-1px); }
 .row-use { grid-column: 4; }
 .row-length, .row-use { max-width: 180px; }
 .secondary-topic-field input, .distributor-field input { min-height: 40px; }
+.secondary-topic-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.secondary-topic-add-btn { font-size: .73rem; padding: 4px 9px; min-height: 25px; white-space: nowrap; font-weight: 700; }
+
 .program-rights-row {
   display: grid;
   grid-template-columns: minmax(180px, 0.9fr) minmax(180px, 1.05fr) minmax(190px, 1fr) minmax(190px, 1fr);
