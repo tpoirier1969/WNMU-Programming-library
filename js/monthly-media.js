@@ -46,9 +46,19 @@ function autoFormatMonthlyMediaDateInput(input) {
   const compactFormatted = compactDate ? formatDateForInput(
     `${compactDate[1]}/${compactDate[2]}/${compactDate[3]}`) : '';
   const digits = raw.replace(/\D/g, '').slice(0, 6);
+  const segments = raw.split('/');
+  const segmentEditing = segments.length > 1 && segments.length <= 3 &&
+    segments.every((part, index) => /^\d*$/.test(part) && part.length <= (index === 2 ? 4 : 2));
+  // Preserve the other date components when a user edits or deletes a digit
+  // within an already segmented date. Do not shift day digits into the month.
+  const segmented = segmentEditing
+    ? segments.map((part, index) => part.slice(0, index === 2 ? 2 : 2)).join('/') +
+      (segments.length === 2 && segments[1].length === 2 ? '/' : '')
+    : '';
   const formatted = completeDate || compactFormatted ||
-    (digits.slice(0, 2) + (digits.length >= 2 ? '/' : '') +
-     digits.slice(2, 4) + (digits.length >= 4 ? '/' : '') + digits.slice(4, 6));
+    (segmentEditing ? segmented :
+      (digits.slice(0, 2) + (digits.length >= 2 ? '/' : '') +
+       digits.slice(2, 4) + (digits.length >= 4 ? '/' : '') + digits.slice(4, 6)));
   const digitOffset = raw.slice(0, caret).replace(/\D/g, '').length;
   input.value = formatted;
   if (typeof input.setSelectionRange !== 'function') return;
@@ -71,10 +81,18 @@ function handleMonthlyMediaDateBackspace(event) {
   if (input?.name !== 'last_scheduled_date' ||
       input.selectionStart !== input.selectionEnd) return;
   const pos = input.selectionStart;
-  if (event.key === 'Backspace' && pos > 1 && input.value[pos - 1] === '/') {
-    input.setSelectionRange(pos - 2, pos);
-  } else if (event.key === 'Delete' && input.value[pos] === '/') {
-    input.setSelectionRange(pos, Math.min(pos + 2, input.value.length));
+  const raw = input.value;
+  // On a separator, remove the neighboring digit, not the slash.
+  if (event.key === 'Backspace' && pos > 1 && raw[pos - 1] === '/') {
+    event.preventDefault();
+    input.value = raw.slice(0, pos - 2) + raw.slice(pos - 1);
+    input.setSelectionRange(pos - 2, pos - 2);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (event.key === 'Delete' && raw[pos] === '/' && pos + 1 < raw.length) {
+    event.preventDefault();
+    input.value = raw.slice(0, pos + 1) + raw.slice(pos + 2);
+    input.setSelectionRange(pos + 1, pos + 1);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
 
