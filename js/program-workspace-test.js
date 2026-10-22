@@ -1970,6 +1970,13 @@
         const refreshedProgram = await fetchProgramById(refreshedId);
         mergeProgramIntoState(refreshedProgram);
         const lookupsChanged = syncLookupsFromProgram(refreshedProgram);
+        let topicWarning = '';
+        try {
+          await persistSecondaryTopicAssociations(refreshedProgram.topic, refreshedProgram.secondary_topic);
+        } catch (topicError) {
+          console.warn('Program saved, but Secondary Topic association could not be updated:', topicError);
+          topicWarning = ' Secondary Topic suggestion could not be saved; program record was saved.';
+        }
 
         let ratingWarning = '';
         const existingRating = normalizeRating(existingItem?.rating);
@@ -1984,7 +1991,7 @@
         }
 
         applyWorkspaceRightsArchiveOverlay();
-        const savedMessage = (!programId ? 'Created program.' : 'Saved changes.') + ratingWarning;
+        const savedMessage = (!programId ? 'Created program.' : 'Saved changes.') + ratingWarning + topicWarning;
         refreshUiAfterProgramMutation(savedMessage, { renderFilters: lookupsChanged });
         setLoading('');
         setWorkspaceFormDirty(false);
