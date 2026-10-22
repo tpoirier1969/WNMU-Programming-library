@@ -266,7 +266,7 @@ function buildRowMarkup(row) {
   return `
     <div class="media-row" data-row-id="${row.id}">
       <div class="media-cell"><input name="series_title" type="text" value="${escapeHtml(row.series_title || '')}" ${lockAttr} /></div>
-      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="M/D/YYYY" ${lockAttr} /></div>
+      <div class="media-cell"><input name="last_scheduled_date" type="text" value="${escapeHtml(formatDateForInput(row.last_scheduled_date))}" placeholder="MM/DD/YY" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_time" type="text" value="${escapeHtml(row.record_time || '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="record_source" type="text" value="${escapeHtml(row.record_source || '')}" ${lockAttr} /></div>
       <div class="media-cell"><input name="last_episode_scheduled" type="number" step="1" value="${escapeHtml(row.last_episode_scheduled ?? '')}" ${lockAttr} /></div>
