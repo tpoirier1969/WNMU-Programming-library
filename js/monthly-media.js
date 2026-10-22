@@ -66,6 +66,11 @@ function autoFormatMonthlyMediaDateInput(input) {
     input.setSelectionRange(formatted.length, formatted.length);
     return;
   }
+  if (segmentEditing) {
+    const position = caret === raw.length && formatted.length > raw.length ? formatted.length : caret;
+    input.setSelectionRange(position, position);
+    return;
+  }
   let pos = 0;
   let remaining = digitOffset;
   while (pos < formatted.length && remaining > 0) {
