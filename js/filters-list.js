@@ -99,6 +99,30 @@ function mergeOptionLabels(preferredValues, items) {
   return merged;
 }
 
+function renderEditorSecondaryTopicSuggestions() {
+  const form = els.programForm;
+  const list = els.secondaryTopicList;
+  if (!form || !list) return;
+  const topic = normalizeLower(form.elements.topic?.value);
+  const matching = new Set();
+  if (topic) {
+    state.programs.forEach((program) => {
+      if (normalizeLower(program.topic) !== topic) return;
+      splitMultiValues(program.secondary_topic).forEach((name) => matching.add(normalizeLower(name)));
+    });
+  }
+  const items = lookupItemsOrFallback('secondary_topics', 'secondary_topic')
+    .filter((item) => topic && matching.has(normalizeLower(typeof item === 'string' ? item : item.name)));
+  fillDatalist(list, items);
+}
+
+document.addEventListener('change', (event) => {
+  if (event.target === els.programForm?.elements?.topic) renderEditorSecondaryTopicSuggestions();
+});
+document.addEventListener('focusin', (event) => {
+  if (event.target === els.programForm?.elements?.secondary_topic) renderEditorSecondaryTopicSuggestions();
+});
+
 function renderFilters() {
   fillSelect(els.topicFilter, lookupItemsOrFallback('topics', 'topic'), false);
   fillSelect(els.secondaryTopicFilter, lookupItemsOrFallback('secondary_topics', 'secondary_topic'), false);
@@ -110,7 +134,7 @@ function renderFilters() {
   const form = els.programForm;
   fillSelect(form.elements.program_type, lookupItemsOrFallback('program_types', 'program_type'));
   fillSelect(form.elements.topic, lookupItemsOrFallback('topics', 'topic'));
-  fillDatalist(els.secondaryTopicList, lookupItemsOrFallback('secondary_topics', 'secondary_topic'));
+  renderEditorSecondaryTopicSuggestions();
   fillDatalist(els.distributorList, lookupItemsOrFallback('distributors', 'distributor'));
   fillSelect(form.elements.package_type, mergeOptionLabels([DEFAULT_NEW_PROGRAM_VALUES.package_type], lookupItemsOrFallback('package_types', 'package_type')));
   fillSelect(form.elements.server_tape, mergeOptionLabels(CURATED_SOURCE_OPTIONS, lookupItemsOrFallback('server_locations', 'server_tape')));
