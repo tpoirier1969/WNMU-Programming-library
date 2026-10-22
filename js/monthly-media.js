@@ -52,7 +52,7 @@ function autoFormatMonthlyMediaDateInput(input) {
   // Preserve the other date components when a user edits or deletes a digit
   // within an already segmented date. Do not shift day digits into the month.
   const segmented = segmentEditing
-    ? segments.map((part, index) => part.slice(0, index === 2 ? 2 : 2)).join('/') +
+    ? segments.map((part, index) => part.slice(0, index === 2 ? 4 : 2)).join('/') +
       (segments.length === 2 && segments[1].length === 2 ? '/' : '')
     : '';
   const formatted = completeDate || compactFormatted ||
