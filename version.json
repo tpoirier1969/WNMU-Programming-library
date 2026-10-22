@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.140",
-  "requiredAppVersion": "v1.5.140",
-  "publishedVersion": "v1.5.140",
-  "appVersion": "v1.5.140",
-  "version": "v1.5.140",
-  "legacyCompatibilityVersion": "v1.5.140",
+  "currentAppVersion": "v1.5.141",
+  "requiredAppVersion": "v1.5.141",
+  "publishedVersion": "v1.5.141",
+  "appVersion": "v1.5.141",
+  "version": "v1.5.141",
+  "legacyCompatibilityVersion": "v1.5.141",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.140 prevents overlapping Monthly Media reminder checks from stacking multiple warning popups when visibility and window-focus events occur close together.",
-  "updated": "2026-10-01T14:40:00Z"
+  "notes": "v1.5.141 filters secondary topic suggestions by main topic in the program editor; custom secondary topics remain typeable and are retained with saved programs.",
+  "updated": "2026-10-22"
 }
