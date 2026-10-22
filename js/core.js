@@ -756,6 +756,8 @@ function applyEditorMode() {
     if (field.tagName === 'TEXTAREA') field.readOnly = !editing;
     if (field.tagName === 'SELECT' || type === 'checkbox') field.disabled = !editing;
   });
+  const addSecondaryTopicBtn = document.getElementById('addSecondaryTopicBtn');
+  if (addSecondaryTopicBtn) addSecondaryTopicBtn.disabled = !editing;
   if (els.saveBtn) els.saveBtn.classList.toggle('hidden', !editing);
   if (els.duplicateBtn) els.duplicateBtn.classList.toggle('hidden', !editing);
   if (els.deleteBtn) els.deleteBtn.classList.toggle('hidden', !editing);
