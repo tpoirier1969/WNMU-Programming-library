@@ -5,6 +5,7 @@ const state = {
   supabase: null,
   session: null,
   lookupsLoaded: false,
+  topicAssignments: [],
   templateResults: [],
   duplicateTimer: null,
   duplicateRequestToken: 0,
@@ -289,21 +290,96 @@ function fillDatalist(datalist, items = []) {
   datalist.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"></option>`).join('');
 }
 
+async function loadTopicAssignments() {
+  const { data, error } = await state.supabase.from('secondary_topic_assignments')
+    .select('main_topic,secondary_topic')
+    .order('main_topic', { ascending: true })
+    .order('secondary_topic', { ascending: true });
+  if (error) {
+    console.warn('Secondary Topic mappings unavailable:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+function renderSecondaryTopicSuggestions() {
+  const topic = normalizeLower(els.programForm?.elements?.topic?.value);
+  const names = new Map();
+  if (topic) state.topicAssignments.forEach(({ main_topic, secondary_topic }) => {
+    if (normalizeLower(main_topic) === topic)
+      names.set(normalizeLower(secondary_topic), secondary_topic);
+  });
+  fillDatalist(document.getElementById('secondaryTopicList'), [...names.values()]);
+}
+
+async function persistSecondaryTopicAssociations(mainTopic, secondaryValues) {
+  const topic = normalizeText(mainTopic);
+  const values = splitMultiValues(secondaryValues);
+  if (!topic || !values.length) return;
+  const pending = values.filter((name) => !state.topicAssignments.some((entry) =>
+    normalizeLower(entry.main_topic) === normalizeLower(topic) &&
+    normalizeLower(entry.secondary_topic) === normalizeLower(name)));
+  if (!pending.length) return;
+  const { error } = await state.supabase.from('secondary_topic_assignments')
+    .upsert(pending.map((name) => ({ main_topic: topic, secondary_topic: name })),
+      { onConflict: 'main_topic,secondary_topic', ignoreDuplicates: true });
+  if (error) throw error;
+  pending.forEach((name) => state.topicAssignments.push({ main_topic: topic, secondary_topic: name }));
+  renderSecondaryTopicSuggestions();
+}
+
+async function addNewSecondaryTopic() {
+  if (!canEdit()) return;
+  const topic = normalizeText(els.programForm?.elements?.topic?.value);
+  if (!topic) {
+    alert('Choose a Main Topic before adding a Secondary Topic.');
+    els.programForm?.elements?.topic?.focus();
+    return;
+  }
+  const typed = window.prompt(`New Secondary Topic for "${topic}":`);
+  if (typed === null) return;
+  const name = normalizeText(typed);
+  if (!name || /[,;|]/.test(name)) {
+    alert('Enter one Secondary Topic name without commas, semicolons, or vertical bars.');
+    return;
+  }
+  const button = document.getElementById('addSecondaryTopicBtn');
+  if (button) button.disabled = true;
+  try {
+    await persistSecondaryTopicAssociations(topic, name);
+    const input = els.programForm.elements.secondary_topic;
+    const selected = splitMultiValues(input.value);
+    if (!selected.some((value) => normalizeLower(value) === normalizeLower(name))) {
+      input.value = [...selected, name].join(', ');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    input.focus();
+  } catch (error) {
+    console.error(error);
+    alert(`Could not add Secondary Topic: ${error.message || error}`);
+  } finally {
+    if (button) button.disabled = !canEdit();
+  }
+}
+
 async function loadLookups() {
-  const [topics, secondaryTopics, distributors, packageTypes, serverLocations, programTypes] = await Promise.all([
+  const [topics, secondaryTopics, distributors, packageTypes, serverLocations, programTypes, topicAssignments] = await Promise.all([
     loadLookupTable('topics'),
     loadLookupTable('secondary_topics'),
     loadLookupTable('distributors'),
     loadLookupTable('package_types'),
     loadLookupTable('server_locations'),
-    loadLookupTable('program_types')
+    loadLookupTable('program_types'),
+    loadTopicAssignments()
   ]);
 
   fillSelect(els.programForm.elements.topic, topics, { placeholder: '' });
   fillSelect(els.programForm.elements.program_type, programTypes, { placeholder: '' });
   fillSelect(els.programForm.elements.package_type, packageTypes, { placeholder: '', extraValues: [DEFAULT_NEW_PROGRAM_VALUES.package_type] });
   fillSelect(els.programForm.elements.server_tape, serverLocations, { placeholder: '', extraValues: CURATED_SOURCE_OPTIONS });
-  fillDatalist(document.getElementById('secondaryTopicList'), secondaryTopics);
+  state.topicAssignments = topicAssignments;
+  renderSecondaryTopicSuggestions();
   fillDatalist(document.getElementById('distributorList'), distributors);
   state.lookupsLoaded = true;
 }
@@ -324,6 +400,7 @@ function resetFormForNewEntry() {
   setFeedback(els.formFeedback, '', '');
   showSuccess('');
   applyDefaultValues();
+  renderSecondaryTopicSuggestions();
   state.pbsImportData = null;
   state.pbsImportPanelOpen = false;
   if (typeof resetPbsImportUi === 'function') resetPbsImportUi({ clearText: true });
@@ -476,6 +553,7 @@ function applyTemplateToForm(templateId) {
     form.elements[field].value = item[field] ?? '';
   });
   form.elements.secondary_topic.value = normalizeMultiValueInput(item.secondary_topic || '');
+  renderSecondaryTopicSuggestions();
   form.elements.legacy_code.value = '';
   form.elements.episode_season.value = '';
   form.elements.nola_eidr.value = '';
@@ -579,6 +657,13 @@ Save anyway?`);
     if (error) throw error;
     const programId = data?.id;
     state.lastSavedId = programId;
+    let topicNote = '';
+    try {
+      await persistSecondaryTopicAssociations(payload.topic, payload.secondary_topic);
+    } catch (topicError) {
+      console.warn('Program saved but Secondary Topic mapping could not be saved:', topicError);
+      topicNote = ' Secondary Topic suggestion could not be saved; program was saved.';
+    }
 
     let ratingNote = '';
     if (programId && selectedRating != null) {
@@ -595,7 +680,7 @@ Save anyway?`);
       }
     }
 
-    const successText = `Created <strong>${escapeHtml(payload.title)}</strong>.${ratingNote}`;
+    const successText = `Created <strong>${escapeHtml(payload.title)}</strong>.${ratingNote}${topicNote}`;
     showSuccess(`${successText} <a href="index.html" id="openLibraryAfterSave">Open library</a>`);
     setFeedback(els.formFeedback, `Created ${payload.title}.`, 'success');
     setStatus(`Created ${payload.title}.`);
@@ -646,6 +731,8 @@ function updateAuthUi() {
   renderEditorRatingControl();
   updateVoteVisibility();
   updatePbsImportVisibility();
+  const addSecondaryBtn = document.getElementById('addSecondaryTopicBtn');
+  if (addSecondaryBtn) addSecondaryBtn.disabled = !editing;
 }
 
 function bindDatePickers() {
@@ -697,6 +784,9 @@ function bindEvents() {
   });
 
   els.programForm?.addEventListener('submit', saveProgram);
+  els.programForm?.elements?.topic?.addEventListener('change', renderSecondaryTopicSuggestions);
+  els.programForm?.elements?.secondary_topic?.addEventListener('focus', renderSecondaryTopicSuggestions);
+  document.getElementById('addSecondaryTopicBtn')?.addEventListener('click', () => void addNewSecondaryTopic());
   els.programForm?.elements?.distributor?.addEventListener('input', updateVoteVisibility);
   els.programForm?.elements?.distributor?.addEventListener('change', updateVoteVisibility);
   els.programForm?.elements?.title?.addEventListener('input', scheduleDuplicateCheck);
