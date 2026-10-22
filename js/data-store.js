@@ -368,18 +368,43 @@ async function loadLookupTable(tableName) {
   return data || [];
 }
 
+async function loadSecondaryTopicAssignments() {
+  const { data, error } = await state.supabase
+    .from('secondary_topic_assignments')
+    .select('main_topic,secondary_topic')
+    .order('main_topic', { ascending: true })
+    .order('secondary_topic', { ascending: true });
+  if (error) {
+    console.warn('Secondary topic associations unavailable:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 async function loadLookups() {
-  const [topics, secondaryTopics, distributors, packageTypes, serverLocations, programTypes] = await Promise.all([
+  const [topics, secondaryTopics, distributors, packageTypes, serverLocations, programTypes, secondaryTopicAssignments] = await Promise.all([
     loadLookupTable('topics'),
     loadLookupTable('secondary_topics'),
     loadLookupTable('distributors'),
     loadLookupTable('package_types'),
     loadLookupTable('server_locations'),
-    loadLookupTable('program_types')
+    loadLookupTable('program_types'),
+    loadSecondaryTopicAssignments()
   ]);
 
   state.lookups.topics = topics.length ? topics : uniqueLookupFromPrograms('topic').map((name, index) => ({ name, color_hex: '#b8c7ff', sort_order: index + 1 }));
-  state.lookups.secondary_topics = secondaryTopics.length ? secondaryTopics : uniqueLookupFromPrograms('secondary_topic').map((name, index) => ({ name, sort_order: index + 1 }));
+  state.lookups.secondary_topic_assignments = secondaryTopicAssignments;
+  // Merge persisted associations with the existing global lookup list. A newly
+  // added secondary topic remains visible after reload even before a program uses it.
+  const secondaryOptions = secondaryTopics.length ? [...secondaryTopics] :
+    uniqueLookupFromPrograms('secondary_topic').map((name, index) => ({ name, sort_order: index + 1 }));
+  const knownNames = new Set(secondaryOptions.map((item) => normalizeLower(item.name)));
+  secondaryTopicAssignments.forEach(({ secondary_topic: name }) => {
+    if (!name || knownNames.has(normalizeLower(name))) return;
+    knownNames.add(normalizeLower(name));
+    secondaryOptions.push({ name, sort_order: secondaryOptions.length + 1 });
+  });
+  state.lookups.secondary_topics = secondaryOptions;
   state.lookups.distributors = distributors.length ? distributors : uniqueLookupFromPrograms('distributor').map((name, index) => ({ name, sort_order: index + 1 }));
   state.lookups.package_types = packageTypes.length ? packageTypes : uniqueLookupFromPrograms('package_type').map((name, index) => ({ name, sort_order: index + 1 }));
   state.lookups.server_locations = serverLocations.length ? serverLocations : uniqueLookupFromPrograms('server_tape').map((name, index) => ({ name, sort_order: index + 1 }));
