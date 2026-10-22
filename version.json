@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.142",
-  "requiredAppVersion": "v1.5.142",
-  "publishedVersion": "v1.5.142",
-  "appVersion": "v1.5.142",
-  "version": "v1.5.142",
-  "legacyCompatibilityVersion": "v1.5.142",
+  "currentAppVersion": "v1.5.143",
+  "requiredAppVersion": "v1.5.143",
+  "publishedVersion": "v1.5.143",
+  "appVersion": "v1.5.143",
+  "version": "v1.5.143",
+  "legacyCompatibilityVersion": "v1.5.143",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.142 completes program editor topic association persistence and Add New controls in both editors, repairs Monthly Media date editing and validation, and shares the 30-minute reminder snooze across tabs and reloads.",
+  "notes": "v1.5.143: persistent Main Topic to Secondary Topic suggestions and Add New control in both program editors; protected date formatting and validation in Monthly Media; 30-minute reminder snooze across tabs and reloads; regression validation.",
   "updated": "2026-10-22"
 }
