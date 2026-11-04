@@ -63,6 +63,7 @@
     function invalidate() {
       revision += 1;
       window.clearTimeout(debounceTimer);
+      inFlightKey = '';
       closeDialog();
     }
 
