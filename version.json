@@ -1,14 +1,14 @@
 {
-  "currentAppVersion": "v1.5.143",
-  "requiredAppVersion": "v1.5.143",
-  "publishedVersion": "v1.5.143",
-  "appVersion": "v1.5.143",
-  "version": "v1.5.143",
-  "legacyCompatibilityVersion": "v1.5.143",
+  "currentAppVersion": "v1.5.144",
+  "requiredAppVersion": "v1.5.144",
+  "publishedVersion": "v1.5.144",
+  "appVersion": "v1.5.144",
+  "version": "v1.5.144",
+  "legacyCompatibilityVersion": "v1.5.144",
   "versionManifestSchema": 2,
   "enforceUpdates": true,
   "disableUpdateGate": false,
   "name": "WNMU Programming Library",
-  "notes": "v1.5.143: persistent Main Topic to Secondary Topic suggestions and Add New control in both program editors; protected date formatting and validation in Monthly Media; 30-minute reminder snooze across tabs and reloads; regression validation.",
-  "updated": "2026-10-22"
+  "notes": "v1.5.144: contextual filter choice counts in the Programming Library, including topic, secondary topic, length, uses, distributor, status, rating, and active/archive scope; updated new-program distributor suggestion caching and navigation links; synchronized version-check and asset cache references across Programming, Add New Program, and Monthly Media pages.",
+  "updated": "2026-11-18"
 }
